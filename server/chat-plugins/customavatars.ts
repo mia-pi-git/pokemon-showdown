@@ -19,7 +19,7 @@ export function downloadImage(image_url: string, name: string) {
 				let type = response.headers['content-type'].split('/');
 				if (type[0] !== 'image') return;
 				const stream = fs.createWriteStream(`${AVATAR_PATH}${name}.png`);
-        //no event listeners for ps streams so, normal fs has to be used.
+       		// no event listeners for ps streams so, normal fs has to be used.
 				response.pipe(stream);
 				stream.end();
 				stream.on('finish', () => { 
