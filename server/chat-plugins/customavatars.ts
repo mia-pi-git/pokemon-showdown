@@ -4,32 +4,28 @@ updated for side-server use by Mia-pi. */
 
 
 import {FS} from '../../lib/fs';
-import * as fs from 'fs'; 
+import * as fs from 'fs';
 import * as path from 'path';
 import * as https from 'https';
 
 const AVATAR_PATH = 'config/avatars/';
 
-const VALID_EXTENSIONS = ['.png'];
-
 export function downloadImage(image_url: string, name: string) {
 	return new Promise((resolve, reject) => {
-		https.get(image_url, function(response: any) {
-				if (response.statusCode !== 200) return;
-				let type = response.headers['content-type'].split('/');
-				if (type[0] !== 'image') return;
-				const stream = fs.createWriteStream(`${AVATAR_PATH}${name}.png`);
-       		// no event listeners for ps streams so, normal fs has to be used.
-				response.pipe(stream);
-				stream.end();
-				stream.on('finish', () => { 
-					resolve('true');
-				});	
-		 });
+		https.get(image_url, function (response: any) {
+			if (response.statusCode !== 200) return;
+			const type = response.headers['content-type'].split('/');
+			if (type[0] !== 'image') return;
+			const stream = fs.createWriteStream(`${AVATAR_PATH}${name}.png`);
+			response.pipe(stream);
+			stream.on('finish', () => {
+				resolve(`${AVATAR_PATH}${name}.png`);
+			});
+		});
 	});
 }
 
-export async function loadCustomAvatars() {
+export function loadCustomAvatars() {
 	const avatars: string[] = [];
 	try {
 		const files = FS(AVATAR_PATH).readdirSync();
@@ -65,10 +61,10 @@ export const commands: ChatCommands = {
 			if (!/^https?:\/\//i.test(avatarUrl)) avatarUrl = 'http://' + avatarUrl;
 			const ext = path.extname(avatarUrl);
 
-			if (!VALID_EXTENSIONS.includes(ext)) {
-				return this.errorReply("Image url must end in a .png extension.");
+			if (!'.png'.includes(ext)) {
+				return this.errorReply("Image url must be a .png extension.");
 			}
-			if (!avatarUrl.includes('https:') || avatarUrl.includes('http:')) { 
+			if (!avatarUrl.includes('https:') || avatarUrl.includes('http://')) {
 				return this.errorReply("Image url must be https.");
 			}
 
@@ -81,7 +77,7 @@ export const commands: ChatCommands = {
 			}
 			this.sendReply(`|raw|${name}${name.endsWith('s') ? "'" : "'s"} avatar was successfully set. Avatar:<br /><img src="${avatarUrl}" width="80" height="80">`);
 			Monitor.adminlog(`${name}'s avatar was successfully set by  ${user.name}.`);
-			const msg = `Upper staff have set your custom avatar.<br /><img src='${avatarUrl}' width='80' height='80'><br /> Refresh your page if you don't see it.`;
+			const msg = Chat.html `Upper staff have set your custom avatar.<br /><img src='${avatarUrl}' width='80' height='80'><br /> Refresh your page if you don't see it.`;
 			if (targetUser) targetUser.popup(`|html|${msg}`);
 		},
 
@@ -105,6 +101,7 @@ export const commands: ChatCommands = {
 		},
 
 		customavatarhelp: 'help',
+		'': 'help',
 		help(target, room, user) {
 			this.parse('/help customavatar');
 		},
