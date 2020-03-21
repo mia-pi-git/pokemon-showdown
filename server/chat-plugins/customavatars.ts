@@ -76,7 +76,7 @@ export const commands: ChatCommands = {
 				this.errorReply(`Error in downloading image: ${e}`);
 			}
 			this.sendReply(`|raw|${name}${name.endsWith('s') ? "'" : "'s"} avatar was successfully set. Avatar:<br /><img src="${avatarUrl}" width="80" height="80">`);
-			Monitor.adminlog(`${name}'s avatar was successfully set by  ${user.name}.`);
+			this.modlog('CUSTOMAVATAR SET', targetUser);
 			const msg = Chat.html `Upper staff have set your custom avatar.<br /><img src='${avatarUrl}' width='80' height='80'><br /> Refresh your page if you don't see it.`;
 			if (targetUser) targetUser.popup(`|html|${msg}`);
 		},
@@ -94,7 +94,7 @@ export const commands: ChatCommands = {
 				FS(AVATAR_PATH + image).unlinkIfExists();
 				if (targetUser) targetUser.popup("Upper staff have removed your custom avatar.");
 				this.sendReply(target + "'s avatar has been successfully removed.");
-				Monitor.adminlog(target + "'s avatar has been successfully removed.");
+				this.modlog('CUSTOMAVATAR REMOVE', targetUser);
 			} else {
 				this.errorReply("That custom avatar file does not exist - try again?");
 			}
