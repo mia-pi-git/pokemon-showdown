@@ -10,7 +10,7 @@ import * as https from 'https';
 
 const AVATAR_PATH = 'config/avatars/';
 
-export function downloadImage(image_url: string, name: string) {
+function downloadImage(image_url: string, name: string) {
 	return new Promise((resolve, reject) => {
 		https.get(image_url, function (response: any) {
 			if (response.statusCode !== 200) return;
@@ -25,7 +25,7 @@ export function downloadImage(image_url: string, name: string) {
 	});
 }
 
-export function loadCustomAvatars() {
+function loadCustomAvatars() {
 	const avatars: string[] = [];
 	try {
 		const files = FS(AVATAR_PATH).readdirSync();
