@@ -11,10 +11,10 @@
 
 'use strict';
 
-const net = require('net');
+import * as net from 'net';
 
 /** @type {ChatCommands} */
-const commands = {
+export const commands: ChatCommands = {
 
 	'!whois': true,
 	ip: 'whois',
@@ -24,7 +24,7 @@ const commands = {
 	whoare: 'whois',
 	whois(target, room, user, connection, cmd) {
 		if (room && room.roomid === 'staff' && !this.runBroadcast()) return;
-		if (!room) room = Rooms.global;
+		if (!room) room = Rooms.global as any;
 		let targetUser = this.targetUserOrSelf(target, user.group === ' ');
 		let showAll = (cmd === 'ip' || cmd === 'whoare' || cmd === 'alt' || cmd === 'alts');
 		if (!targetUser) {
@@ -62,9 +62,9 @@ const commands = {
 		let privaterooms = "";
 		for (const roomid of targetUser.inRooms) {
 			if (roomid === 'global') continue;
-			let targetRoom = Rooms.get(roomid);
+			let targetRoom = Rooms.get(roomid) as ChatRoom | GameRoom;
 
-			let authSymbol = (targetRoom.auth && targetRoom.auth[targetUser.id] ? targetRoom.auth[targetUser.id] : '');
+			let authSymbol = (targetRoom && targetRoom.auth && targetRoom.auth[targetUser.id] ? targetRoom.auth[targetUser.id] : '');
 			let battleTitle = (roomid.battle ? ` title="${roomid.title}"` : '');
 			let output = `${authSymbol}<a href="/${roomid}"${battleTitle}>${roomid}</a>`;
 			if (targetRoom.isPrivate === true) {
@@ -92,7 +92,7 @@ const commands = {
 		if (canViewAlts) {
 			let prevNames = Object.keys(targetUser.prevNames).map(userid => {
 				const punishment = Punishments.userids.get(userid);
-				return userid + (punishment ? ` (${Punishments.punishmentTypes.get(punishment[0]) || 'punished'}${punishment[1] !== targetUser.id ? ` as ${punishment[1]}` : ''})` : '');
+				return userid + (punishment ? ` (${Punishments.punishmentTypes.get(punishment[0]) || 'punished'}${punishment[1] !== targetUser?.id ? ` as ${punishment[1]}` : ''})` : '');
 			}).join(", ");
 			if (prevNames) buf += Chat.html`<br />Previous names: ${prevNames}`;
 
@@ -163,7 +163,7 @@ const commands = {
 				if (user.can('ip') && punishment) {
 					let [punishType, userid] = punishment;
 					let punishMsg = Punishments.punishmentTypes.get(punishType) || 'punished';
-					if (userid !== targetUser.id) punishMsg += ` as ${userid}`;
+					if (userid !== targetUser?.id) punishMsg += ` as ${userid}`;
 					status.push(punishMsg);
 				}
 				if (Punishments.sharedIps.has(ip)) {
@@ -217,7 +217,7 @@ const commands = {
 					const [punishType, punishUserid, expireTime, reason] = punishment;
 					let punishDesc = Punishments.roomPunishmentTypes.get(punishType);
 					if (!punishDesc) punishDesc = `punished`;
-					if (punishUserid !== targetUser.id) punishDesc += ` as ${punishUserid}`;
+					if (punishUserid !== targetUser?.id) punishDesc += ` as ${punishUserid}`;
 					let expiresIn = new Date(expireTime).getTime() - Date.now();
 					let expireString = Chat.toDurationString(expiresIn, {precision: 1});
 					punishDesc += ` for ${expireString}`;
@@ -517,15 +517,14 @@ const commands = {
 			if (newTarget.isInexact && !i) {
 				buffer = `No Pok\u00e9mon, item, move, ability or nature named '${target}' was found${Dex.gen > dex.gen ? ` in Gen ${dex.gen}` : ""}. Showing the data of '${newTargets[0].name}' instead.\n`;
 			}
-			/** @type {AnyObject} */
-			let details = null;
+			let details: AnyObject = null;
 			switch (newTarget.searchType) {
 			case 'nature':
 				let nature = Dex.getNature(newTarget.name);
 				buffer += "" + nature.name + " nature: ";
 				if (nature.plus) {
-					let statNames = {'atk': "Attack", 'def': "Defense", 'spa': "Special Attack", 'spd': "Special Defense", 'spe': "Speed"};
-					buffer += "+10% " + statNames[nature.plus] + ", -10% " + statNames[nature.minus] + ".";
+					let statNames: AnyObject = {'atk': "Attack", 'def': "Defense", 'spa': "Special Attack", 'spd': "Special Defense", 'spe': "Speed"};
+					buffer += "+10% " + statNames[nature.plus] + ", -10% " + statNames[nature?.minus] + ".";
 				} else {
 					buffer += "No effect.";
 				}
@@ -681,7 +680,8 @@ const commands = {
 							}
 						} else if (move.isZ) {
 							details["&#10003; Z-Move"] = "";
-							details["Z-Crystal"] = dex.getItem(move.isZ).name;
+							const isZ: any = move.isZ;
+							details["Z-Crystal"] = dex.getItem(isZ).name;
 							if (move.basePower !== 1) {
 								details["User"] = dex.getItem(move.isZ).itemUser.join(", ");
 								details["Required Move"] = dex.getItem(move.isZ).zMoveFrom;
