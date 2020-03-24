@@ -1,5 +1,3 @@
-import { Readable } from "stream";
-
 /**
  * Streams
  * Pokemon Showdown - http://pokemonshowdown.com/
