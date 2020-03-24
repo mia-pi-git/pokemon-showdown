@@ -119,6 +119,10 @@ export class ReadStream {
 		this.expandBuf(newCapacity);
 	}
 
+	on(event: string, callback: () => void): any {
+		return this.nodeReadableStream!.on(event, callback)
+	}
+
 	push(buf: Buffer | string | null, encoding: BufferEncoding = this.encoding) {
 		let size;
 		if (this.atEOF) return;
@@ -395,6 +399,10 @@ export class WriteStream {
 		return this.write(chunk + '\n');
 	}
 
+	on(event: string, callback: () => void): any {
+		return this.nodeWritableStream!.on(event, callback);
+	}
+
 	_write(chunk: Buffer | string): void | Promise<void> {
 		throw new Error(`WriteStream needs to be subclassed and the _write function needs to be implemented.`);
 	}
@@ -429,6 +437,10 @@ export class ReadWriteStream extends ReadStream implements WriteStream {
 
 	writeLine(chunk: string): Promise<void> | void {
 		return this.write(chunk + '\n');
+	}
+
+	on(event: string, callback: () => void) {
+		return this.nodeWritableStream!.on(event, callback);
 	}
 
 	_write(chunk: Buffer | string): Promise<void> | void {
@@ -561,6 +573,7 @@ export class ObjectReadStream<T> {
 	}
 
 	_destroy() {}
+
 	_pause() {}
 
 	async loadIntoBuffer(count: number | true = 1, readError?: boolean) {
@@ -732,7 +745,6 @@ export class ObjectReadWriteStream<T> extends ObjectReadStream<T> implements Obj
 	write(elem: T): void | Promise<void> {
 		return this._write(elem);
 	}
-
 	_write(elem: T): void | Promise<void> {
 		throw new Error(`WriteStream needs to be subclassed and the _write function needs to be implemented.`);
 	}
