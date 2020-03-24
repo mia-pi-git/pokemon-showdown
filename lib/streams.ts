@@ -1,3 +1,5 @@
+import { Readable } from "stream";
+
 /**
  * Streams
  * Pokemon Showdown - http://pokemonshowdown.com/
@@ -399,7 +401,7 @@ export class WriteStream {
 		return this.write(chunk + '\n');
 	}
 
-	on(event: string, callback: () => void): any {
+	on(event: string, callback: () => void) {
 		return this.nodeWritableStream!.on(event, callback);
 	}
 
