@@ -11,7 +11,7 @@ import * as https from 'https';
 const AVATAR_PATH = 'config/avatars/';
 
 function downloadImage(image_url: string, name: string) {
-	return new Promise((resolve, reject) => {	
+	return new Promise((resolve, reject) => {
 		https.get(image_url, function (response: any) {
 			if (response.statusCode !== 200) return reject();
 			const type = response.headers['content-type'].split('/');
@@ -78,8 +78,11 @@ export const commands: ChatCommands = {
 			}
 			this.sendReply(`|raw|${name}${name.endsWith('s') ? "'" : "'s"} avatar was successfully set. Avatar:<br /><img src="${avatarUrl}" width="80" height="80">`);
 			this.modlog('CUSTOMAVATAR SET', targetUser);
-			const msg = Chat.html `Upper staff have set your custom avatar.<br /><img src='${avatarUrl}' width='80' height='80'><br /> Refresh your page if you don't see it.`;
-			if (targetUser) targetUser.popup(`|html|${msg}`);
+			if (targetUser) {
+				 targetUser.popup(
+					 Chat.html`|html|Upper staff have set your custom avatar.<br /><img src='${avatarUrl}' width='80' height='80'><br /> Refresh your page if you don't see it.`
+				);
+			}
 		},
 
 		remove(target, room, user, connection) {
@@ -111,5 +114,6 @@ export const commands: ChatCommands = {
 	customavatarhelp: [
 		"Commands for /customavatar are:",
 		"/customavatar add [username], [image link] - Set a user's custom avatar. Requires: & ~",
-		"/customavatar remove [username] - Delete a user's custom avatar. Requires: & ~"],
+		"/customavatar remove [username] - Delete a user's custom avatar. Requires: & ~",
+	],
 };
