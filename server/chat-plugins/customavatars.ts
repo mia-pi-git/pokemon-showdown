@@ -11,11 +11,12 @@ import * as https from 'https';
 const AVATAR_PATH = 'config/avatars/';
 
 function downloadImage(image_url: string, name: string) {
-	return new Promise((resolve, reject) => {
+	return new Promise((resolve, reject) => {	
 		https.get(image_url, function (response: any) {
-			if (response.statusCode !== 200) return;
+			if (response.statusCode !== 200) return reject();
 			const type = response.headers['content-type'].split('/');
-			if (type[0] !== 'image') return;
+			if (type[0] !== 'image') return reject();
+			// weird bug with PS's FS() that doesn't like this, so normal fs is required.
 			const stream = fs.createWriteStream(`${AVATAR_PATH}${name}.png`);
 			response.pipe(stream);
 			stream.on('finish', () => {
@@ -71,7 +72,7 @@ export const commands: ChatCommands = {
 			Config.customavatars[name] = name + ext;
 
 			try {
-				downloadImage(avatarUrl, name);
+				void downloadImage(avatarUrl, name);
 			} catch (e) {
 				this.errorReply(`Error in downloading image: ${e}`);
 			}
@@ -91,7 +92,7 @@ export const commands: ChatCommands = {
 
 			if (FS(AVATAR_PATH + image).existsSync()) {
 				delete Config.customavatars[userid];
-				FS(AVATAR_PATH + image).unlinkIfExists();
+				void FS(AVATAR_PATH + image).unlinkIfExists();
 				if (targetUser) targetUser.popup("Upper staff have removed your custom avatar.");
 				this.sendReply(target + "'s avatar has been successfully removed.");
 				this.modlog('CUSTOMAVATAR REMOVE', targetUser);
