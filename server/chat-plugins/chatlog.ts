@@ -384,7 +384,7 @@ export const commands: ChatCommands = {
 	  }
 	},
 	chatloghelp: [
-		`/chatlog [search], [date] - returns logs of the room you are in.`,
+		`/chatlog [search], [date] - returns logs of the room you are in. Requires: % @ # & ~`,
 		`if a [search] is given, returns logs matching the [search] (runs search on [date] if provided.)`,
 	],
 };
