@@ -135,17 +135,14 @@ const LogViewer = new class {
 			`<a roomid="view-chatlog">◂ All logs</a> / ` +
 			`<a roomid="view-chatlog-${roomid}">${roomid}</a> /  ` +
 			`<a roomid="view-chatlog-${roomid}--${month}">${month}</a> / ` +
-			`<strong>${day}</strong></p>`;
-		if (opts?.includes('search-')) {
-			 buf += `<strong>Search query: "${opts.slice(7)}"</strong><hr />`;
-		} else {
-			buf += `<hr />`;
-		}
+			`<strong>${day}</strong></p><hr />`;
+
 		const roomLog = await LogReader.get(roomid);
 		if (!roomLog) {
 			buf += `<p class="message-error">Room "${roomid}" doesn't exist</p></div>`;
 			return this.linkify(buf);
 		}
+
 		const prevDay = LogReader.prevDay(day);
 		buf += `<p><a roomid="view-chatlog-${roomid}--${prevDay}" class="blocklink" style="text-align:center">▲<br />${prevDay}</a></p>` +
 			`<div class="message-log" style="overflow-wrap: break-word">`;
@@ -169,6 +166,45 @@ const LogViewer = new class {
 		buf += `</div>`;
 		return this.linkify(buf);
 	}
+
+	async search(roomid: RoomID, month: string, search: string) {
+		if (month.length < 7) month = month.slice(0, -3);
+		const files = await FS(`logs/chat/${roomid}/${month}`).readdir();
+		let buf = `<div class="pad"<strong>Results for search query: "${search}" on ${roomid}: </strong><hr>`;
+		let matches;
+		for (let day of files) {
+			matches = this.searchDay(roomid, day, search);
+			day = day.slice(0, -3);
+			buf += `<strong>Matches on ${day}: (${matches.length})</strong><br><hr>`;
+			buf += matches.join('<hr>');
+			buf += `<br><br><hr>`;
+		}
+		buf += `</div>`;
+		return buf;
+	}
+
+	searchDay(roomid: RoomID, day: string, search: string) {
+		const month = day.slice(0, -7);
+		const text = FS(`logs/chat/${roomid}/${month}/${day}`).readSync();
+		const lines = text.split('\n');
+		const matches: string[] = [];
+		for (const line of lines) {
+			if (line.includes(search)) {
+				const lineNum: number = lines.indexOf(line);
+				const up = this.renderLine(`${lines[lineNum + 1]}`);
+				const upTwo = this.renderLine(`${lines[lineNum + 2]}`);
+				const down = this.renderLine(`${lines[lineNum - 1]}`);
+				const downTwo = this.renderLine(`${lines[lineNum - 2]}`);
+				matches.push(
+					`${down ? down : ''} ${downTwo ? downTwo : ''}` +
+					`<div class="chat chatmessage highlighted">${this.renderLine(line)}</div>` +
+					`${up ? up : ''} ${upTwo ? upTwo : ''}`
+				);
+			}
+		}
+		return matches;
+	}
+
 	renderLine(fullLine: string, opts?: string) {
 		let timestamp = fullLine.slice(0, opts ? 8 : 5);
 		let line;
@@ -181,10 +217,6 @@ const LogViewer = new class {
 		if (opts !== 'all' && (
 			line.startsWith(`userstats|`) ||
 			line.startsWith('J|') || line.startsWith('L|') || line.startsWith('N|')
-		)) return ``;
-
-		if (opts?.includes('search-') && (
-			!line.includes(opts.slice(7))
 		)) return ``;
 
 		const cmd = line.slice(0, line.indexOf('|'));
@@ -360,31 +392,38 @@ export const pages: PageTable = {
 		}
 
 		void accessLog.writeLine(`${user.id}: <${roomid}> ${date}`);
-
 		this.title = '[Logs] ' + roomid;
 		if (date && date.length === 10 || date === 'today') {
 			return LogViewer.day(roomid, date, opts);
 		}
-		if (date) {
+		if (date && !opts?.includes('search-')) {
 			return LogViewer.month(roomid, date);
+		} else if (opts?.includes('search-') && date) {
+			if (date === 'today') {
+				const today = Chat.toTimestamp(new Date()).split(' ')[0].slice(0, -3);
+				return LogViewer.search(roomid, today, opts.slice(7));
+			} else {
+				return LogViewer.search(roomid, date, opts.slice(7));
+			}
+		} else {
+			return LogViewer.room(roomid);
 		}
-		return LogViewer.room(roomid);
 	},
 };
 
 export const commands: ChatCommands = {
 	chatlog(target, room, user) {
-		const [search, date] = target.split(',');
-		if (!date && search) {
-			this.parse(`/join view-chatlog-${room.roomid}--today--search-${target}`);
-		} else if (search && date) {
-			this.parse(`/join view-chatlog-${room.roomid}--${date}--search-${search}`);
-		} else {
-			this.parse(`/join view-chatlog-${room.roomid}--today`);
-	  }
+		return this.parse(`/join view-chatlog--${room.roomid}--today`);
 	},
-	chatloghelp: [
-		`/chatlog [search], [date] - returns logs of the room you are in. Requires: % @ # & ~`,
-		`if a [search] is given, returns logs matching the [search] (runs search on [date] if provided.)`,
-	],
+
+	searchlogs(target, room, user) {
+		target = target.trim();
+		const [search, date] = target.split(',');
+		if (!target) return this.parse('/help searchlogs');
+		if (!search) return this.errorReply('Specify a query to search the logs for.');
+		const currentMonth = Chat.toTimestamp(new Date()).split(' ')[0].slice(0, -3);
+		return this.parse(`/join view-chatlog--${room.roomid}--${date ? date : currentMonth}--${search}`);
+	},
+
+	searchlogshelp: ["/searchlogs [search], [month] - searches [month]'s logs for [search]. Requires: % @ & ~"],
 };
