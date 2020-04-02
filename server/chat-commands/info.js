@@ -485,7 +485,7 @@ const commands = {
 		let targetNum = parseInt(target);
 		if (!isNaN(targetNum) && '' + targetNum === target) {
 			for (let p in Dex.data.Pokedex) {
-				let pokemon = Dex.getTemplate(p);
+				let pokemon = Dex.getSpecies(p);
 				if (pokemon.num === targetNum) {
 					target = pokemon.species;
 					break;
@@ -531,9 +531,9 @@ const commands = {
 				}
 				return this.sendReply(buffer);
 			case 'pokemon':
-				let pokemon = dex.getTemplate(newTarget.name);
-				if (format && format.onModifyTemplate) {
-					pokemon = format.onModifyTemplate.call({dex}, pokemon) || pokemon;
+				let pokemon = dex.getSpecies(newTarget.name);
+				if (format && format.onModifySpecies) {
+					pokemon = format.onModifySpecies.call({dex}, pokemon) || pokemon;
 				}
 				let tier = pokemon.tier;
 				if (room && (room.roomid === 'smogondoubles' ||
@@ -565,7 +565,7 @@ const commands = {
 					if (pokemon.eggGroups && dex.gen >= 2) details["Egg Group(s)"] = pokemon.eggGroups.join(", ");
 					let evos = /** @type {string[]} */ ([]);
 					for (const evoName of pokemon.evos) {
-						const evo = dex.getTemplate(evoName);
+						const evo = dex.getSpecies(evoName);
 						if (evo.gen <= dex.gen) {
 							let condition = evo.evoCondition ? ` ${evo.evoCondition}` : ``;
 							switch (evo.evoType) {
@@ -781,13 +781,13 @@ const commands = {
 		}
 		let targets = target.split(/ ?[,/] ?/);
 		/** @type {{types: string[], [k: string]: any}} */
-		let pokemon = mod.getTemplate(targets[0]);
+		let species = mod.getSpecies(targets[0]);
 		let type1 = mod.getType(targets[0]);
 		let type2 = mod.getType(targets[1]);
 		let type3 = mod.getType(targets[2]);
 
-		if (pokemon.exists) {
-			target = pokemon.species;
+		if (species.exists) {
+			target = species.species;
 		} else {
 			let types = [];
 			if (type1.exists) {
@@ -801,9 +801,9 @@ const commands = {
 			}
 
 			if (types.length === 0) {
-				return this.sendReplyBox(Chat.html`${target} isn't a recognized type or pokemon${Dex.gen > mod.gen ? ` in Gen ${mod.gen}` : ""}.`);
+				return this.sendReplyBox(Chat.html`${target} isn't a recognized type or Pokemon${Dex.gen > mod.gen ? ` in Gen ${mod.gen}` : ""}.`);
 			}
-			pokemon = {types: types};
+			species = {types: types};
 			target = types.join("/");
 		}
 
@@ -811,9 +811,9 @@ const commands = {
 		let resistances = [];
 		let immunities = [];
 		for (let type in mod.data.TypeChart) {
-			let notImmune = mod.getImmunity(type, pokemon);
+			const notImmune = mod.getImmunity(type, species);
 			if (notImmune) {
-				let typeMod = mod.getEffectiveness(type, pokemon);
+				const typeMod = mod.getEffectiveness(type, species);
 				switch (typeMod) {
 				case 1:
 					weaknesses.push(type);
@@ -840,7 +840,7 @@ const commands = {
 		}
 
 		let buffer = [];
-		buffer.push(pokemon.exists ? "" + target + ' (ignoring abilities):' : '' + target + ':');
+		buffer.push(species.exists ? "" + species.name + ' (ignoring abilities):' : '' + target + ':');
 		buffer.push('<span class="message-effect-weak">Weaknesses</span>: ' + (weaknesses.join(', ') || '<font color=#999999>None</font>'));
 		buffer.push('<span class="message-effect-resist">Resistances</span>: ' + (resistances.join(', ') || '<font color=#999999>None</font>'));
 		buffer.push('<span class="message-effect-immune">Immunities</span>: ' + (immunities.join(', ') || '<font color=#999999>None</font>'));
@@ -861,9 +861,9 @@ const commands = {
 		let targets = target.split(/[,/]/).slice(0, 2);
 		if (targets.length !== 2) return this.errorReply("Attacker and defender must be separated with a comma.");
 
-		let searchMethods = ['getType', 'getMove', 'getTemplate'];
+		let searchMethods = ['getType', 'getMove', 'getSpecies'];
 		let sourceMethods = ['getType', 'getMove'];
-		let targetMethods = ['getType', 'getTemplate'];
+		let targetMethods = ['getType', 'getSpecies'];
 		let source, defender, foundData, atkName, defName;
 
 		for (let i = 0; i < 2; ++i) {
@@ -1272,7 +1272,7 @@ const commands = {
 			}
 
 			if (!pokemon) {
-				let testPoke = Dex.getTemplate(arg);
+				let testPoke = Dex.getSpecies(arg);
 				if (testPoke.exists) {
 					pokemon = testPoke.baseStats;
 					baseSet = true;
@@ -1857,10 +1857,10 @@ const commands = {
 		const processManagers = require(/** @type {any} */('../../.lib-dist/process-manager')).processManagers;
 		for (const manager of processManagers) {
 			for (const [i, process] of manager.processes.entries()) {
-				buf += `<strong>${process.process.pid}</strong> - ${manager.basename} ${i} (load ${process.load})<br />`;
+				buf += `<strong>${process.process.pid}</strong> - ${manager.basespecies} ${i} (load ${process.load})<br />`;
 			}
 			for (const [i, process] of manager.releasingProcesses.entries()) {
-				buf += `<strong>${process.process.pid}</strong> - PENDING RELEASE ${manager.basename} ${i} (load ${process.load})<br />`;
+				buf += `<strong>${process.process.pid}</strong> - PENDING RELEASE ${manager.basespecies} ${i} (load ${process.load})<br />`;
 			}
 		}
 
@@ -1961,7 +1961,7 @@ const commands = {
 		if (!this.runBroadcast()) return;
 
 		let targets = target.split(',');
-		let pokemon = Dex.getTemplate(targets[0]);
+		let pokemon = Dex.getSpecies(targets[0]);
 		let item = Dex.getItem(targets[0]);
 		let move = Dex.getMove(targets[0]);
 		let ability = Dex.getAbility(targets[0]);
@@ -2006,7 +2006,7 @@ const commands = {
 			}
 
 			if ((pokemon.battleOnly && pokemon.baseSpecies !== 'Greninja') || ['Keldeo', 'Genesect'].includes(pokemon.baseSpecies)) {
-				pokemon = Dex.getTemplate(pokemon.inheritsFrom || pokemon.baseSpecies);
+				pokemon = Dex.getSpecies(pokemon.inheritsFrom || pokemon.baseSpecies);
 			}
 
 			let formatName = extraFormat.name;
@@ -2043,21 +2043,21 @@ const commands = {
 				german: 'de',
 				portuguese: 'pt',
 			};
-			let speciesid = pokemon.speciesid;
+			let id = pokemon.id;
 			// Special case for Meowstic-M
-			if (speciesid === 'meowstic') speciesid = 'meowsticm';
+			if (id === 'meowstic') id = 'meowsticm';
 			if (['ou', 'uu'].includes(formatId) && generation === 'sm' && room && room.language in supportedLanguages) {
 				// Limited support for translated analysis
-				// Translated analysis do not support automatic redirects from a speciesid to the proper page
-				this.sendReplyBox(Chat.html`<a href="https://www.smogon.com/dex/${generation}/pokemon/${speciesid}/${formatId}/?lang=${supportedLanguages[room.language]}">${generation.toUpperCase()} ${formatName} ${pokemon.name} analysis</a>, brought to you by <a href="https://www.smogon.com">Smogon University</a>`);
+				// Translated analysis do not support automatic redirects from a id to the proper page
+				this.sendReplyBox(Chat.html`<a href="https://www.smogon.com/dex/${generation}/pokemon/${id}/${formatId}/?lang=${supportedLanguages[room.language]}">${generation.toUpperCase()} ${formatName} ${pokemon.name} analysis</a>, brought to you by <a href="https://www.smogon.com">Smogon University</a>`);
 			} else if (['ou', 'uu'].includes(formatId) && generation === 'sm') {
 				this.sendReplyBox(
-					Chat.html`<a href="https://www.smogon.com/dex/${generation}/pokemon/${speciesid}/${formatId}">${generation.toUpperCase()} ${formatName} ${pokemon.name} analysis</a>, brought to you by <a href="https://www.smogon.com">Smogon University</a><br />` +
-					`Other languages: <a href="https://www.smogon.com/dex/${generation}/pokemon/${speciesid}/${formatId}/?lang=es">Español</a>, <a href="https://www.smogon.com/dex/${generation}/pokemon/${speciesid}/${formatId}/?lang=fr">Français</a>, <a href="https://www.smogon.com/dex/${generation}/pokemon/${speciesid}/${formatId}/?lang=it">Italiano</a>, ` +
-					`<a href="https://www.smogon.com/dex/${generation}/pokemon/${speciesid}/${formatId}/?lang=de">Deutsch</a>, <a href="https://www.smogon.com/dex/${generation}/pokemon/${speciesid}/${formatId}/?lang=pt">Português</a>`
+					Chat.html`<a href="https://www.smogon.com/dex/${generation}/pokemon/${id}/${formatId}">${generation.toUpperCase()} ${formatName} ${pokemon.name} analysis</a>, brought to you by <a href="https://www.smogon.com">Smogon University</a><br />` +
+					`Other languages: <a href="https://www.smogon.com/dex/${generation}/pokemon/${id}/${formatId}/?lang=es">Español</a>, <a href="https://www.smogon.com/dex/${generation}/pokemon/${id}/${formatId}/?lang=fr">Français</a>, <a href="https://www.smogon.com/dex/${generation}/pokemon/${id}/${formatId}/?lang=it">Italiano</a>, ` +
+					`<a href="https://www.smogon.com/dex/${generation}/pokemon/${id}/${formatId}/?lang=de">Deutsch</a>, <a href="https://www.smogon.com/dex/${generation}/pokemon/${id}/${formatId}/?lang=pt">Português</a>`
 				);
 			} else {
-				this.sendReplyBox(Chat.html`<a href="https://www.smogon.com/dex/${generation}/pokemon/${speciesid}${(formatId ? '/' + formatId : '')}">${generation.toUpperCase()} ${formatName} ${pokemon.name} analysis</a>, brought to you by <a href="https://www.smogon.com">Smogon University</a>`);
+				this.sendReplyBox(Chat.html`<a href="https://www.smogon.com/dex/${generation}/pokemon/${id}${(formatId ? '/' + formatId : '')}">${generation.toUpperCase()} ${formatName} ${pokemon.name} analysis</a>, brought to you by <a href="https://www.smogon.com">Smogon University</a>`);
 			}
 		}
 
@@ -2126,7 +2126,7 @@ const commands = {
 
 		let baseLink = 'http://veekun.com/dex/';
 
-		let pokemon = Dex.getTemplate(target);
+		let pokemon = Dex.getSpecies(target);
 		let item = Dex.getItem(target);
 		let move = Dex.getMove(target);
 		let ability = Dex.getAbility(target);
@@ -2144,8 +2144,8 @@ const commands = {
 			// Showdown and Veekun have different names for various formes
 			if (baseSpecies === 'Meowstic' && forme === 'F') forme = 'Female';
 			if (baseSpecies === 'Zygarde' && forme === '10%') forme = '10';
-			if (baseSpecies === 'Necrozma' && !Dex.getTemplate(baseSpecies + forme).battleOnly) forme = forme.substr(0, 4);
-			if (baseSpecies === 'Pikachu' && Dex.getTemplate(baseSpecies + forme).gen === 7) forme += '-Cap';
+			if (baseSpecies === 'Necrozma' && !Dex.getSpecies(baseSpecies + forme).battleOnly) forme = forme.substr(0, 4);
+			if (baseSpecies === 'Pikachu' && Dex.getSpecies(baseSpecies + forme).gen === 7) forme += '-Cap';
 			if (forme.endsWith('Totem')) {
 				if (baseSpecies === 'Raticate') forme = 'Totem-Alola';
 				if (baseSpecies === 'Marowak') forme = 'Totem';

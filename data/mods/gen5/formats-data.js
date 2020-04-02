@@ -1,6 +1,6 @@
 'use strict';
 
-/**@type {{[k: string]: ModdedTemplateFormatsData}} */
+/**@type {{[k: string]: ModdedSpeciesFormatsData}} */
 let BattleFormatsData = {
 	bulbasaur: {
 		maleOnlyHidden: true,
@@ -1161,7 +1161,7 @@ let BattleFormatsData = {
 	},
 	combusken: {
 		maleOnlyHidden: true,
-		tier: "(NU)",
+		tier: "NFE",
 		doublesTier: "DUU",
 	},
 	blaziken: {
@@ -1329,7 +1329,7 @@ let BattleFormatsData = {
 		tier: "LC",
 	},
 	hariyama: {
-		randomBattleMoves: ["bulletpunch", "closecombat", "facade", "fakeout", "icepunch", "stoneedge"],
+		randomBattleMoves: ["bulletpunch", "closecombat", "facade", "fakeout", "stoneedge"],
 		tier: "RU",
 		doublesTier: "DUU",
 	},

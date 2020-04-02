@@ -145,7 +145,7 @@ export class Side {
 			switch (action.choice) {
 			case 'move':
 				let details = ``;
-				if (action.targetLoc && this.active.length > 1) details += ` ${action.targetLoc}`;
+				if (action.targetLoc && this.active.length > 1) details += ` ${action.targetLoc > 0 ? '+' : ''}${action.targetLoc}`;
 				if (action.mega) details += (action.pokemon!.item === 'ultranecroziumz' ? ` ultra` : ` mega`);
 				if (action.zmove) details += ` zmove`;
 				if (action.maxMove) details += ` dynamax`;
@@ -586,7 +586,7 @@ export class Side {
 			// maybe it's a name/species id!
 			slot = -1;
 			for (const [i, mon] of this.pokemon.entries()) {
-				if (slotText!.toLowerCase() === mon.name.toLowerCase() || toID(slotText) === mon.speciesid) {
+				if (slotText!.toLowerCase() === mon.name.toLowerCase() || toID(slotText) === mon.id) {
 					slot = i;
 					break;
 				}

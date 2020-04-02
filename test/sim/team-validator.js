@@ -263,6 +263,14 @@ describe('Team Validator', function () {
 		illegal = TeamValidator.get('gen1outradeback').validateTeam(team);
 		assert(illegal);
 
+		// tradeback: gen 2 event move from prevo with gen 1 tutor or TM moves
+		team = [
+			{species: 'pikachu', moves: ['sing', 'surf']},
+			{species: 'clefairy', moves: ['dizzypunch', 'bodyslam']},
+		];
+		illegal = TeamValidator.get('gen2ou').validateTeam(team);
+		assert.equal(illegal, null);
+
 		// can't tradeback: gen 2 egg move
 		team = [
 			{species: 'marowak', moves: ['swordsdance', 'ancientpower', 'bodyslam']},
@@ -336,6 +344,14 @@ describe('Team Validator', function () {
 		assert(illegal);
 	});
 
+	it('should require Hidden Ability status to match event moves', function () {
+		let team = [
+			{species: 'raichu', ability: 'lightningrod', moves: ['extremespeed'], evs: {hp: 1}},
+		];
+		let illegal = TeamValidator.get('gen7anythinggoes').validateTeam(team);
+		assert(illegal);
+	});
+
 	it('should accept VC moves only with Hidden ability and correct IVs', function () {
 		let team = [
 			{species: 'machamp', ability: 'steadfast', moves: ['fissure'], evs: {hp: 1}},
@@ -349,6 +365,7 @@ describe('Team Validator', function () {
 		assert.equal(illegal, null);
 		team = [
 			{species: 'tauros', ability: 'intimidate', ivs: {hp: 31, atk: 31, def: 30, spa: 30, spd: 30, spe: 30}, moves: ['bodyslam'], evs: {hp: 1}},
+			{species: 'suicune', ability: 'innerfocus', moves: ['scald'], evs: {hp: 1}},
 		];
 		illegal = TeamValidator.get('gen7anythinggoes').validateTeam(team);
 		assert.equal(illegal, null);
@@ -421,10 +438,18 @@ describe('Team Validator', function () {
 
 	it('should reject Ultra Necrozma where ambiguous', function () {
 		let team = [
-			{species: 'necrozmaultra', ability: 'neuroforce', moves: ['confusion']},
+			{species: 'necrozmaultra', ability: 'neuroforce', moves: ['confusion'], evs: {hp: 1}},
 		];
 		let illegal = TeamValidator.get('gen7ubers').validateTeam(team);
 		assert(illegal);
+	});
+
+	it('should handle Dream World moves', function () {
+		let team = [
+			{species: 'garchomp', ability: 'roughskin', moves: ['endure'], evs: {hp: 1}},
+		];
+		let illegal = TeamValidator.get('gen5ou').validateTeam(team);
+		assert.equal(illegal, null);
 	});
 
 	it('should reject newer Pokemon in older gens', function () {
