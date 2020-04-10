@@ -1,20 +1,16 @@
-'use strict';
-
-/** @type {typeof import('../../lib/fs').FS} */
-const FS = require(/** @type {any} */('../../.lib-dist/fs')).FS;
+import {FS} from '../../lib/fs';
 
 const MINUTE = 60 * 1000;
 const PRENOM_BUMP_TIME = 2 * 60 * MINUTE;
 const ROOMIDS = ['thestudio', 'jubilifetvfilms', 'youtube', 'thelibrary', 'prowrestling', 'animeandmanga', 'sports'];
 
-/** @type {{[k: string]: ChatRoom}} */
-const rooms = {};
+const rooms: {[k: string]: ChatRoom} = {};
 
-/** @type {Map<string, OtdHandler>} */
-const otds = new Map();
+
+const otds: Map<string, OtdHandler> = new Map();
 
 for (const roomid of ROOMIDS) {
-	rooms[roomid] = /** @type {ChatRoom} */ (Rooms.get(roomid));
+	rooms[roomid] = Rooms.get(roomid) as ChatRoom;
 }
 
 const AOTDS_FILE = 'config/chat-plugins/thestudio.tsv';
@@ -27,10 +23,9 @@ const ANOTDS_FILE = 'config/chat-plugins/animeandmanga-shows.tsv';
 const athotdS_FILE = 'config/chat-plugins/sports-athletes.tsv';
 const PRENOMS_FILE = 'config/chat-plugins/otd-prenoms.json';
 
-/** @type {{[k: string]: [string, AnyObject][]}} */
-let prenoms = {};
+let prenoms: {[k: string]: [string, AnyObject][]} = {};
 try {
-	prenoms = require(`../../${PRENOMS_FILE}`);
+	prenoms = JSON.parse(FS(PRENOMS_FILE).readIfExistsSync() || "{}");
 } catch (e) {
 	if (e.code !== 'MODULE_NOT_FOUND' && e.code !== 'ENOENT') throw e;
 }
@@ -41,36 +36,39 @@ function savePrenoms() {
 }
 
 /**
- * @param {string} nomination
- *
  * toID would return '' for foreign/sadistic nominations
  */
-function toNominationId(nomination) {
+function toNominationId(nomination: string) {
 	return nomination.toLowerCase().replace(/\s/g, '').replace(/\b&\b/g, '');
 }
 
 class OtdHandler {
-	/**
-	 * @param {string} id
-	 * @param {string} name
-	 * @param {ChatRoom} room
-	 * @param {string} filename
-	 * @param {string[]} keys
-	 * @param {string[]} keyLabels
-	 * @param {boolean} week
-	 */
-	constructor(id, name, room, filename, keys, keyLabels, week = false) {
+	id: string;
+	name: string;
+	room: Room;
+	filename: string;
+	file: any;
+	keys: string[];
+	keyLabels: string[];
+	week: boolean;
+	nominations: Map<string, AnyObject>;
+	removedNominations: Map<string, AnyObject>;
+	winners: AnyObject[];
+	voting: boolean;
+	timer: NodeJS.Timeout | null;
+	timeLabel: string;
+	lastPrenom: number;
+	constructor(id: string, name: string, room: Room, filename: string, keys: string[], keyLabels: string[], week = false) {
 		this.id = id;
 		this.name = name;
 		this.room = room;
 
-		/** @type {Map<string, AnyObject>} */
 		this.nominations = new Map(prenoms[id]);
 		this.removedNominations = new Map();
 
 		this.voting = false;
 		this.timer = null;
-
+		this.week = false;
 		this.file = FS(filename);
 
 		this.keys = keys;
@@ -78,17 +76,16 @@ class OtdHandler {
 		this.timeLabel = week ? 'Week' : 'Day';
 
 		this.lastPrenom = 0;
+		this.filename = '';
 
-		/** @type {AnyObject[]} */
 		this.winners = [];
 
-		this.file.read().then(content => {
+		this.file.read().then((content: string) => {
 			const data = ('' + content).split("\n");
 			for (const arg of data) {
 				if (!arg || arg === '\r') continue;
 				if (arg.startsWith(`${this.keyLabels[0]}\t`)) continue;
-				/** @type {AnyObject} */
-				const entry = {};
+				const entry: AnyObject = {};
 				let vals = arg.trim().split("\t");
 				for (let i = 0; i < vals.length; i++) {
 					entry[this.keys[i]] = vals[i];
@@ -96,7 +93,7 @@ class OtdHandler {
 				entry.time = Number(entry.time) || 0;
 				this.winners.push(entry);
 			}
-		}).catch(err => {
+		}).catch((err: {code: string}) => {
 			if (err.code !== 'ENOENT') throw err;
 		});
 	}
@@ -116,14 +113,11 @@ class OtdHandler {
 		if (this.timer) clearTimeout(this.timer);
 	}
 
-	/**
-	 * @param {User} user
-	 * @param {string} nomination
-	 */
-	addNomination(user, nomination) {
+
+	addNomination(user: User, nomination: string) {
 		const id = toNominationId(nomination);
 
-		if (this.winners.slice(this.room === rooms.jubilifetvfilms ? -15 : -30).some(entry => toNominationId(entry[this.keys[0]]) === id)) return user.sendTo(this.room, `This ${this.name.toLowerCase()} has already been ${this.id} in the past month.`);
+		if (this.winners.slice(this.room === rooms.jubilifetvfilms ? -15 : -30).some((entry: AnyObject) => toNominationId(entry[this.keys[0]]) === id)) return user.sendTo(this.room, `This ${this.name.toLowerCase()} has already been ${this.id} in the past month.`);
 
 		for (const value of this.removedNominations.values()) {
 			if (toID(user) in value.userids || user.latestIp in value.ips) return user.sendTo(this.room, `Since your nomination has been removed by staff, you cannot submit another ${this.name.toLowerCase()} until the next round.`);
@@ -150,8 +144,7 @@ class OtdHandler {
 			}
 		}
 
-		/** @type {{[k: string]: string}} */
-		let obj = {};
+		let obj: {[k: string]: string} = {};
 		obj[user.id] = user.name;
 
 		let nomObj = {nomination: nomination, name: user.name, userids: Object.assign(obj, user.prevNames), ips: Object.assign({}, user.ips)};
@@ -207,10 +200,7 @@ class OtdHandler {
 		this.room.add(`|uhtml${update ? 'change' : ''}|otd|${this.generateNomWindow()}`);
 	}
 
-	/**
-	 * @param {Connection} connection
-	 */
-	displayTo(connection) {
+	displayTo(connection: Connection) {
 		connection.sendTo(this.room, `|uhtml|otd|${this.generateNomWindow()}`);
 	}
 
@@ -238,10 +228,7 @@ class OtdHandler {
 		return true;
 	}
 
-	/**
-	 * @param {string} name
-	 */
-	removeNomination(name) {
+	removeNomination(name: string) {
 		name = toID(name);
 
 		let success = false;
@@ -264,31 +251,19 @@ class OtdHandler {
 		return success;
 	}
 
-	/**
-	 * @param {string} winner
-	 * @param {string} user
-	 */
-	forceWinner(winner, user) {
+	forceWinner(winner: string, user: User) {
 		this.appendWinner(winner, user);
 		this.finish();
 	}
 
-	/**
-	 * @param {string} nomination
-	 * @param {string} user
-	 */
-	appendWinner(nomination, user) {
-		/** @type {AnyObject} */
-		const entry = {time: Date.now(), nominator: user};
+	appendWinner(nomination: string, user: User) {
+		const entry: AnyObject = {time: Date.now(), nominator: user};
 		entry[this.keys[0]] = nomination;
 		this.winners.push(entry);
 		this.saveWinners();
 	}
 
-	/**
-	 * @param {{[k: string]: string}} properties
-	 */
-	setWinnerProperty(properties) {
+	setWinnerProperty(properties: {[k: string]: string}) {
 		if (!this.winners.length) return;
 		for (let i in properties) {
 			this.winners[this.winners.length - 1][i] = properties[i];
@@ -358,14 +333,12 @@ class OtdHandler {
 	/**
 	 * @param {PageContext} context
 	 */
-	generateWinnerList(context) {
+	generateWinnerList(context: PageContext) {
 		context.title = `${this.id.toUpperCase()} Winners`;
 		let buf = `<div class="pad ladder"><h2>${this.name} of the ${this.timeLabel} Winners</h2>`;
 
-		// Only use specific fields for displaying in winners list.
-		/** @type {string[]} */
-		const columns = [];
-		const labels = [];
+		const columns: string[] = [];
+		const labels: string[] = [];
 
 		for (let i = 0; i < this.keys.length; i++) {
 			if (i === 0 || ['song', 'event', 'time', 'link', 'tagline', 'sport', 'country'].includes(this.keys[i]) && !(this.keys[i] === 'link' && this.keys.includes('song'))) {
@@ -385,8 +358,7 @@ class OtdHandler {
 				case 'time':
 					let date = new Date(this.winners[i].time);
 
-					/** @param {number} num */
-					const pad = num => num < 10 ? '0' + num : num;
+					const pad = (num: number) => num < 10 ? '0' + num : num;
 
 					return Chat.html `${pad(date.getMonth() + 1)}-${pad(date.getDate())}-${date.getFullYear()}`;
 				case 'song':
@@ -424,18 +396,14 @@ otds.set('motw', new OtdHandler('motw', 'Match', rooms.prowrestling, MOTWS_FILE,
 otds.set('anotd', new OtdHandler('anotd', 'Animanga', rooms.animeandmanga, ANOTDS_FILE, ['show', 'nominator', 'link', 'tagline', 'image', 'time'], ['Show', 'Nominator', 'Link', 'Tagline', 'Image', 'Timestamp']));
 otds.set('athotd', new OtdHandler('athotd', 'Athlete', rooms.sports, athotdS_FILE, ['athlete', 'nominator', 'image', 'sport', 'team', 'country', 'age', 'quote', 'time'], ['Athlete', 'Nominator', 'Image', 'Sport', 'Team', 'Country', 'Age', 'Quote', 'Timestamp']));
 
-/**
- * @param {string} message
- */
-function selectHandler(message) {
+function selectHandler(message: string) {
 	let id = toID(message.substring(1).split(' ')[0]);
 	const handler = otds.get(id);
 	if (!handler) throw new Error("Invalid type for otd handler.");
 	return handler;
 }
 
-/** @type {ChatCommands} */
-let commands = {
+let commands: ChatCommands = {
 	start(target, room, user, connection, cmd) {
 		if (!this.canTalk()) return;
 
@@ -538,7 +506,7 @@ let commands = {
 
 		if (!toNominationId(target).length || target.length > 50) return this.sendReply(`'${target}' is not a valid ${handler.name.toLowerCase()} name.`);
 
-		handler.forceWinner(target, user.name);
+		handler.forceWinner(target, user);
 		this.privateModAction(`(${user.name} forcibly set the ${handler.name} of the ${handler.timeLabel} to ${target}.)`);
 		this.modlog(`${handler.id.toUpperCase()} FORCE`, user.name, target);
 		room.add(`The ${handler.name} of the ${handler.timeLabel} was forcibly set to '${target}'`);
@@ -573,8 +541,7 @@ let commands = {
 
 		let params = target.split(target.includes('|') ? '|' : ',').map(param => param.trim());
 
-		/** @type {{[k: string]: string}} */
-		let changelist = {};
+		let changelist: {[k: string]: string} = {};
 
 		for (const param of params) {
 			let [key, ...values] = param.split(':');
