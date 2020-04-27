@@ -859,7 +859,7 @@ export class CommandContext extends MessageContext {
 			// TODO: translate these messages. Currently there isn't much of a point since languages are room-dependent,
 			// and these PM-related messages aren't attached to any rooms. If we ever get to letting users set their
 			// own language these messages should also be translated. - Asheviere
-			if (targetUser) {
+if (targetUser) {
 				if (lockType && !targetUser.can('lock')) {
 					this.errorReply(`You are ${lockType} and can only private message members of the global moderation team. ${lockExpiration}`);
 					this.sendReply(`|html|<a href="view-help-request--appeal" class="button">Get help with this</a>`);
@@ -867,6 +867,11 @@ export class CommandContext extends MessageContext {
 				}
 				if (targetUser.locked && !user.can('lock')) {
 					this.errorReply(`The user "${targetUser.name}" is locked and cannot be PMed.`);
+					return null;
+				}
+				if (targetUser.pmBlacklist.includes(user.id) && !user.can('lock')) {
+					Chat.maybeNotifyBlocked('pm', targetUser, user);
+					this.errorReply(`This user is blocking private messages right now.`);
 					return null;
 				}
 				if (Config.pmmodchat && !user.authAtLeast(Config.pmmodchat) &&
@@ -879,7 +884,7 @@ export class CommandContext extends MessageContext {
 					(targetUser.blockPMs === true || !user.authAtLeast(targetUser.blockPMs)) &&
 					!user.can('lock')) {
 					Chat.maybeNotifyBlocked('pm', targetUser, user);
-					if (!targetUser.can('lock')) {
+					if (!targetUser.can('lock') ) {
 						this.errorReply(`This user is blocking private messages right now.`);
 						return null;
 					} else {
@@ -1904,13 +1909,19 @@ export const Chat = new class {
 	}
 
 	/**
-	 * Notifies a targetUser that a user was blocked from reaching them due to a setting they have enabled.
-	 */
+	* Notifies a targetUser that a user was blocked from reaching them due to a setting they have enabled.
+	*/
 	maybeNotifyBlocked(blocked: 'pm' | 'challenge', targetUser: User, user: User) {
 		const prefix = `|pm|~|${targetUser.getIdentity()}|/nonotify `;
 		const options = 'or change it in the <button name="openOptions" class="subtle">Options</button> menu in the upper right.';
 		if (blocked === 'pm') {
-			if (!targetUser.blockPMsNotified) {
+			if (!targetUser.blockPMsNotified && targetUser.blockPMs) {
+				targetUser.send(`${prefix}The user '${user.name}' attempted to PM you but was blocked. To enable PMs, use /unblockpms ${options}`);
+				targetUser.blockPMsNotified = true;
+			} else if (!targetUser.blockPMsNotified && targetUser.pmBlacklist.includes(user.id)) {
+				targetUser.send(`${prefix}The user '${user.name}' attempted to PM you but was blocked. To allow their pms, use /allowpms [user].`);
+				targetUser.blockPMsNotified = true;
+			} else {
 				targetUser.send(`${prefix}The user '${user.name}' attempted to PM you but was blocked. To enable PMs, use /unblockpms ${options}`);
 				targetUser.blockPMsNotified = true;
 			}
