@@ -378,6 +378,7 @@ export class User extends Chat.MessageContext {
 	isStaff: boolean;
 	blockChallenges: boolean;
 	blockPMs: boolean | string;
+	pmBlacklist: string[];
 	ignoreTickets: boolean;
 	lastDisconnected: number;
 	lastConnected: number;
@@ -452,6 +453,7 @@ export class User extends Chat.MessageContext {
 		this.isStaff = false;
 		this.blockChallenges = false;
 		this.blockPMs = false;
+		this.pmBlacklist = [];
 		this.ignoreTickets = false;
 		this.lastDisconnected = 0;
 		this.lastConnected = connection.connectedAt;
