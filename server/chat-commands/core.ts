@@ -649,6 +649,45 @@ export const commands: ChatCommands = {
 	},
 	unblockpmshelp: [`/unblockpms - Unblocks private messages. Block them with /blockpms.`],
 
+	pmbl: 'pmblacklist',
+	pmblacklist(target, room, user) {
+		if (!this.canTalk()) return false;
+		target = toID(target);
+		if (!target) return this.parse('/help pmblacklist');
+		if (user.pmBlacklist.includes(target)) {
+			return this.errorReply(`${target} is already in your blacklist.`);
+		}
+		user.pmBlacklist.push(target);
+		let buf = `Added ${target} to your pm blacklist.<br>`;
+		buf += `Current blacklist:<br><strong> - `;
+		buf += user.pmBlacklist.join('</strong><br> - <strong>');
+		return this.sendReplyBox(buf);
+	},
+	pmblacklisthelp: ['/pmblacklist OR /pmbl [user] - blocks a user from privately messaging you until removed.'],
+
+	allowpm(target, room, user) {
+		if (!this.canTalk()) return false;
+		target = toID(target);
+		if (!user.pmBlacklist.includes(target)) {
+			return this.errorReply(`${target} is not in your pm blacklist.`);
+		}
+		user.pmBlacklist = user.pmBlacklist
+			.map(item => item.toLowerCase().replace(/[^a-z0-9]+/g, '')) // sanitize
+			.filter(curUser => !(toID(curUser) === target));
+		let buf = `Removed ${target} from your pm blacklist.<br>`;
+		buf += `Current blacklist:<br><strong> - `;
+		buf += user.pmBlacklist.join('</strong><br> - <strong>');
+		return this.sendReplyBox(buf);
+	},
+	allowpmshelp: ['/allowpms [user] - allow the blocked user to pm you again.'],
+
+	viewpmblacklist(target, room, user) {
+		if (!this.canTalk()) return false;
+		let buf = `Current blacklist:<br><strong> - `;
+		buf += user.pmBlacklist.join('</strong><br> - <strong>');
+		return this.sendReplyBox(buf);
+	},
+
 	'!status': true,
 	status(target, room, user, connection, cmd) {
 		if (user.locked || user.semilocked) {
@@ -772,7 +811,7 @@ export const commands: ChatCommands = {
 	 * Battle management commands
 	 *********************************************************/
 
-	allowexportinputlog(/** @type {string} */ target, /** @type {Room?} */ room, /** @type {User} */ user) {
+	allowexportinputlog(target, room, user) {
 		const battle = room.battle;
 		if (!battle) {
 			return this.errorReply(`Must be in a battle.`);
