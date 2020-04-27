@@ -859,7 +859,7 @@ export class CommandContext extends MessageContext {
 			// TODO: translate these messages. Currently there isn't much of a point since languages are room-dependent,
 			// and these PM-related messages aren't attached to any rooms. If we ever get to letting users set their
 			// own language these messages should also be translated. - Asheviere
-if (targetUser) {
+			if (targetUser) {
 				if (lockType && !targetUser.can('lock')) {
 					this.errorReply(`You are ${lockType} and can only private message members of the global moderation team. ${lockExpiration}`);
 					this.sendReply(`|html|<a href="view-help-request--appeal" class="button">Get help with this</a>`);
@@ -884,7 +884,7 @@ if (targetUser) {
 					(targetUser.blockPMs === true || !user.authAtLeast(targetUser.blockPMs)) &&
 					!user.can('lock')) {
 					Chat.maybeNotifyBlocked('pm', targetUser, user);
-					if (!targetUser.can('lock') ) {
+					if (!targetUser.can('lock')) {
 						this.errorReply(`This user is blocking private messages right now.`);
 						return null;
 					} else {
@@ -1429,8 +1429,8 @@ export const Chat = new class {
 		} while (toUncache.length > 0);
 	}
 
-	uncacheDir(root: string, followSymlink?: boolean) {
-		const absoluteRoot = followSymlink ? FS(root).realpathSync() : FS(root).path;
+	uncacheDir(root: string) {
+		const absoluteRoot = FS(root).path;
 		for (const key in require.cache) {
 			if (key.startsWith(absoluteRoot)) {
 				delete require.cache[key];
@@ -1909,8 +1909,8 @@ export const Chat = new class {
 	}
 
 	/**
-	* Notifies a targetUser that a user was blocked from reaching them due to a setting they have enabled.
-	*/
+	 * Notifies a targetUser that a user was blocked from reaching them due to a setting they have enabled.
+	 */
 	maybeNotifyBlocked(blocked: 'pm' | 'challenge', targetUser: User, user: User) {
 		const prefix = `|pm|~|${targetUser.getIdentity()}|/nonotify `;
 		const options = 'or change it in the <button name="openOptions" class="subtle">Options</button> menu in the upper right.';
