@@ -1687,7 +1687,7 @@ export const Rooms = {
 		Rooms.rooms.set(roomid, room);
 		return room;
 	},
-	createBattle(formatid: string, options: AnyObject) {
+	async createBattle(formatid: string, options: AnyObject) {
 		const players: (User & {specialNextBattle?: string })[] =
 			[options.p1, options.p2, options.p3, options.p4].filter(user => user);
 		const gameType = Dex.getFormat(formatid).gameType;
@@ -1758,7 +1758,8 @@ export const Rooms = {
 		for (const user of players) {
 			if (user.inviteOnlyNextBattle) {
 				inviteOnly.push(user.id);
-				user.inviteOnlyNextBattle = false;
+				const settings = await Users.getSettings(user.id);
+				if (!settings!.ionext) user.inviteOnlyNextBattle = false;
 			}
 		}
 		if (inviteOnly.length) {
