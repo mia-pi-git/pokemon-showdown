@@ -133,13 +133,24 @@ export const commands: ChatCommands = {
 	},
 	'!ionext': true,
 	inviteonlynext: 'ionext',
-	ionext(target, room, user) {
+	ioall: 'ionext',
+	ionext(target, room, user, connection, cmd) {
 		const groupConfig = Config.groups[Users.PLAYER_SYMBOL];
 		if (!groupConfig?.editprivacy) return this.errorReply(`/ionext - Access denied.`);
 		if (this.meansNo(target)) {
 			user.inviteOnlyNextBattle = false;
 			user.update('inviteOnlyNextBattle');
 			this.sendReply("Your next battle will be publicly visible.");
+			if (cmd === 'ioall') {
+				const entry = {
+					userid: user.id,
+					bch: user.blockChallenges,
+					blockpms: user.blockPMs,
+				 	ionext: user.inviteOnlyNextBattle
+				}
+				user.inviteOnlyNextBattle = false;
+				Users.saveSettings(entry);
+			}
 		} else {
 			user.inviteOnlyNextBattle = true;
 			user.update('inviteOnlyNextBattle');
