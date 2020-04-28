@@ -772,7 +772,7 @@ export const commands: ChatCommands = {
 	 * Battle management commands
 	 *********************************************************/
 
-	allowexportinputlog(/** @type {string} */ target, /** @type {Room?} */ room, /** @type {User} */ user) {
+	allowexportinputlog(target, room, user) {
 		const battle = room.battle;
 		if (!battle) {
 			return this.errorReply(`Must be in a battle.`);
@@ -848,7 +848,7 @@ export const commands: ChatCommands = {
 	},
 	exportinputloghelp: [`/exportinputlog - Asks players in a battle for permission to export an inputlog. Requires: & ~`],
 
-	importinputlog(target, room, user, connection) {
+	async importinputlog(target, room, user, connection) {
 		if (!this.can('broadcast')) return;
 		const formatIndex = target.indexOf(`"formatid":"`);
 		const nextQuoteIndex = target.indexOf(`"`, formatIndex + 12);
@@ -859,7 +859,7 @@ export const commands: ChatCommands = {
 		}
 
 		const formatid = target.slice(formatIndex + 12, nextQuoteIndex);
-		const battleRoom = Rooms.createBattle(formatid, {inputLog: target});
+		const battleRoom = await Rooms.createBattle(formatid, {inputLog: target});
 		if (!battleRoom) return; // createBattle will inform the user if creating the battle failed
 
 		const nameIndex1 = target.indexOf(`"name":"`);
