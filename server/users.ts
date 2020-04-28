@@ -39,6 +39,8 @@ const PERMALOCK_CACHE_TIME = 30 * 24 * 60 * 60 * 1000; // 30 days
 const DEFAULT_TRAINER_SPRITES = [1, 2, 101, 102, 169, 170, 265, 266];
 
 import {FS} from '../lib/fs';
+import SQL from 'sql-template-strings';
+import * as sqlite from 'sqlite';
 
 const MINUTES = 60 * 1000;
 const IDLE_TIMER = 60 * MINUTES;
@@ -77,13 +79,29 @@ function move(user: User, newUserid: ID) {
 
 	return true;
 }
-function add(user: User) {
+async function add(user: User) {
 	if (user.id) throw new Error(`Adding a user that already exists`);
-
 	numUsers++;
 	user.guestNum = numUsers;
 	user.name = `Guest ${numUsers}`;
 	user.id = toID(user.name);
+
+	const settings = await getSettings(user.id);
+	if (settings) {
+		if (Number(settings.bch) === 1) {
+			user.blockChallenges = true;
+		}
+
+		if (Number(settings.blockpms) === 1) {
+			user.blockPMs = true;
+		} else if (settings.blockpms !== 0 && settings.blockpms !== 1) {
+			user.blockPMs = settings.blockpms;
+		}
+
+		if (Number(settings.ionext) === 1) {
+			user.inviteOnlyNextBattle = true;
+		}
+	}
 
 	if (users.has(user.id)) throw new Error(`userid taken: ${user.id}`);
 	users.set(user.id, user);
@@ -232,6 +250,53 @@ function isTrusted(name: string | User) {
 		}
 	}
 	return false;
+}
+
+/*********************************************************
+ * User settings loading *
+ *********************************************************/
+
+const databasePromise = sqlite.open('./database.db');
+async function importSettings() {
+	if (Config.storage === 'json') {
+		let data;
+		try {
+			data = JSON.parse(FS('config/chat-plugins/settings.json').readIfExistsSync());
+		} catch (e) {}
+		if (!data) data = {};
+		return data;
+	} else { // sql
+		const query = SQL`SELECT userid, bch, blockpms, ionext FROM settings`;
+		const db = await databasePromise;
+		let response;
+		try {
+			response = db.all(query);
+		} catch (e) {
+			// no table for whatever reason, create it
+			void db.run(`CREATE TABLE IF NOT EXISTS settings (userid TEXT, bch TEXT, blockpms TEXT, ionext TEXT);`);
+			response = db.all(query);
+		}
+		return response;
+	}
+}
+
+async function getSettings(user: string) {
+	const response = await importSettings();
+	for (const row of response) {
+		const {userid, bch, blockpms, ionext} = row;
+		if (userid !== user) continue;
+		return {bch, blockpms, ionext};
+	}
+}
+
+async function saveSettings(userid: string, bch: boolean, blockpms: boolean | string, ionext: boolean) {
+	const query = SQL`UPDATE settings
+			SET bch = ${bch},
+				blockpms = ${blockpms},
+				ionext = ${ionext}
+			WHERE userid = ${userid}`;
+	const db = await databasePromise;
+	return db.run(query);
 }
 
 /*********************************************************
@@ -484,7 +549,7 @@ export class User extends Chat.MessageContext {
 		this.lastWarnedAt = 0;
 
 		// initialize
-		Users.add(this);
+		void Users.add(this);
 	}
 
 	sendTo(roomid: RoomID | BasicRoom | null, data: string) {
@@ -1695,6 +1760,9 @@ export const Users = {
 	importUsergroups,
 	PLAYER_SYMBOL,
 	HOST_SYMBOL,
+	saveSettings,
+	importSettings,
+	getSettings,
 	connections,
 	User,
 	Connection,
