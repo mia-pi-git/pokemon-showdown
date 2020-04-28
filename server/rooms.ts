@@ -1759,7 +1759,9 @@ export const Rooms = {
 			if (user.inviteOnlyNextBattle) {
 				inviteOnly.push(user.id);
 				const settings = await Users.getSettings(user.id);
-				if (!settings!.ionext) user.inviteOnlyNextBattle = false;
+				if (settings && settings.ionext) {} else {
+					user.inviteOnlyNextBattle = false;
+				}
 			}
 		}
 		if (inviteOnly.length) {
