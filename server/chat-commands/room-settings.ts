@@ -146,13 +146,20 @@ export const commands: ChatCommands = {
 					userid: user.id,
 					bch: user.blockChallenges,
 					blockpms: user.blockPMs,
-				 	ionext: user.inviteOnlyNextBattle
+				 	ionext: false,
 				}
 				user.inviteOnlyNextBattle = false;
-				Users.saveSettings(entry);
+				void Users.saveSettings(entry);
 			}
 		} else {
 			user.inviteOnlyNextBattle = true;
+			const entry = {
+				userid: user.id,
+				bch: user.blockChallenges,
+				blockpms: user.blockPMs,
+				ionext: true,
+			}
+			void Users.saveSettings(entry);
 			user.update('inviteOnlyNextBattle');
 			if (user.forcedPublic) {
 				return this.errorReply(`Your next battle will be invite-only provided it is not rated, otherwise your '${user.forcedPublic}' prefix will force the battle to be public.`);
