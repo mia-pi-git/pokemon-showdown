@@ -85,24 +85,6 @@ async function add(user: User) {
 	user.guestNum = numUsers;
 	user.name = `Guest ${numUsers}`;
 	user.id = toID(user.name);
-
-	const settings = await getSettings(user.id);
-	if (settings) {
-		if (Number(settings.bch) === 1) {
-			user.blockChallenges = true;
-		}
-
-		if (Number(settings.blockpms) === 1) {
-			user.blockPMs = true;
-		} else if (settings.blockpms !== 0 && settings.blockpms !== 1) {
-			user.blockPMs = settings.blockpms;
-		}
-
-		if (Number(settings.ionext) === 1) {
-			user.inviteOnlyNextBattle = true;
-		}
-	}
-
 	if (users.has(user.id)) throw new Error(`userid taken: ${user.id}`);
 	users.set(user.id, user);
 }
@@ -278,25 +260,6 @@ async function importSettings() {
 		}
 		return response;
 	}
-}
-
-async function getSettings(user: string) {
-	const response = await importSettings();
-	for (const row of response) {
-		const {userid, bch, blockpms, ionext} = row;
-		if (userid !== user) continue;
-		return {bch, blockpms, ionext};
-	}
-}
-
-async function saveSettings(userid: string, bch: boolean, blockpms: boolean | string, ionext: boolean) {
-	const query = SQL`UPDATE settings
-			SET bch = ${bch},
-				blockpms = ${blockpms},
-				ionext = ${ionext}
-			WHERE userid = ${userid}`;
-	const db = await databasePromise;
-	return db.run(query);
 }
 
 /*********************************************************
@@ -549,7 +512,8 @@ export class User extends Chat.MessageContext {
 		this.lastWarnedAt = 0;
 
 		// initialize
-		void Users.add(this);
+		this.applySavedSettings()
+		Users.add(this);
 	}
 
 	sendTo(roomid: RoomID | BasicRoom | null, data: string) {
@@ -602,6 +566,36 @@ export class User extends Chat.MessageContext {
 		const statusMessage = this.statusType === 'busy' ? '!(Busy) ' : this.statusType === 'idle' ? '!(Idle) ' : '';
 		const status = statusMessage + (this.userMessage || '');
 		return status;
+	}
+	async saveSettings() {
+		const query = SQL`UPDATE settings
+				SET bch = ${this.blockChallenges},
+					blockpms = ${this.blockPMs},
+					ionext = ${this.inviteOnlyNextBattle}
+				WHERE userid = ${this.id}`;
+		const db = await databasePromise;
+		return db.run(query);
+	}
+	async getSettings() {
+		const response = await importSettings();
+		for (const row of response) {
+			const {userid, bch, blockpms, ionext} = row;
+			if (userid !== this.id) continue;
+			return {bch, blockpms, ionext};
+		}
+	}
+	async applySavedSettings() {
+		const settings = await this.user.getSettings();
+		if (settings) {
+			if (Number(settings.bch) === 1) this.user.blockChallenges = true;
+			if (Number(settings.blockpms) === 1) {
+				this.user.blockPMs = true;
+			} else if (settings.blockpms && !parseInt(settings.blockpms)) {
+				this.user.blockPMs = settings.blockpms;
+			}
+			if (Number(settings.ionext) === 1) this.user.inviteOnlyNextBattle = true;
+		}
+		return [this.user.blockChallenges, this.user.blockPMs, this.user.inviteOnlyNextBattle];
 	}
 	authAtLeast(minAuth: string, room: Room | BasicChatRoom | null = null) {
 		if (!minAuth || minAuth === ' ') return true;
@@ -1760,9 +1754,8 @@ export const Users = {
 	importUsergroups,
 	PLAYER_SYMBOL,
 	HOST_SYMBOL,
-	saveSettings,
 	importSettings,
-	getSettings,
+	databasePromise,
 	connections,
 	User,
 	Connection,
