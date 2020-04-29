@@ -1758,7 +1758,7 @@ export const Rooms = {
 		for (const user of players) {
 			if (user.inviteOnlyNextBattle) {
 				inviteOnly.push(user.id);
-				const settings = await Users.getSettings(user.id);
+				const settings = await user.getSettings()
 				if (settings && settings.ionext) {} else {
 					user.inviteOnlyNextBattle = false;
 				}
