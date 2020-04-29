@@ -650,7 +650,7 @@ export const commands: ChatCommands = {
 		if (!user.blockPMs) return this.errorReply(this.tr("You are not blocking private messages! To block, use /blockpms"));
 		user.blockPMs = false;
 		user.update('blockPMs');
-		void user.saveSettings()
+		void user.saveSettings();
 		return this.sendReply(this.tr("You are no longer blocking private messages."));
 	},
 	unblockpmshelp: [`/unblockpms - Unblocks private messages. Block them with /blockpms.`],
