@@ -137,17 +137,19 @@ export const commands: ChatCommands = {
 	ionext(target, room, user, connection, cmd) {
 		const groupConfig = Config.groups[Users.PLAYER_SYMBOL];
 		if (!groupConfig?.editprivacy) return this.errorReply(`/ionext - Access denied.`);
+		const ioall = cmd === 'ioall';
 		if (this.meansNo(target)) {
 			user.inviteOnlyNextBattle = false;
 			user.update('inviteOnlyNextBattle');
 			this.sendReply("Your next battle will be publicly visible.");
-			if (cmd === 'ioall') {
-				user.inviteOnlyNextBattle = false;
-				void user.saveSettings()
+			if (ioall) {
+				void user.saveSettings();
 			}
 		} else {
+			if (ioall) {
+				void user.saveSettings();
+			}
 			user.inviteOnlyNextBattle = true;
-			void user.saveSettings()
 			user.update('inviteOnlyNextBattle');
 			if (user.forcedPublic) {
 				return this.errorReply(`Your next battle will be invite-only provided it is not rated, otherwise your '${user.forcedPublic}' prefix will force the battle to be public.`);
