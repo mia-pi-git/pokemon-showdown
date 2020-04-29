@@ -143,21 +143,11 @@ export const commands: ChatCommands = {
 			this.sendReply("Your next battle will be publicly visible.");
 			if (cmd === 'ioall') {
 				user.inviteOnlyNextBattle = false;
-				void Users.saveSettings(
-					user.id,
-					user.blockChallenges,
-					user.blockPMs,
-					user.inviteOnlyNextBattle
-				);
+				void user.saveSettings()
 			}
 		} else {
 			user.inviteOnlyNextBattle = true;
-			void Users.saveSettings(
-				user.id,
-				user.blockChallenges,
-				user.blockPMs,
-				user.inviteOnlyNextBattle
-			);
+			void user.saveSettings()
 			user.update('inviteOnlyNextBattle');
 			if (user.forcedPublic) {
 				return this.errorReply(`Your next battle will be invite-only provided it is not rated, otherwise your '${user.forcedPublic}' prefix will force the battle to be public.`);
