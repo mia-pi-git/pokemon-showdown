@@ -613,7 +613,9 @@ export const commands: ChatCommands = {
 	blockpm: 'blockpms',
 	ignorepms: 'blockpms',
 	ignorepm: 'blockpms',
-	blockpms(target, room, user) {
+	persistblockpms: 'blockpms',
+	pblockpms: 'blockpms',
+	blockpms(target, room, user, connection, cmd) {
 		if (toID(target) === 'ac') target = 'autoconfirmed';
 		if (user.blockPMs === (target || true)) {
 			return this.errorReply(this.tr("You are already blocking private messages! To unblock, use /unblockpms"));
@@ -630,6 +632,9 @@ export const commands: ChatCommands = {
 			this.sendReply(this.tr("You are now blocking private messages, except from staff."));
 		}
 		user.update('blockPMs');
+		if (cmd.includes('persistent') || cmd === 'pblockpms') {
+			void user.saveSettings();
+		}
 		return true;
 	},
 	blockpmshelp: [
@@ -645,6 +650,7 @@ export const commands: ChatCommands = {
 		if (!user.blockPMs) return this.errorReply(this.tr("You are not blocking private messages! To block, use /blockpms"));
 		user.blockPMs = false;
 		user.update('blockPMs');
+		void user.saveSettings()
 		return this.sendReply(this.tr("You are no longer blocking private messages."));
 	},
 	unblockpmshelp: [`/unblockpms - Unblocks private messages. Block them with /blockpms.`],
