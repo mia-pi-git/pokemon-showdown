@@ -39,6 +39,7 @@ const PERMALOCK_CACHE_TIME = 30 * 24 * 60 * 60 * 1000; // 30 days
 const DEFAULT_TRAINER_SPRITES = [1, 2, 101, 102, 169, 170, 265, 266];
 
 import {FS} from '../lib/fs';
+import * as Sqlite from 'better-sqlite3';
 
 const MINUTES = 60 * 1000;
 const IDLE_TIMER = 60 * MINUTES;
@@ -167,7 +168,35 @@ function findUsers(userids: ID[], ips: string[], options: {forPunishment?: boole
 	}
 	return matches;
 }
+/*********************************************************
+ * User settings
+ *********************************************************/
+let userSettings = Object.create(null);
+const database = new Sqlite('users.db');
 
+function importSettings() {
+	if (Config.storage === 'sql') {
+		// check if the table exists
+		database.prepare(
+			`CREATE TABLE IF NOT EXISTS settings
+			(userid TEXT, status TEXT, blockpms TEXT, challenges INTEGER, ionext TEXT, avatar TEXT)`
+		).run();
+	} else {
+		// load settings data from JSON
+		try {
+			userSettings = JSON.parse(FS('../config/settings.json').readSync());
+		} catch (e) {
+			throw new Error(e);
+		}
+	}
+}
+
+function saveSettings() {
+	if (Config.storage === 'sql') return;
+	return FS('../config/settings.json').writeUpdate(() => JSON.stringify(userSettings));
+}
+
+importSettings();
 /*********************************************************
  * User groups
  *********************************************************/
@@ -449,13 +478,13 @@ export class User extends Chat.MessageContext {
 
 		// settings
 		this.isSysop = false;
-		this.isStaff = false;
+		this.isStaff = this.getSettings().challenges || false;
 		this.blockChallenges = false;
-		this.blockPMs = false;
+		this.blockPMs = this.getSettings().blockpms || false;
 		this.ignoreTickets = false;
 		this.lastDisconnected = 0;
 		this.lastConnected = connection.connectedAt;
-		this.inviteOnlyNextBattle = false;
+		this.inviteOnlyNextBattle = this.getSettings().ionext || false;
 
 		// chat queue
 		this.chatQueue = null;
@@ -480,7 +509,7 @@ export class User extends Chat.MessageContext {
 		// Used in punishments
 		this.trackRename = '';
 		this.statusType = 'online';
-		this.userMessage = '';
+		this.userMessage = this.getSettings().status || '';
 		this.lastWarnedAt = 0;
 
 		// initialize
@@ -1353,7 +1382,6 @@ export class User extends Chat.MessageContext {
 			this.inRooms.delete(room.roomid);
 		}
 	}
-
 	cancelReady() {
 		// setting variables because this can't be short-circuited
 		const searchesCancelled = Ladders.cancelSearches(this);
@@ -1488,6 +1516,50 @@ export class User extends Chat.MessageContext {
 			this.autoconfirmed === this.id ? `[ac]` :
 			this.registered ? `[registered]` :
 			``;
+	}
+	saveSettings() {
+		if (Config.storage !== 'sql') return saveSettings();
+		const prevSettings = database.prepare(`SELECT * FROM settings WHERE userid = '${this.id}'`).all();
+		if (!prevSettings.length) {
+			const query = `INSERT INTO settings(userid, status, blockpms, challenges, ionext, avatar)
+				VALUES (@userid, @status, @blockpms, @challenges, @ionext, @avatar)`;
+			database.prepare(query).run({
+				userid: this.id,
+				status: this.userMessage,
+				blockpms: this.blockPMs,
+				challenges: this.blockChallenges,
+				ionext: this.inviteOnlyNextBattle,
+				avatar: this.avatar,
+			});
+		} else {
+			const input = `
+				UPDATE settings
+				SET status = '${this.userMessage}',
+					blockpms = '${this.blockPMs}',
+					challenges = '${this.blockChallenges}',
+					ionext = '${this.inviteOnlyNextBattle}',
+					avatar = '${this.avatar}',
+				WHERE userid = '${this.id}'`;
+			database.prepare(input).run();
+		}
+	}
+	getSettings(apply = false) {
+		if (Config.storage !== 'sql') return userSettings[this.id];
+		const res = database.prepare(`SELECT * FROM settings WHERE userid = '${this.id}'`).all();
+		if (!res.length) return {};
+		const {userid, status, blockpms, challenges, ionext} = res[0];
+		if (apply) {
+			const parse = (input: string) => {
+				if (input === 'true') return true;
+				if (input === 'false') return false;
+				return input;
+			};
+			this.userMessage = status;
+			this.blockPMs = parse(blockpms);
+			this.blockChallenges = parse(challenges) as boolean;
+			this.inviteOnlyNextBattle = parse(ionext) as boolean;
+		}
+		return {userid, status, blockpms, challenges, ionext};
 	}
 	destroy() {
 		// deallocate user
@@ -1688,6 +1760,9 @@ export const Users = {
 	get: getUser,
 	getExact: getExactUser,
 	findUsers,
+	importSettings,
+	saveSettings,
+	database,
 	usergroups,
 	setOfflineGroup,
 	isUsernameKnown,
@@ -1701,6 +1776,8 @@ export const Users = {
 	socketDisconnect,
 	socketDisconnectAll,
 	socketReceive,
+	STAFF_IDLE_TIMER,
+	IDLE_TIMER,
 	pruneInactive,
 	pruneInactiveTimer: setInterval(() => {
 		pruneInactive(Config.inactiveuserthreshold || 60 * MINUTES);
