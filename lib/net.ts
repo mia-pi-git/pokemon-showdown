@@ -19,12 +19,12 @@ export class URIRequest {
 	 * Makes a basic http/https request to the URI.
 	 * Returns the response data.
 	 */
-	async get(): Promise<string | null> {
+	async get(opts?: AnyObject): Promise<string | null> {
 		if (Config.noURIRequests) return null;
 		const protocol = url.parse(this.uri).protocol as string;
-		const net = protocol.includes('https:') ? https : http;
+		const net = protocol!.includes('https:') ? https : http;
 		return new Promise((resolve) => {
-			const req = net.get(this.uri, res => {
+			const req = net.get(opts ? opts : this.uri, res => {
 				void Streams.readAll(res).then(buffer => {
 					resolve(buffer);
 				});
@@ -39,7 +39,7 @@ export class URIRequest {
 	 * Makes a http/https request to the given link and returns the status, headers, and a stream.
 	 * The request data itself can be read with ReadStream#read().
 	 */
-	async getFullResponse(): Promise<{
+	async getFullResponse(opts?: AnyObject): Promise<{
 		statusCode: number | undefined, statusMessage: string | undefined,
 		headers: http.IncomingHttpHeaders | undefined, stream: Streams.ReadStream,
 	} | null> {
@@ -47,7 +47,7 @@ export class URIRequest {
 		return new Promise(resolve => {
 			const protocol = url.parse(this.uri).protocol as string;
 			const net = protocol.includes('https:') ? https : http;
-			net.get(this.uri, response => {
+			net.get(opts? opts : this.uri, response => {
 				response.setEncoding('utf-8');
 				const stream = new Streams.ReadStream({nodeStream: response});
 				resolve({
