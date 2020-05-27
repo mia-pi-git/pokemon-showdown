@@ -94,11 +94,11 @@ const LogReader = new class {
 				}
 			} else if (!room) {
 				if (opts === 'all' || opts === 'deleted') deleted.push(roomid);
-			} else if (room.isOfficial) {
+			} else if (room.settings?.isOfficial) {
 				official.push(roomid);
-			} else if (!room.isPrivate) {
+			} else if (!room.settings.isPrivate) {
 				normal.push(roomid);
-			} else if (room.isPrivate === 'hidden') {
+			} else if (room.settings.isPrivate === 'hidden') {
 				hidden.push(roomid);
 			} else {
 				secret.push(roomid);
@@ -181,19 +181,22 @@ export const LogViewer = new class {
 	}
 
 	renderDayResults(results: {[day: string]: SearchMatch[]}) {
-		const renderResult = (match: SearchMatch) => (
-			this.renderLine(match[0]) +
-			this.renderLine(match[1]) +
-			`<div class="chat chatmessage highlighted">${this.renderLine(match[2])}</div>` +
-			this.renderLine(match[3]) +
-			this.renderLine(match[4])
-		);
+		const renderResult = (match: SearchMatch) => {
+			if (!match[2]) return null;
+			return (
+				this.renderLine(match[0]) +
+				this.renderLine(match[1]) +
+				`<div class="chat chatmessage highlighted">${this.renderLine(match[2])}</div>` +
+				this.renderLine(match[3]) +
+				this.renderLine(match[4])
+			);
+		};
 		let buf = ``;
 		for (const day in results) {
 			const dayResults = results[day];
 			const plural = dayResults.length !== 1 ? "es" : "";
 			buf += `<details><summary>${dayResults.length} match${plural} on ${day}</summary><br /><hr />`;
-			buf += `<p>${dayResults.map(result => renderResult(result)).join(`<hr />`)}</p>`;
+			buf += `<p>${dayResults.filter(Boolean).map(result => renderResult(result)).join(`<hr />`)}</p>`;
 			buf += `</details><hr />`;
 		}
 		return buf;
@@ -227,14 +230,14 @@ export const LogViewer = new class {
 		}
 		let buf = '';
 		if (year) {
-			buf += `<strong><br>Searching year: ${year}: </strong><hr>`;
+			buf += `<div class="pad"><strong><br>Searching year: ${year}: </strong><hr>`;
 		}	else {
-			buf += `<strong><br>Searching all logs: </strong><hr>`;
+			buf += `<div class="pad"><strong><br>Searching all logs: </strong><hr>`;
 		}
 		buf += this.renderDayResults(results);
 		if (limit && total > limit) {
 			// cap has been met in a previous loop, add the buttons and break.
-			buf += `<br /><div style="text-align:center">`;
+			buf += `</div><br /><div style="text-align:center">`;
 			buf += `<button class="button" name="send" value="/sl ${search}|${roomid}|${year}|${limit + 100}">View 100 more<br />&#x25bc;</button>`;
 			buf += `<button class="button" name="send" value="/sl ${search}|${roomid}|${year}|all">View all<br />&#x25bc;</button></div>`;
 		}
@@ -404,8 +407,9 @@ type SearchMatch = readonly [string, string, string, string, string];
 
 const LogSearcher = new class {
 	fsSearch(roomid: RoomID, search: string, date: string, limit?: number | null) {
+		date = date.trim();
 		const isAll = (date === 'all');
-		const isYear = (date.length < 0 && date.length > 7);
+		const isYear = (date.length === 4);
 		const isMonth = (date.length === 7);
 
 		if (isAll) {
@@ -640,7 +644,7 @@ export const commands: ChatCommands = {
 		if (!target) return this.parse('/help searchlogs');
 		if (!search) return this.errorReply('Specify a query to search the logs for.');
 		let limitString;
-		if (/^[0-9]+$/.test(limit)) {
+		if (/^[ 0-9]+$/.test(limit)) {
 			limitString = `--limit-${limit}`;
 		} else if (toID(limit) === 'all') {
 			limitString = `--limit-all`;
