@@ -2,7 +2,7 @@
  * Room Events Plugin
  * Pokemon Showdown - http://pokemonshowdown.com/
  *
- * This is a room-management system to keep track of upcoming room.settings!.events.
+ * This is a room-management system to keep track of upcoming room.settings.events.
  *
  * @license MIT license
  */
@@ -29,7 +29,7 @@ export const commands: ChatCommands = {
 	roomevents: {
 		''(target, room, user) {
 			if (!room.settings) return this.errorReply("This command is unavailable in temporary rooms.");
-			if (!room.settings?.events || !Object.keys(room.settings.events).length) {
+			if (!room.settings.events || !Object.keys(room.settings.events).length) {
 				return this.errorReply("There are currently no planned upcoming events for this room.");
 			}
 			if (!this.runBroadcast()) return;
@@ -203,7 +203,7 @@ export const commands: ChatCommands = {
 				return this.errorReply("No or invalid column name specified. Please use one of: date, eventdate, desc, description, eventdescription, eventname, name.");
 			}
 
-			// rebuild the room.settings!.events object
+			// rebuild the room.settings.events object
 			room.settings.events = {};
 			for (const sortedObj of sortable) {
 				const eventId = toID(sortedObj.eventName);
