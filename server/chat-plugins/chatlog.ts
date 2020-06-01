@@ -485,11 +485,28 @@ const LogSearcher = new class {
 		return {results, total};
 	}
 
+	constructRegex(str: string) {
+		str = str.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&');
+		const searches = str.split('+');
+		let regex = ``;
+		if (str.length > 3) {
+			 regex = `\b${str}`;
+		} else if (searches.length > 1) {
+			 for (const term of searches) {
+				  regex += `(?=.*?(${term}))`;
+			 }
+		} else {
+			 regex = `${str}`;
+		}
+		return regex;
+  }
+
 	async ripgrepSearch(roomid: RoomID, search: string, limit?: number | null) {
 		let output;
+		const regex = this.constructRegex(search);
 		try {
 			const options = [
-				'-e', `[^a-zA-Z0-9]${search.split('').join('[^a-zA-Z0-9]*')}([^a-zA-Z0-9]|\\z)`,
+				'-e', `'${regex}'`,
 				`${__dirname}/../../logs/chat/${roomid}`,
 				'-C', '3',
 			];
@@ -504,7 +521,7 @@ const LogSearcher = new class {
 	render(results: string[], roomid: RoomID, search: string, limit?: number | null) {
 		const exactMatches = [];
 		let curDate = '';
-		const searchRegex = new RegExp(search, "i");
+		const searchRegex = new RegExp(this.constructRegex(search));
 		const sorted = results.sort().map(chunk => {
 			const section = chunk.split('\n').map(line => {
 				const sep = line.includes('.txt-') ? '.txt-' : '.txt:';
@@ -533,7 +550,8 @@ const LogSearcher = new class {
 			}).filter(Boolean).join(' ');
 			return section;
 		});
-		let buf = `<div class ="pad"><strong>Results on ${roomid} for ${search}:</strong>`;
+		const message = search.split('-').length > 1 ? `searches: ${search.split('+').join(', ')}` : `search: ${search}`;
+		let buf = `<div class ="pad"><strong>Results on ${roomid} for ${message}:</strong>`;
 		buf += !limit ? ` ${exactMatches.length}` : '';
 		buf += !limit ? `<hr></div><blockquote>` : ` (capped at ${limit})<hr></div><blockquote>`;
 		buf += sorted.filter(Boolean).join('<hr>');
@@ -636,23 +654,33 @@ export const commands: ChatCommands = {
 	searchlog: 'searchlogs',
 	searchlogs(target, room) {
 		target = target.trim();
-		const [search, tarRoom, limit, date] = target.split(',');
+		const args = target.split(',').map(item => item.trim());
 		if (!target) return this.parse('/help searchlogs');
-		if (!search) return this.errorReply('Specify a query to search the logs for.');
-		let limitString;
-		if (/^[0-9]+$/.test(limit)) {
-			limitString = `--limit-${limit}`;
-		} else if (toID(limit) === 'all') {
-			limitString = `--limit-all`;
-		} else if (!limit) {
-			limitString = ``;
-		} else {
-			return this.errorReply(`Cap must be a number or [all].`);
+		let date = Chat.toTimestamp(new Date()).split(' ')[0].slice(0, -3);
+		const search: string[] = [];
+		let limit = '500';
+		let tarRoom = room.roomid;
+		for (const arg of args) {
+			if (arg.includes('limit:')) {
+				const [,num] = arg.split(':');
+				if (isNaN(parseInt(num.trim())) && toID(num) !== 'all') {
+					return this.errorReply(`${num} is not a valid limit.`);
+				}
+				limit = num;
+			} else if (arg.includes('room:')) {
+				let [,id] = arg.split(':');
+				if (!Rooms.search(id)) return this.errorReply(`${id} is not a valid room.`);
+				tarRoom = id as RoomID;
+			} else if (arg.includes('date:')) {
+				// date parsing is handled in the page, no need to do it twice
+				date = arg.split(':')[1]
+			} else {
+				search.push(arg);
+			}
 		}
-		const currentMonth = Chat.toTimestamp(new Date()).split(' ')[0].slice(0, -3);
 		const curRoom = tarRoom ? Rooms.search(tarRoom) : room;
 		return this.parse(
-			`/join view-chatlog-${curRoom}--${date ? date : currentMonth}--search-${Dashycode.encode(search)}${limitString}`
+			`/join view-chatlog-${curRoom}--${date}--search-${Dashycode.encode(search.join('+'))}--limit-${limit}`
 		);
 	},
 
