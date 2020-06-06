@@ -11,6 +11,7 @@ export const BattleMovedex: {[k: string]: ModdedMoveData} = {
 		pp: 10, // unboosted PP count
 		priority: 0, // move priority, -6 -> 6
 		flags: {}, // Move flags https://github.com/smogon/pokemon-showdown/blob/master/data/moves.js#L1-L27
+		onTryMovePriority: 100,
 		onTryMove() {
 			this.attrLastMove('[still]'); // For custom animations
 		},
@@ -36,7 +37,46 @@ export const BattleMovedex: {[k: string]: ModdedMoveData} = {
 	},
 	*/
 	// Please keep sets organized alphabetically based on staff member name!
-	 // dream
+	// cant say
+	neverlucky: {
+		accuracy: 85,
+		basePower: 110,
+		category: "Special",
+		desc: "Doubles base power if statused. Has a 10% chance to boost every stat 1 stage. High Crit Ratio.",
+		shortDesc: "Doubles base power if statused. Has a 10% chance to boost every stat 1 stage. High Crit Ratio.",
+		name: "Never Lucky",
+		pp: 10,
+		priority: 0,
+		flags: {protect: 1},
+		onTryMovePriority: 100,
+		onTryMove() {
+			this.attrLastMove('[still]');
+		},
+		onPrepareHit(target, source) {
+			this.add('-anim', source, 'Overheat', target);
+		},
+		onBasePower(basePower, pokemon) {
+			if (pokemon.status && pokemon.status !== 'slp') {
+				return this.chainModify(2);
+			}
+		},
+		secondary: {
+			chance: 10,
+			self: {
+				boosts: {
+					atk: 1,
+					def: 1,
+					spa: 1,
+					spd: 1,
+					spe: 1,
+				},
+			},
+		},
+		critRatio: 2,
+		target: "normal",
+		type: "Fire",
+	},
+   // dream
 	lockandkey: {
 		desc: `Raises the user's SpA and SpD by one stage each, and prevents the enemy from switching out.`,
 		shortDesc: `Raises the user's SpA and SpD by one stage. Prevents the foe from switching out.`,
@@ -58,7 +98,7 @@ export const BattleMovedex: {[k: string]: ModdedMoveData} = {
 				if (source.isActive) target.addVolatile('trapped', source, move, 'trapper');
 			},
 		},
-  	},
+  },
 	// GXS
 	datacorruption: {
 		accuracy: 90,
@@ -106,6 +146,7 @@ export const BattleMovedex: {[k: string]: ModdedMoveData} = {
 		pp: 20,
 		priority: 0,
 		flags: {},
+		onTryMovePriority: 100,
 		onTryMove() {
 			this.attrLastMove('[still]');
 		},
@@ -197,6 +238,7 @@ export const BattleMovedex: {[k: string]: ModdedMoveData} = {
 		pp: 15,
 		priority: 0,
 		flags: {protect: 1},
+		onTryMovePriority: 100,
 		onTryMove() {
 			this.attrLastMove('[still]');
 		},
@@ -224,7 +266,8 @@ export const BattleMovedex: {[k: string]: ModdedMoveData} = {
 		priority: 0,
 		flags: {protect: 1, mirror: 1, heal: 1},
 		drain: [1, 3],
-		onTryHit(target, source) {
+		onTryMovePriority: 100,
+		onTryMove() {
 			this.attrLastMove('[still]');
 		},
 		onPrepareHit(target, source) {
@@ -256,14 +299,15 @@ export const BattleMovedex: {[k: string]: ModdedMoveData} = {
 		name: "Healing you?",
 		pp: 5,
 		priority: 0,
-		onTryHit(target, source) {
+		onTryMovePriority: 100,
+		onTryMove() {
 			this.attrLastMove('[still]');
-			this.heal(Math.ceil(target.baseMaxhp * 0.5));
-			target.cureStatus();
-			this.boost({def: -1, spd: -1}, target);
 		},
 		onPrepareHit(target, source) {
 			this.add('-anim', source, 'Heal Pulse', target);
+			this.heal(Math.ceil(target.baseMaxhp * 0.5));
+			target.cureStatus();
+			this.boost({def: -1, spd: -1}, target);
 			this.add('-anim', source, 'Close Combat', target);
 		},
 		flags: {mirror: 1, protect: 1},
@@ -283,6 +327,7 @@ export const BattleMovedex: {[k: string]: ModdedMoveData} = {
 		pp: 20,
 		priority: 0,
 		flags: {contact: 1, protect: 1, mirror: 1},
+		onTryMovePriority: 100,
 		onTryMove() {
 			this.attrLastMove('[still]');
 		},
@@ -333,6 +378,7 @@ export const BattleMovedex: {[k: string]: ModdedMoveData} = {
 		pp: 15,
 		priority: 0,
 		flags: {protect: 1},
+		onTryMovePriority: 100,
 		onTryMove() {
 			this.attrLastMove('[still]');
 		},
@@ -368,6 +414,7 @@ export const BattleMovedex: {[k: string]: ModdedMoveData} = {
 		pp: 1,
 		priority: 0,
 		flags: {},
+		onTryMovePriority: 100,
 		onTryMove() {
 			this.attrLastMove('[still]');
 		},
@@ -400,19 +447,18 @@ export const BattleMovedex: {[k: string]: ModdedMoveData} = {
 		pp: 15,
 		priority: 0,
 		flags: {protect: 1},
-		secondary: {
-			chance: 30,
-			self: {
-				boosts: {
-					spe: 1,
-				},
-			},
-		},
+		onTryMovePriority: 100,
 		onTryMove() {
 			this.attrLastMove('[still]');
 		},
 		onPrepareHit(target, source) {
 			this.add('-anim', source, 'Genesis Supernova', target);
+		},
+		secondary: {
+			chance: 30,
+			self: {
+				boosts: {spe: 1},
+			},
 		},
 		target: "normal",
 		type: "Psychic",

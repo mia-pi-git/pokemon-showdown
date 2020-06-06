@@ -38,7 +38,26 @@ export const BattleStatuses: {[k: string]: ModdedPureEffectData} = {
 	IMPORTANT: Obtain the username from getName
 	*/
 	// Please keep statuses organized alphabetically based on staff member name!
-	dream: {
+	cantsay: {
+		noCopy: true,
+		onStart() {
+			this.add(`c|${getName('cant say')}|haha volc go brrrr`);
+		},
+		onSwitchOut() {
+			this.add(`c|${getName('cant say')}|lol CTed`);
+		},
+		onFaint() {
+			this.add(`c|${getName('cant say')}|${['imagine taking pokemon seriously when you can just get haxed', '/me plays curb your enthusiasm theme', 'bad players always get lucky'][this.random(3)]}`);
+		},
+		// Magic Guard Innate
+		onDamage(damage, target, source, effect) {
+			if (effect.effectType !== 'Move') {
+				if (effect.effectType === 'Ability') this.add('-activate', source, 'ability: ' + effect.name);
+				return false;
+			}
+		},
+	},
+  dream: {
 		noCopy: true,
 		onStart() {
 			this.add(`c|${getName('dream')}| It's Prime Time`);
@@ -48,8 +67,7 @@ export const BattleStatuses: {[k: string]: ModdedPureEffectData} = {
 		},
 		onFaint() {
 			this.add(`c|${getName('dream')}|perdemos`);
-		},
-	},
+  },    
 	gxs: {
 		noCopy: true,
 		onStart() {
