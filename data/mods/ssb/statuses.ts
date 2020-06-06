@@ -38,6 +38,18 @@ export const BattleStatuses: {[k: string]: ModdedPureEffectData} = {
 	IMPORTANT: Obtain the username from getName
 	*/
 	// Please keep statuses organized alphabetically based on staff member name!
+	dream: {
+		noCopy: true,
+		onStart() {
+			this.add(`c|${getName('dream')}| It's Prime Time`);
+		},
+		onSwitchOut() {
+			this.add(`c|${getName('dream')}|oh no please god tell me we're dreaming`);
+		},
+		onFaint() {
+			this.add(`c|${getName('dream')}|perdemos`);
+		},
+	},
 	gxs: {
 		noCopy: true,
 		onStart() {
