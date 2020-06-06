@@ -10,6 +10,38 @@ export const BattleAbilities: {[k: string]: ModdedAbilityData} = {
 	},
 	*/
 	// Please keep abilites organized alphabetically based on staff member name!
+	// dream
+	greedpunisher: {
+		desc: 'This pokemon can only be damaged by direct attacks. On switch-in, boosts stats based on hazards on the field. 1 stat raised if one-two hazards are up, 2 stats raised if two or more are up.',
+		shortDesc: "On switch-in, boosts stats based on hazards present on the user's side.",
+		name: 'Greed Punisher',
+		onSwitchIn(pokemon) {
+			const side = pokemon.side;
+			const activeCount = Object.keys(side.sideConditions).length;
+			if (activeCount > 0) {
+				const stats: string[] = [];
+				let i = 0;
+				while (i <= activeCount) {
+					for (const stat in pokemon.boosts) {
+						if (stat.includes('evasion') || stat.includes('accuracy') || stats.includes(stat)) continue;
+						// @ts-ignore
+						if (pokemon.boosts[stat] < 6) {
+							stats.push(stat);
+							i++;
+						}
+					}
+				}
+				if (stats.length) {
+					const randomStat = this.sample(stats);
+					const boost: {[k: string]: number} = {};
+					boost[randomStat] = 1;
+					this.boost(boost, pokemon);
+				} else {
+					return false;
+				}
+			}
+		},
+	},
 	// GXS
 	virusupload: {
 		desc: "On switch-in, this Pokemon's Attack or Special Attack is raised by 1 stage based on the weaker combined defensive stat of all opposing Pokemon. Attack is raised if their Defense is lower, and Special Attack is raised if their Special Defense is the same or lower.",
