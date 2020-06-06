@@ -36,6 +36,29 @@ export const BattleMovedex: {[k: string]: ModdedMoveData} = {
 	},
 	*/
 	// Please keep sets organized alphabetically based on staff member name!
+	 // dream
+	lockandkey: {
+		desc: `Raises the user's SpA and SpD by one stage each, and prevents the enemy from switching out.`,
+		shortDesc: `Raises the user's SpA and SpD by one stage. Prevents the foe from switching out.`,
+		name: 'Lock and Key',
+		category: 'Status',
+		accuracy: 100,
+		flags: {},
+		type: 'Steel',
+		pp: 10,
+		priority: 0,
+		basePower: 0,
+		target: 'allAdjacentFoes',
+		onTryMove() {
+			 this.boost({spa: 1, spd: 1});
+		},
+		secondary: {
+			chance: 100,
+			onHit(target, source, move) {
+				if (source.isActive) target.addVolatile('trapped', source, move, 'trapper');
+			},
+		},
+  	},
 	// GXS
 	datacorruption: {
 		accuracy: 90,
