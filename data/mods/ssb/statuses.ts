@@ -57,10 +57,10 @@ export const BattleStatuses: {[k: string]: ModdedPureEffectData} = {
 			}
 		},
 	},
-  dream: {
+	dream: {
 		noCopy: true,
 		onStart() {
-			this.add(`c|${getName('dream')}| It's Prime Time`);
+			this.add(`c|${getName('dream')}|It's Prime Time`);
 		},
 		onSwitchOut() {
 			this.add(`c|${getName('dream')}|oh no please god tell me we're dreaming`);

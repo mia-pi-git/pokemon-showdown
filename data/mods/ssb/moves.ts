@@ -78,26 +78,27 @@ export const BattleMovedex: {[k: string]: ModdedMoveData} = {
 	},
    // dream
 	lockandkey: {
-		desc: `Raises the user's SpA and SpD by one stage each, and prevents the enemy from switching out.`,
-		shortDesc: `Raises the user's SpA and SpD by one stage. Prevents the foe from switching out.`,
-		name: 'Lock and Key',
-		category: 'Status',
 		accuracy: 100,
-		flags: {},
-		type: 'Steel',
+		basePower: 0,
+		category: "Status",
+		desc: "Raises the user's Special Attack and Special Defense stats by 1 stage and prevents the target from switching out.",
+		shortDesc: "Raises user's SpA and SpD by 1 Prevents foe from switching.",
+		name: "Lock and Key",
 		pp: 10,
 		priority: 0,
-		basePower: 0,
-		target: 'allAdjacentFoes',
-		onTryMove() {
-			 this.boost({spa: 1, spd: 1});
+		flags: {},
+		onHit(target, source, move) {
+			if (source.isActive) target.addVolatile('trapped', source, move, 'trapper');
 		},
-		secondary: {
-			chance: 100,
-			onHit(target, source, move) {
-				if (source.isActive) target.addVolatile('trapped', source, move, 'trapper');
+		self: {
+			boosts: {
+				spa: 1,
+				spd: 1,
 			},
 		},
+		secondary: null,
+		target: "allAdjacentFoes",
+		type: "Steel",
   },
 	// GXS
 	datacorruption: {

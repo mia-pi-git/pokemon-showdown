@@ -44,8 +44,7 @@ export const ssbSets: SSBSets = {
 		species: 'Klefki', ability: 'Greed Punisher', item: 'Life Orb', gender: 'N',
 		moves: ['Light of Ruin', 'Steel Beam', 'Mind Blown'],
 		signatureMove: 'Lock and Key',
-		evs: {hp: 4, spa: 252, spe: 252}, nature: 'Modest',
-		ivs: {atk: 0},
+		evs: {hp: 4, spa: 252, spe: 252}, ivs: {atk: 0}, nature: 'Modest',
   },
 	GXS: {
 		species: 'Porygon-Z', ability: 'Virus Upload', item: 'Life Orb', gender: 'N',

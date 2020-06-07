@@ -25,21 +25,21 @@ export const BattleAbilities: {[k: string]: ModdedAbilityData} = {
 			}
 		},
 	},
-  // dream
+	// dream
 	greedpunisher: {
-		desc: 'This pokemon can only be damaged by direct attacks. On switch-in, boosts stats based on hazards on the field. 1 stat raised if one-two hazards are up, 2 stats raised if two or more are up.',
-		shortDesc: "On switch-in, boosts stats based on hazards present on the user's side.",
-		name: 'Greed Punisher',
+		desc: "This Pokemon can only be damaged by direct attacks. On switch-in, this Pokemon's stats are boosted based on the number of hazards on the field. 1 stat is raised if 1-2 hazards are up, and 2 stats are raised if 3 or more hazards are up.",
+		shortDesc: "On switch-in, boosts stats based on the number of hazards up on this Pokemon's side.",
+		name: "Greed Punisher",
 		onSwitchIn(pokemon) {
 			const side = pokemon.side;
 			const activeCount = Object.keys(side.sideConditions).length;
 			if (activeCount > 0) {
-				const stats: string[] = [];
+				const stats: BoostName[] = [];
 				let i = 0;
 				while (i <= activeCount) {
-					for (const stat in pokemon.boosts) {
-						if (stat.includes('evasion') || stat.includes('accuracy') || stats.includes(stat)) continue;
-						// @ts-ignore
+					let stat: BoostName;
+					for (stat in pokemon.boosts) {
+						if (stat === 'evasion' || stat === 'accuracy' || stats.includes(stat)) continue;
 						if (pokemon.boosts[stat] < 6) {
 							stats.push(stat);
 							i++;
