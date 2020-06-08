@@ -1,4 +1,6 @@
 import {FS} from '../../lib/fs';
+import {Utils} from '../../lib/utils';
+
 const helpRoom = Rooms.get('help');
 
 export class HelpAnswerer {
@@ -18,9 +20,9 @@ export class HelpAnswerer {
 		const response = this.query(question);
 		if (response) {
 			let buf = '';
-			buf += Chat.html`<strong>You asked:</strong> ${question}<br />`;
+			buf += Utils.html`<strong>You asked:</strong> ${question}<br />`;
 			buf += `<strong>Our best reply:</strong> ${Chat.formatText(response)}`;
-			question = Chat.escapeHTML(question);
+			question = Utils.escapeHTML(question);
 			if (!command) {
 				buf += `<hr /><button class="button" name="send" value="A: ${question}">Ask the Help room if this wasn't accurate</button>`;
 			}
