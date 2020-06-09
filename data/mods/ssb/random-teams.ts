@@ -34,11 +34,31 @@ export const ssbSets: SSBSets = {
 	// Nature needs to be a valid nature with the first letter capitalized ex: Modest
 	*/
 	// Please keep sets organized alphabetically based on staff member name!
+	Aethernum: {
+		species: 'Lotad', ability: 'Rainy Season', item: 'Big Root', gender: 'M',
+		moves: ['Giga Drain', 'Muddy Water', 'Hurricane'],
+		signatureMove: 'Lilypad Overflow',
+		evs: {spa: 252, spd: 4, spe: 252}, nature: 'Modest',
+	},
 	'cant say': {
 		species: 'Volcarona', ability: 'Rage Quit', item: 'Kee Berry', gender: 'M',
 		moves: ['Quiver Dance', 'Roost', 'Will-O-Wisp'],
 		signatureMove: 'Never Lucky',
 		evs: {hp: 248, def: 36, spe: 224}, ivs: {atk: 0}, nature: 'Timid',
+	},
+	Darth: {
+		species: 'Articuno', ability: 'Guardian Angel', item: 'Heavy Duty Boots', gender: 'M',
+		moves: ['Revelation Dance', ['Recover', 'Roost'], 'U-turn'],
+		signatureMove: 'Archangel\'s Requiem',
+		evs: {hp: 252, def: 128, spd: 128}, nature: 'Bold',
+	},
+	'drampa\'s grandpa': {
+		species: 'Drampa', ability: 'Old Manpa', item: 'Wise Glasses', gender: 'M',
+		moves: [
+			['Spikes', 'Stealth Rock', 'Toxic Spikes'], 'Slack Off', ['Core Enforcer', 'Snarl', 'Lava Plume', 'Steam Eruption'],
+		],
+		signatureMove: 'GET OFF MY LAWN!',
+		evs: {hp: 248, def: 8, spa: 252}, ivs: {atk: 0}, nature: 'Modest',
 	},
   dream: {
 		species: 'Klefki', ability: 'Greed Punisher', item: 'Life Orb', gender: 'N',
@@ -46,17 +66,53 @@ export const ssbSets: SSBSets = {
 		signatureMove: 'Lock and Key',
 		evs: {hp: 4, spa: 252, spe: 252}, ivs: {atk: 0}, nature: 'Modest',
   },
+	Flare: {
+		species: 'Weavile', ability: 'Permafrost Armor', item: 'Life Orb', gender: 'N',
+		moves: ['Earthquake', 'Knock Off', ['Play Rough', 'U-turn']],
+		signatureMove: 'Kōri Senbon',
+		evs: {hp: 4, atk: 252, spe: 252}, nature: 'Jolly',
+  },
+  Frostyicelad: {
+		species: 'Frosmoth', ability: 'Ice Shield', item: 'Ice Stone', gender: 'M',
+		moves: ['Quiver Dance', 'Bug Buzz', ['Earth Power', 'Sparkling Aria']],
+		signatureMove: 'Frosty Wave',
+		evs: {spa: 252, spd: 4, spe: 252}, ivs: {atk: 0}, nature: 'Timid',
+	},
 	GXS: {
 		species: 'Porygon-Z', ability: 'Virus Upload', item: 'Life Orb', gender: 'N',
 		moves: ['Nasty Plot', 'Aura Sphere', 'Thunderbolt'],
 		signatureMove: 'Data Corruption',
 		evs: {hp: 4, spa: 252, spe: 252}, nature: 'Timid',
 	},
+	Instruct: {
+		species: 'Cinderace', ability: 'Determination', item: 'Flame Plate', gender: 'N',
+		moves: ['Pyro Ball', 'Sacred Sword', 'Bolt Strike'],
+		signatureMove: 'Hyper Goner',
+		evs: {atk: 252, spd: 4, spe: 252}, nature: 'Jolly',
+	},
+	Jho: {
+		species: 'Toxtricity', ability: 'Punk Rock', item: 'Throat Spray', gender: 'M',
+		moves: ['Nasty Plot', 'Overdrive', 'Volt Switch'],
+		signatureMove: 'Genre Change',
+		evs: {spa: 252, spd: 4, spe: 252}, ivs: {atk: 0}, nature: 'Timid',
+	},
+	'Kaiju Bunny': {
+		species: 'Lopunny', ability: 'Second Wind', item: 'Lopunnite', gender: 'F',
+		moves: ['Return', 'Play Rough', ['Drain Punch', 'High Jump Kick']],
+		signatureMove: 'Cozy Cuddle',
+		evs: {atk: 252, spd: 4, spe: 252}, nature: 'Jolly', shiny: 1,
+	},
 	Kris: {
 		species: 'Unown', ability: 'Protean', item: 'Life Orb', gender: 'N',
 		moves: ['Light of Ruin', 'Psystrike', ['Secret Sword', 'Mind Blown', 'Seed Flare']],
 		signatureMove: 'ebhewbnjgWEGAER',
 		evs: {spa: 252, spd: 4, spe: 252}, ivs: {atk: 0}, nature: 'Timid',
+	},
+	MajorBowman: {
+		species: 'Weezing-Galar', ability: 'Neutralizing Gas', item: 'Black Sludge', gender: 'M',
+		moves: ['Strange Steam', ['Toxic Spikes', 'Haze'], 'Recover'],
+		signatureMove: 'Corrosive Cloud',
+		evs: {hp: 252, def: 252, spd: 4}, nature: 'Bold',
 	},
 	Mitsuki: {
 		species: 'Leafeon', ability: 'Photosynthesis', item: ['Life Orb', 'Miracle Seed'], gender: 'M',
@@ -99,6 +155,18 @@ export const ssbSets: SSBSets = {
 		moves: ['Nasty Plot', ['Flamethrower', 'Fire Blast'], 'Roost'],
 		signatureMove: 'Psycho Drive',
 		evs: {spa: 252, spd: 4, spe: 252}, nature: 'Timid', shiny: true,
+	},
+	Segmr: {
+		species: 'Ninetales-Alola', ability: 'wAll In', item: 'Light Clay', gender: 'M',
+		moves: ['Recover', 'Will-O-Wisp', 'Freeze-Dry'],
+		signatureMove: 'Disconnect',
+		evs: {def: 4, spa: 252, spe: 252}, nature: 'Modest',
+	},
+	Zodiax: {
+		species: 'Oricorio-Pom-Pom', ability: 'Primordial Sea', item: 'Heavy-Duty Boots', gender: 'M',
+		moves: ['Quiver Dance', 'Hurricane', 'Thunder'],
+		signatureMove: 'Big Storm Coming',
+		evs: {hp: 4, spa: 252, spe: 252}, nature: 'Timid',
 	},
 };
 
