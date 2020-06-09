@@ -11,6 +11,11 @@ export const BattlePokedex: {[k: string]: ModdedSpeciesData} = {
 		inherit: true,
 		baseStats: {hp: 40, atk: 70, def: 70, spa: 80, spd: 90, spe: 70},
 	},
+	// Elgino
+	celebi: {
+		inherit: true,
+		types: ['Grass', 'Fairy'],
+	},
 	// Frostyicelad
 	frosmoth: {
 		inherit: true,
@@ -36,7 +41,7 @@ export const BattlePokedex: {[k: string]: ModdedSpeciesData} = {
 		inherit: true,
 		abilities: {0: 'Second Wind'},
 		types: ['Normal', 'Fairy'],
-  },
+	},
 	// Kris
 	unown: {
 		inherit: true,
@@ -59,5 +64,18 @@ export const BattlePokedex: {[k: string]: ModdedSpeciesData} = {
 	mismagius: {
 		inherit: true,
 		types: ["Ghost", "Ice"],
+	},
+	// Robb576
+	necrozmadawnwings: {
+		inherit: true,
+		abilities: {0: "The Numbers Game"},
+	},
+	necrozmaduskmane: {
+		inherit: true,
+		abilities: {0: "The Numbers Game"},
+	},
+	necrozmaultra: {
+		inherit: true,
+		abilities: {0: "The Numbers Game"},
 	},
 };

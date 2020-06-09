@@ -69,6 +69,18 @@ export const BattleStatuses: {[k: string]: ModdedPureEffectData} = {
 			}
 		},
 	},
+	cleann: {
+		noCopy: true,
+		onStart() {
+			this.add(`c|${getName('cleann')}|The mainframe is open... intercept their messages and get out`);
+		},
+		onSwitchOut() {
+			this.add(`c|${getName('cleann')}|Mission Success`);
+		},
+		onFaint() {
+			this.add(`c|${getName('cleann')}|Shazam! They've been destroyed from the inside...`);
+		},
+	},
 	darth: {
 		noCopy: true,
 		onStart() {
@@ -94,6 +106,20 @@ export const BattleStatuses: {[k: string]: ModdedPureEffectData} = {
 		onFaint() {
 			this.add(`c|${getName('dream')}|perdemos`);
   },    
+	elgino: {
+		noCopy: true,
+		onStart(target, pokemon) {
+			this.add(`c|${getName('Elgino')}|Time to save Hyrule!`);
+			if (pokemon.illusion) return;
+			this.add('-start', pokemon, 'typechange', 'Grass/Fairy');
+		},
+		onSwitchOut() {
+			this.add(`c|${getName('Elgino')}|Hold on I need to stock up on ${this.sample(['Bombs', 'Arrows', 'Magic', 'Seeds'])}`);
+		},
+		onFaint() {
+			this.add(`c|${getName('Elgino')}|I'm out of fairies D:!`);
+		},
+	},
 	flare: {
 		noCopy: true,
 		onStart() {
@@ -103,9 +129,9 @@ export const BattleStatuses: {[k: string]: ModdedPureEffectData} = {
 			this.add(`c|${getName('Flare')}|Shunshin No Jutsu!`);
 		},
 		onFaint() {
-			this.add(`c|${getName('Flare')}|Sorry, things were initially better, but ¯\_(ツ)_/¯`);
-    },
-  },
+			this.add(`c|${getName('Flare')}|Sorry, things were initially better, but ¯\\_(ツ)_/¯`);
+		},
+	},
 	frostyicelad: {
 		noCopy: true,
 		onStart(source) {
@@ -335,6 +361,30 @@ export const BattleStatuses: {[k: string]: ModdedPureEffectData} = {
 			this.add(`c|${getName('Rabia')}|im top 500 in relevant tiers and lead gp, i have 8 badges, im fine, gg`);
 		},
 	},
+	robb576: {
+		noCopy: true,
+		onStart(target, pokemon) {
+			if (pokemon.side.pokemonLeft === 1) {
+				this.add(`c|${getName('Robb576')}|This is our last stand. Give it everything you got ${pokemon.side.name}!`);
+			} else {
+				this.add(`c|${getName('Robb576')}|1, 2, 3, 4, dunno how to count no more!`);
+			}
+		},
+		onSwitchOut(pokemon) {
+			if (pokemon.side.pokemonLeft === 1) { // pls contacc
+				this.add(`c|${getName('Robb576')}|Something went wrong. Please contact HoeenHero to fix this`);
+			} else {
+				this.add(`c|${getName('Robb576')}|5, 7, 6, I will be right back into the mix!`);
+			}
+		},
+		onFaint(pokemon) {
+			if (pokemon.species.name === "Necrozma-Ultra") {
+				this.add(`c|${getName('Robb576')}|gg better luck next time. Sorry I couldn't handle them all :^(`);
+			} else {
+				this.add(`c|${getName('Robb576')}|8, 9, 10, it has been a pleasure man!`);
+			}
+		},
+	},
 	segmr: {
 		noCopy: true,
 		onStart() {
@@ -484,7 +534,7 @@ export const BattleStatuses: {[k: string]: ModdedPureEffectData} = {
 	// Custom side condition to allow the ability to track what mon was last in for Darth's Ability.
 	tracker: {
 		onStart(source) {
-			let mon = source.active[0];
+			const mon = source.active[0];
 			if (mon.name !== 'Darth') {
 				this.effectData.storedTypes = mon.getTypes();
 			}

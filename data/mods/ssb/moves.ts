@@ -110,6 +110,42 @@ export const BattleMovedex: {[k: string]: ModdedMoveData} = {
 		type: "Fire",
 	},
 
+	// cleann
+	maliciousintent: {
+		accuracy: 100,
+		basePower: 90,
+		category: "Physical",
+		desc: "Reveals a Pokemon from the other team.",
+		shortDesc: "Reveals a Pokemon from the other team.",
+		name: "Malicious Intent",
+		pp: 10,
+		priority: 0,
+		flags: {protect: 1},
+		onTryMove() {
+			this.attrLastMove('[still]');
+		},
+		onPrepareHit(target, source) {
+			this.add('-anim', source, 'Shadow Bone', target);
+		},
+		self: {
+			onHit(target, source) {
+				const mons = [];
+				for (const foe of target.side.foe.pokemon) {
+					if (foe.m.identified) continue;
+					mons.push(foe);
+				}
+				if (mons.length < 1) return;
+				const randNo = this.random(mons.length);
+				this.add('-message', `${source.name} identified that the opposing team has ${mons[randNo].species}!`);
+				this.add(`c|${getName('cleann')}|Your team's information has been LEAKED!`);
+				mons[randNo].m.identified = true;
+			},
+		},
+		secondary: null,
+		target: "normal",
+		type: "Ghost",
+	},
+
 	// Darth
 	archangelsrequiem: {
 		accuracy: 100,
@@ -130,27 +166,27 @@ export const BattleMovedex: {[k: string]: ModdedMoveData} = {
 			this.add('-anim', source, 'Whirlwind', source);
 		},
 		onModifyType(move, pokemon) {
-			let type = pokemon.types[1] ? pokemon.types[1] : pokemon.types[0];
+			const type = pokemon.types[1] ? pokemon.types[1] : pokemon.types[0];
 			move.type = type;
 		},
 		onHit(target, source, move) {
 			if (source && source !== target && target.hp) {
 				if (!this.canSwitch(target.side) || target.forceSwitchFlag) return;
-					if (source.switchFlag === true) return;
-					target.switchFlag = true;
+				if (source.switchFlag === true) return;
+				target.switchFlag = true;
 			}
 		},
 		effect: {
 			onSwap(target) {
 				if (!target.fainted && target.hp < target.maxhp) {
 					target.heal(target.maxhp);
-					this.add('-heal', target, 33, '[from] move: Archangel\'s Requiem')
+					this.add('-heal', target, 33, '[from] move: Archangel\'s Requiem');
 				}
 			},
 		},
 		selfSwitch: true,
-		target: "normal", 
-		type: "Normal", 
+		target: "normal",
+		type: "Normal",
 	},
 
 	// drampa's grandpa
@@ -203,6 +239,32 @@ export const BattleMovedex: {[k: string]: ModdedMoveData} = {
 		secondary: null,
 		target: "allAdjacentFoes",
 		type: "Steel",
+  },
+
+	// Elgino
+	navisgrace: {
+		accuracy: 100,
+		basePower: 90,
+		category: "Special",
+		desc: "This move is super effective on Steel- and Poison-type Pokemon.",
+		shortDesc: "Super effective on Steel and Poison types.",
+		name: "Navi's Grace",
+		pp: 15,
+		priority: 0,
+		flags: {protect: 1},
+		secondary: null,
+		onTryMove() {
+			this.attrLastMove('[still]');
+		},
+		onPrepareHit(target, source) {
+			this.add('-anim', source, 'Dazzling Gleam', target);
+			this.add('-anim', source, 'Earth Power', target);
+		},
+		onEffectiveness(typeMod, target, type) {
+			if (type === 'Poison' || type === 'Steel') return 1;
+		},
+		target: 'normal',
+		type: 'Fairy',
 	},
 
 	// Flare
@@ -793,6 +855,95 @@ export const BattleMovedex: {[k: string]: ModdedMoveData} = {
 		},
 		target: "normal",
 		type: "Psychic",
+	},
+
+	// Robb576
+	integeroverflow: {
+		accuracy: true,
+		basePower: 200,
+		category: "Special",
+		desc: "This move becomes a physical attack if the user's Attack is greater than its Special Attack, including stat stage changes. This move and its effects ignore the Abilities of other Pokemon.",
+		shortDesc: "Physical if user's Atk > Sp. Atk. Ignores Abilities.",
+		name: "Integer Overflow",
+		pp: 1,
+		priority: 0,
+		flags: {},
+		onTryMove() {
+			this.attrLastMove('[still]');
+		},
+		onPrepareHit(target, source) {
+			this.add('-anim', source, 'Light That Burns The Sky', target);
+		},
+		onModifyMove(move, pokemon) {
+			if (pokemon.getStat('atk', false, true) > pokemon.getStat('spa', false, true)) move.category = 'Physical';
+		},
+		ignoreAbility: true,
+		isZ: "modium6z",
+		secondary: null,
+		target: "normal",
+		type: "Psychic",
+	},
+
+	mode5offensive: {
+		accuracy: true,
+		basePower: 30,
+		category: "Special",
+		desc: "This move hits three times. Every hit has a 20% chance to drop the target's SpD by 1 stage.", // long description
+		shortDesc: "Hits three times. Every hit has a 20% chance to drop the target's SpD by 1 stage.",
+		name: "Mode [5: Offensive]",
+		pp: 15,
+		priority: 0,
+		flags: {protect: 1},
+		onTryMovePriority: 100,
+		onTryMove() {
+			this.attrLastMove('[still]');
+		},
+		onPrepareHit(target, source) {
+			this.add('-anim', source, 'Focus Blast', target);
+			this.add('-anim', source, 'Zap Cannon', target);
+		},
+		secondary: {
+			chance: 20,
+			boosts: {
+				spd: -1,
+			},
+		},
+		multihit: 3,
+		target: "normal",
+		type: "Fighting",
+	},
+
+	mode7defensive: {
+		accuracy: 100,
+		basePower: 0,
+		category: "Status",
+		desc: "This move cures the user's party of all status conditions, and then forces the target to switch to a random ally.",
+		shortDesc: "Cures the user's party of all status conditions; and then forces the target to switch to a random ally.",
+		name: "Mode [7: Defensive]",
+		pp: 15,
+		priority: 0, // should be -6, waiting on QC
+		flags: {sound: 1, distance: 1, authentic: 1},
+		forceSwitch: true,
+		onTryMovePriority: 100,
+		onTryMove() {
+			this.attrLastMove('[still]');
+		},
+		onPrepareHit(target, source) {
+			this.add('-anim', source, 'Heal Bell', source);
+			this.add('-anim', source, 'Roar', source);
+		},
+		onHit(pokemon, source) {
+			this.add('-activate', source, 'move: Mode [7: Defensive]');
+			const side = pokemon.side;
+			let success = false;
+			for (const ally of side.pokemon) {
+				if (ally.hasAbility('soundproof')) continue;
+				if (ally.cureStatus()) success = true;
+			}
+			return success;
+		},
+		target: "normal",
+		type: "Normal",
 	},
 
 	// Segmr

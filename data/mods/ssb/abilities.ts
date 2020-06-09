@@ -78,10 +78,10 @@ export const BattleAbilities: {[k: string]: ModdedAbilityData} = {
 		onStart(pokemon) {
 			const possibleTypes = [];
 			const newTypes = [];
-			let types = pokemon.side.sideConditions['tracker'].storedTypes;
+			const types = pokemon.side.sideConditions['tracker'].storedTypes;
 			for (const u in types) {
 				for (const type in this.dex.data.TypeChart) {
-					let typeCheck = this.dex.data.TypeChart[type].damageTaken[pokemon.side.sideConditions['tracker'].storedTypes[u]];
+					const typeCheck = this.dex.data.TypeChart[type].damageTaken[pokemon.side.sideConditions['tracker'].storedTypes[u]];
 					if (typeCheck === 2 || typeCheck === 3) {
 						possibleTypes.push(type);
 					}
@@ -96,7 +96,7 @@ export const BattleAbilities: {[k: string]: ModdedAbilityData} = {
 
 			if (!pokemon.setType(newTypes)) return;
 			this.add('-start', pokemon, 'typechange', newTypes.join('/'));
-		}
+		},
 	},
 
 	// drampa's grandpa
@@ -135,7 +135,7 @@ export const BattleAbilities: {[k: string]: ModdedAbilityData} = {
 		onStart(pokemon) {
 			this.boost({def: 1, spd: 1});
 		},
-  },
+	},
 
 	// dream
 	greedpunisher: {
@@ -193,6 +193,12 @@ export const BattleAbilities: {[k: string]: ModdedAbilityData} = {
 		onSourceModifyDamage(damage, source, target, move) {
 			if (move.category === 'Special') {
 				return this.chainModify(0.5);
+			}
+		},
+		onDamage(damage, target, source, effect) {
+			if (effect.effectType !== 'Move') {
+				if (effect.effectType === 'Ability') this.add('-activate', source, 'ability: ' + effect.name);
+				return false;
 			}
 		},
 	},
@@ -357,6 +363,70 @@ export const BattleAbilities: {[k: string]: ModdedAbilityData} = {
 			if (move?.category === 'Status') {
 				move.pranksterBoosted = true;
 				return priority + 1;
+			}
+		},
+	},
+
+	// Robb576
+	thenumbersgame: {
+		desc: "Changes the pokemon's form upon switch-in depending on the amount of pokemon still alive on the user's team; Necrozma-Dusk-Mane if 3 or fewer, Necrozma-Ultra if it is the last Pokemon left on the team.",
+		shortDesc: "Changes the pokemon's form upon switch-in depending on the amount of pokemon still alive on the user's team.",
+		name: "The Numbers Game",
+		onStart(pokemon) {
+			if (pokemon.side.pokemonLeft > 3) return;
+			const assignNewMoves = (poke: Pokemon, moves: string[]) => {
+				const carryOver = poke.moveSlots.slice().map(m => {
+					return m.pp / m.maxpp;
+				});
+				// Incase theres ever less than 4 moves
+				while (carryOver.length < 4) {
+					carryOver.push(1);
+				}
+				poke.moveSlots = [];
+				let slot = 0;
+				for (const newMove of moves) {
+					const move = poke.battle.dex.getMove(toID(newMove));
+					if (!move.id) continue;
+					poke.moveSlots.push({
+						move: move.name,
+						id: move.id,
+						pp: ((move.noPPBoosts || move.isZ) ? Math.floor(move.pp * carryOver[slot]) : move.pp * 8 / 5),
+						maxpp: ((move.noPPBoosts || move.isZ) ? move.pp : move.pp * 8 / 5),
+						target: move.target,
+						disabled: false,
+						disabledSource: '',
+						used: false,
+					});
+					slot++;
+				}
+			};
+			if (pokemon.species.name === 'Necrozma-Dusk-Mane' && pokemon.side.pokemonLeft === 1) {
+				pokemon.set.evs = {hp: 0, atk: 204, def: 0, spa: 200, spd: 0, spe: 104};
+				pokemon.formeChange("Necrozma-Ultra", this.effect, true);
+				pokemon.baseMaxhp = Math.floor(Math.floor(
+					2 * pokemon.species.baseStats['hp'] + pokemon.set.ivs['hp'] + Math.floor(pokemon.set.evs['hp'] / 4) + 100
+				) * pokemon.level / 100 + 10);
+				const newMaxHP = pokemon.baseMaxhp;
+				pokemon.hp = newMaxHP - (pokemon.maxhp - pokemon.hp);
+				pokemon.maxhp = newMaxHP;
+				pokemon.setItem("modium6z");
+				const newMoves = ['Photon Geyser', 'Earthquake', 'Dynamax Cannon', 'Fusion Flare'];
+				assignNewMoves(pokemon, newMoves);
+				return;
+			}
+			if (pokemon.species.name === "Necrozma-Dawn-Wings") {
+				pokemon.set.ivs = {hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31};
+				pokemon.set.evs = {hp: 252, atk: 4, def: 0, spa: 0, spd: 252, spe: 0};
+				pokemon.formeChange("Necrozma-Dusk-Mane", this.effect, true);
+				pokemon.baseMaxhp = Math.floor(Math.floor(
+					2 * pokemon.species.baseStats['hp'] + pokemon.set.ivs['hp'] + Math.floor(pokemon.set.evs['hp'] / 4) + 100
+				) * pokemon.level / 100 + 10);
+				const newMaxHP = pokemon.baseMaxhp;
+				pokemon.hp = newMaxHP - (pokemon.maxhp - pokemon.hp);
+				pokemon.maxhp = newMaxHP;
+				pokemon.setItem("leftovers");
+				const newMoves = ['Sunsteel Strike', 'Toxic', 'Rapid Spin', 'Mode [7: Defensive]'];
+				assignNewMoves(pokemon, newMoves);
 			}
 		},
 	},

@@ -46,6 +46,12 @@ export const ssbSets: SSBSets = {
 		signatureMove: 'Never Lucky',
 		evs: {hp: 248, def: 36, spe: 224}, ivs: {atk: 0}, nature: 'Timid',
 	},
+	cleann: {
+		species: 'Dragapult', ability: 'Frisk', item: ['Life Orb', 'Dragon Fang'], gender: '',
+		moves: ['Dragon Dance', 'Dragon Darts', 'Fire Punch'],
+		signatureMove: 'Malicious Intent',
+		evs: {atk: 252, def: 4, spe: 252}, nature: 'Jolly',
+	},
 	Darth: {
 		species: 'Articuno', ability: 'Guardian Angel', item: 'Heavy Duty Boots', gender: 'M',
 		moves: ['Revelation Dance', ['Recover', 'Roost'], 'U-turn'],
@@ -66,13 +72,19 @@ export const ssbSets: SSBSets = {
 		signatureMove: 'Lock and Key',
 		evs: {hp: 4, spa: 252, spe: 252}, ivs: {atk: 0}, nature: 'Modest',
   },
+	Elgino: {
+		species: 'Celebi', ability: 'Magic Guard', item: 'Life Orb', gender: 'M',
+		moves: ['Leaf Storm', 'Nasty Plot', 'Power Gem'],
+		signatureMove: 'Navi\'s Grace',
+		evs: {hp: 4, spa: 252, spe: 252}, ivs: {atk: 0}, nature: 'Timid', shiny: true,
+	},
 	Flare: {
 		species: 'Weavile', ability: 'Permafrost Armor', item: 'Life Orb', gender: 'N',
 		moves: ['Earthquake', 'Knock Off', ['Play Rough', 'U-turn']],
 		signatureMove: 'Kōri Senbon',
 		evs: {hp: 4, atk: 252, spe: 252}, nature: 'Jolly',
-  },
-  Frostyicelad: {
+	},
+	Frostyicelad: {
 		species: 'Frosmoth', ability: 'Ice Shield', item: 'Ice Stone', gender: 'M',
 		moves: ['Quiver Dance', 'Bug Buzz', ['Earth Power', 'Sparkling Aria']],
 		signatureMove: 'Frosty Wave',
@@ -156,6 +168,12 @@ export const ssbSets: SSBSets = {
 		signatureMove: 'Psycho Drive',
 		evs: {spa: 252, spd: 4, spe: 252}, nature: 'Timid', shiny: true,
 	},
+	Robb576: {
+		species: 'Necrozma-Dawn-Wings', ability: 'The Numbers Game', item: 'Metronome', gender: 'M',
+		moves: ['Moongeist Beam', 'Psystrike', 'Thunder Wave'],
+		signatureMove: 'Mode [5: Offensive]',
+		evs: {spa: 252, spd: 4, spe: 252}, ivs: {atk: 0}, nature: 'Modest',
+	},
 	Segmr: {
 		species: 'Ninetales-Alola', ability: 'wAll In', item: 'Light Clay', gender: 'M',
 		moves: ['Recover', 'Will-O-Wisp', 'Freeze-Dry'],
@@ -181,7 +199,7 @@ export class RandomStaffBrosTeams extends RandomTeams {
 			if (depth >= 200) throw new Error(`Infinite loop in Super Staff Bros team generation.`);
 			depth++;
 			const name = this.sampleNoReplace(pool);
-			const ssbSet = Object.assign({}, ssbSets[name]);
+			const ssbSet: SSBSet = this.dex.deepClone(ssbSets[name]);
 
 			// Enforce typing limits
 			if (!debug.length) { // Type limits are ignored when debugging
@@ -205,10 +223,10 @@ export class RandomStaffBrosTeams extends RandomTeams {
 			const set: PokemonSet = {
 				name: name,
 				species: ssbSet.species,
-				item: Array.isArray(ssbSet.item) ? this.sampleNoReplace(ssbSet.item.slice()) : ssbSet.item,
-				ability: Array.isArray(ssbSet.ability) ? this.sampleNoReplace(ssbSet.ability.slice()) : ssbSet.ability,
+				item: Array.isArray(ssbSet.item) ? this.sampleNoReplace(ssbSet.item) : ssbSet.item,
+				ability: Array.isArray(ssbSet.ability) ? this.sampleNoReplace(ssbSet.ability) : ssbSet.ability,
 				moves: [],
-				nature: Array.isArray(ssbSet.nature) ? this.sampleNoReplace(ssbSet.nature.slice()) : ssbSet.nature,
+				nature: Array.isArray(ssbSet.nature) ? this.sampleNoReplace(ssbSet.nature) : ssbSet.nature,
 				gender: ssbSet.gender,
 				evs: {hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0},
 				ivs: {hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31},
@@ -233,9 +251,8 @@ export class RandomStaffBrosTeams extends RandomTeams {
 				set.evs = {hp: 84, atk: 84, def: 84, spa: 84, spd: 84, spe: 84};
 			}
 
-			const movepool = ssbSet.moves.slice();
 			while (set.moves.length < 3 && ssbSet.moves.length > 0) {
-				let move = this.sampleNoReplace(movepool);
+				let move = this.sampleNoReplace(ssbSet.moves);
 				if (Array.isArray(move)) move = this.sampleNoReplace(move);
 				set.moves.push(move);
 			}
