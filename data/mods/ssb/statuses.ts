@@ -38,6 +38,18 @@ export const BattleStatuses: {[k: string]: ModdedPureEffectData} = {
 	IMPORTANT: Obtain the username from getName
 	*/
 	// Please keep statuses organized alphabetically based on staff member name!
+	aeonic: {
+		noCopy: true,
+		onStart() {
+			this.add(`c|${getName('Aeonic')}|What's bonkin?`);
+		},
+		onSwitchOut() {
+			this.add(`c|${getName('Aeonic')}|I am thou, thou art I`);
+		},
+		onFaint() {
+			this.add(`c|${getName('Aeonic')}|Guys the emoji movie wasn't __that bad__`);
+		},
+	},
 	aethernum: {
 		noCopy: true,
 		onStart() {
@@ -48,6 +60,18 @@ export const BattleStatuses: {[k: string]: ModdedPureEffectData} = {
 		},
 		onFaint() {
 			this.add(`c|${getName('Aethernum')}|Ok, ok, i have procrastinated enough here, time to go ^_^' See ya around!`);
+		},
+	},
+	alpha: {
+		noCopy: true,
+		onStart() {
+			this.add(`c|${getName('Alpha')}|eccomi dimmi`);
+		},
+		onSwitchOut() {
+			this.add(`c|${getName('Alpha')}|FRATM FACI FRIDDU`);
+		},
+		onFaint() {
+			this.add(`c|${getName('Alpha')}|caio`);
 		},
 	},
 	cantsay: {
@@ -89,10 +113,17 @@ export const BattleStatuses: {[k: string]: ModdedPureEffectData} = {
 		onFaint() {
 			this.add(`c|${getName('Darth')}|Well, everyone needs a break at some point.`);
 		},
-		onTryMove(attacker, defender, move) {
-			if (move.id === 'angelsrequiem') {
-				this.add(`c|${getName('Darth')}|Take my place, serve the Angel of Stall!`);
-			}
+	},
+	drampasgrandpa: {
+		noCopy: true,
+		onStart() {
+			this.add(`c|${getName('drampa\'s grandpa')}|Where are my glasses?`);
+		},
+		onSwitchOut() {
+			this.add(`c|${getName('drampa\'s grandpa')}|Darn kids...`);
+		},
+		onFaint() {
+			this.add(`c|${getName('drampa\'s grandpa')}|Bah humbug!`);
 		},
 	},
 	dream: {
@@ -118,6 +149,18 @@ export const BattleStatuses: {[k: string]: ModdedPureEffectData} = {
 		},
 		onFaint() {
 			this.add(`c|${getName('Elgino')}|I'm out of fairies D:!`);
+		},
+	},
+	emeri: {
+		noCopy: true,
+		onStart() {
+			this.add(`c|${getName('Emeri')}|hey !`);
+		},
+		onSwitchOut() {
+			this.add(`c|${getName('Emeri')}|//busy`);
+		},
+		onFaint() {
+			this.add(`c|${getName('Emeri')}|don't forget to chall SFG or Agarica in gen8ou`);
 		},
 	},
 	flare: {
@@ -213,14 +256,17 @@ export const BattleStatuses: {[k: string]: ModdedPureEffectData} = {
 		},
 		// phuck innate
 		onDamage(damage, target, source, effect) { // Magic Guard
-			if (!source || !source.species.id.startsWith('unown') || source.illusion) return;
+			if (effect.id === 'heavyhailstorm') return;
+			if (target.illusion) return;
+			if (!target.species.id.includes('unown')) return;
 			if (effect.effectType !== 'Move') {
 				if (effect.effectType === 'Ability') this.add('-activate', source, 'ability: ' + effect.name);
 				return false;
 			}
 		},
 		onResidual(pokemon) {
-			if (!pokemon.species.id.startsWith('unown') || pokemon.illusion) return;
+			if (pokemon.illusion) return;
+			if (!pokemon.species.id.includes('unown')) return;
 			// So this doesn't activate upon switching in
 			if (pokemon.activeTurns < 1) return;
 			const unownLetters = 'abcdefghijklmnopgrstuvwxyz'.split('');
@@ -305,11 +351,6 @@ export const BattleStatuses: {[k: string]: ModdedPureEffectData} = {
 		onFaint() {
 			this.add(`c|${getName('OM~!')}|ugh, I ${['rolled a 1, damnit.', 'got killed night 1, seriously?', 'got critfroze by ice beam asfgegkhalfewgihons'][this.random(3)]}`);
 		},
-		onTryMove(attacker, defender, move) {
-			if (move.id === 'mechomnism') {
-				this.add(`c|${getName('OM~!')}|Alley Oop`);
-			}
-		},
 	},
 	paradise: {
 		noCopy: true,
@@ -347,6 +388,23 @@ export const BattleStatuses: {[k: string]: ModdedPureEffectData} = {
 		},
 		onFaint() {
 			this.add(`c|${getName('phiwings99')}|God, Nalei is fucking terrible at this game.`);
+		},
+	},
+	pirateprincess: {
+		noCopy: true,
+		onStart() {
+			this.add(`c|${getName('PiraTe Princess')}|Ahoy! o/`);
+		},
+		onSwitchOut() {
+			this.add(`c|${getName('PiraTe Princess')}|brb making tea`);
+		},
+		onFaint() {
+			this.add(`c|${getName('PiraTe Princess')}|I failed my death save`);
+		},
+		onHit(target, source, move) {
+			if (move?.effectType === 'Move' && target.getMoveHitData(move).crit) {
+				this.add(`c|${getName('PiraTe Princess')}|NATURAL 20!!!`);
+			}
 		},
 	},
 	rabia: {
@@ -426,6 +484,62 @@ export const BattleStatuses: {[k: string]: ModdedPureEffectData} = {
 			}
 		},
 	},
+	// Heavy Hailstorm status support for Alpha
+	heavyhailstorm: {
+		name: 'HeavyHailstorm',
+		effectType: 'Weather',
+		duration: 3,
+		onTryMovePriority: 1,
+		onTryMove(attacker, defender, move) {
+			if (move.type === 'Steel' && move.category !== 'Status') {
+				this.debug('Heavy Hailstorm Steel suppress');
+				this.add('-fail', attacker, move, '[from] Heavy Hailstorm');
+				this.attrLastMove('[still]');
+				return null;
+			}
+		},
+		onWeatherModifyDamage(damage, attacker, defender, move) {
+			if (move.type === 'Ice') {
+				this.debug('Heavy Hailstorm ice boost');
+				return this.chainModify(1.5);
+			}
+		},
+		onStart(battle, source, effect) {
+			this.add('-weather', 'Heavy Hailstorm');
+			this.effectData.source = source;
+		},
+		onModifyMove(move, pokemon, target) {
+			if (!this.field.isWeather('heavyhailstorm')) return;
+			if (move.category !== "Status") {
+				this.debug('Adding Heavy Hailstorm freeze');
+				if (!move.secondaries) move.secondaries = [];
+				for (const secondary of move.secondaries) {
+					if (secondary.status === 'frz') return;
+				}
+				move.secondaries.push({
+					chance: 10,
+					status: 'frz',
+				});
+			}
+		},
+		onAnySetWeather(target, source, weather) {
+			const strongWeathers = ['desolateland', 'primordialsea', 'deltastream', 'snowstorm', 'heavyhailstorm'];
+			if (this.field.getWeather().id === 'heavyhailstorm' && !strongWeathers.includes(weather.id)) return false;
+		},
+		onResidualOrder: 1,
+		onResidual() {
+			this.add('-weather', 'Heavy Hailstorm', '[upkeep]');
+			if (this.field.isWeather('heavyhailstorm')) this.eachEvent('Weather');
+		},
+		onWeather(target, source, effect) {
+			if (target.side === this.effectData.source.side) return;
+			// Hail is strongerfrom Heavy Hailstormnone
+			if (!target.hasType('Ice')) this.damage(target.baseMaxhp / 8);
+		},
+		onEnd() {
+			this.add('-end', 'Heavy Hailstorm');
+		},
+	},
 	// Snowstorm status support for Perish Song's ability
 	snowstorm: {
 		name: 'Snowstorm',
@@ -452,7 +566,7 @@ export const BattleStatuses: {[k: string]: ModdedPureEffectData} = {
 			if (!target.hasType('Ice')) this.damage(target.baseMaxhp / 16);
 		},
 		onEnd() {
-			this.add('-weather', 'Snowstorm');
+			this.add('-end', 'Snowstorm');
 		},
 	},
 	// Modified futuremove support for Segmr's move (Disconnect)

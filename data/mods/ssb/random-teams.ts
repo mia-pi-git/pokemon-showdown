@@ -34,11 +34,23 @@ export const ssbSets: SSBSets = {
 	// Nature needs to be a valid nature with the first letter capitalized ex: Modest
 	*/
 	// Please keep sets organized alphabetically based on staff member name!
+	Aeonic: {
+		species: 'Nosepass', ability: 'Arsene', item: 'Stone Plate', gender: 'M',
+		moves: ['Diamond Storm', 'Earthquake', 'Milk Drink'],
+		signatureMove: 'Looking Cool',
+		evs: {hp: 252, def: 8, spd: 252}, nature: 'Impish',
+	},
 	Aethernum: {
 		species: 'Lotad', ability: 'Rainy Season', item: 'Big Root', gender: 'M',
 		moves: ['Giga Drain', 'Muddy Water', 'Hurricane'],
 		signatureMove: 'Lilypad Overflow',
 		evs: {spa: 252, spd: 4, spe: 252}, nature: 'Modest',
+	},
+	Alpha: {
+		species: 'Aurorus', ability: 'Snow Warning', item: 'Caionium Z', gender: 'M',
+		moves: ['Freeze-Dry', 'Ancient Power', 'Earth Power'],
+		signatureMove: 'Blizzard',
+		evs: {spa: 252, spd: 4, spe: 252}, ivs: {atk: 0}, nature: 'Timid', shiny: true,
 	},
 	'cant say': {
 		species: 'Volcarona', ability: 'Rage Quit', item: 'Kee Berry', gender: 'M',
@@ -78,13 +90,19 @@ export const ssbSets: SSBSets = {
 		signatureMove: 'Navi\'s Grace',
 		evs: {hp: 4, spa: 252, spe: 252}, ivs: {atk: 0}, nature: 'Timid', shiny: true,
 	},
+	Emeri: {
+		species: 'Flygon', ability: 'Draco Voice', item: 'Throat Spray', gender: 'M',
+		moves: ['Boomburst', 'Earth Power', 'Agility'],
+		signatureMove: 'Forced Landing',
+		evs: {spa: 252, spd: 4, spe: 252}, ivs: {atk: 0}, nature: 'Timid',
+	},
 	Flare: {
 		species: 'Weavile', ability: 'Permafrost Armor', item: 'Life Orb', gender: 'N',
 		moves: ['Earthquake', 'Knock Off', ['Play Rough', 'U-turn']],
 		signatureMove: 'Kōri Senbon',
 		evs: {hp: 4, atk: 252, spe: 252}, nature: 'Jolly',
 	},
-	Frostyicelad: {
+	'frostyicelad ❆': {
 		species: 'Frosmoth', ability: 'Ice Shield', item: 'Ice Stone', gender: 'M',
 		moves: ['Quiver Dance', 'Bug Buzz', ['Earth Power', 'Sparkling Aria']],
 		signatureMove: 'Frosty Wave',
@@ -117,7 +135,7 @@ export const ssbSets: SSBSets = {
 	Kris: {
 		species: 'Unown', ability: 'Protean', item: 'Life Orb', gender: 'N',
 		moves: ['Light of Ruin', 'Psystrike', ['Secret Sword', 'Mind Blown', 'Seed Flare']],
-		signatureMove: 'ebhewbnjgWEGAER',
+		signatureMove: 'Alphabet Soup',
 		evs: {spa: 252, spd: 4, spe: 252}, ivs: {atk: 0}, nature: 'Timid',
 	},
 	MajorBowman: {
@@ -161,6 +179,16 @@ export const ssbSets: SSBSets = {
 		moves: ['Destiny Bond', 'Ice Beam', 'Haze'],
 		signatureMove: 'Moongeist Beam',
 		evs: {spa: 252, spd: 4, spe: 252}, ivs: {atk: 0}, nature: 'Timid',
+	},
+	'PiraTe Princess': {
+		species: 'Polteageist', ability: 'Wild Magic Surge', item: 'Expert Belt', gender: 'F',
+		moves: [
+			'Moongeist Beam', 'Spacial Rend', [
+				'Tri Attack', 'Fiery Dance', 'Scald', 'Discharge', 'Apple Acid', 'Ice Beam', 'Aura Sphere', 'Sludge Bomb', 'Earth Power', 'Oblivion Wing', 'Psyshock', 'Bug Buzz', 'Power Gem', 'Dark Pulse', 'Flash Cannon', 'Dazzling Gleam',
+			],
+		],
+		signatureMove: 'Dungeons & Dragons',
+		evs: {def: 4, spa: 252, spe: 252}, ivs: {atk: 0}, nature: 'Timid',
 	},
 	Rabia: {
 		species: 'Mew', ability: 'Psychic Surge', item: 'Life Orb', gender: 'M',
