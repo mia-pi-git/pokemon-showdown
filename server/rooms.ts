@@ -114,7 +114,7 @@ export interface RoomSettings {
 	noAutoTruncate?: boolean;
 	isMultichannel?: boolean;
 }
-export type Room = GlobalRoom | GameRoom | ChatRoom;
+export type Room = GameRoom | ChatRoom;
 type Poll = import('./chat-plugins/poll').Poll;
 type Announcement = import('./chat-plugins/announcements').Announcement;
 type Tournament = import('./tournaments/index').Tournament;
@@ -122,7 +122,7 @@ type Tournament = import('./tournaments/index').Tournament;
 export abstract class BasicRoom {
 	roomid: RoomID;
 	title: string;
-	readonly type: 'chat' | 'battle' | 'global';
+	readonly type: 'chat' | 'battle';
 	readonly users: UserTable;
 	/**
 	 * Scrollback log. This is the log that's sent to users when
@@ -258,11 +258,9 @@ export abstract class BasicRoom {
 	 * for everyone, and appears in the scrollback for new users who
 	 * join.
 	 */
-	add(message: string): this { throw new Error(`should be implemented by subclass`); }
-	roomlog(message: string) { throw new Error(`should be implemented by subclass`); }
-	modlog(message: string) { throw new Error(`should be implemented by subclass`); }
-	logEntry() { throw new Error(`room.logEntry has been renamed room.roomlog`); }
-	addLogMessage() { throw new Error(`room.addLogMessage has been renamed room.addByUser`); }
+	abstract add(message: string): this;
+	abstract roomlog(message: string): void;
+	abstract modlog(message: string): void;
 	/**
 	 * Inserts (sanitized) HTML into the room log.
 	 */
@@ -471,9 +469,7 @@ export abstract class BasicRoom {
 	destroy() {}
 }
 
-export class GlobalRoom extends BasicRoom {
-	readonly type: 'global';
-	readonly active: false;
+export class GlobalRoomState {
 	readonly settingsList: RoomSettings[];
 	readonly chatRooms: ChatRoom[];
 	/**
@@ -485,7 +481,6 @@ export class GlobalRoom extends BasicRoom {
 	 */
 	readonly staffAutojoinList: RoomID[];
 	readonly ladderIpLog: WriteStream;
-	readonly users: UserTable;
 	readonly reportUserStatsInterval: NodeJS.Timeout;
 	readonly modlogStream: WriteStream;
 	lockdown: boolean | 'pre' | 'ddos';
@@ -493,21 +488,11 @@ export class GlobalRoom extends BasicRoom {
 	lastReportedCrash: number;
 	lastBattle: number;
 	lastWrittenBattle: number;
-	userCount: number;
 	maxUsers: number;
 	maxUsersDate: number;
 	formatList: string;
 
-	readonly game: null;
-	readonly battle: null;
-	readonly tour: null;
-
-	constructor(roomid: RoomID) {
-		if (roomid !== 'global') throw new Error(`The global room's room ID must be 'global'`);
-		super(roomid);
-
-		this.type = 'global';
-		this.active = false;
+	constructor() {
 		this.settingsList = [];
 		try {
 			this.settingsList = require('../config/chatrooms.json');
@@ -575,8 +560,6 @@ export class GlobalRoom extends BasicRoom {
 		);
 
 		// init users
-		this.users = Object.create(null);
-		this.userCount = 0; // cache of `size(this.users)`
 		this.maxUsers = 0;
 		this.maxUsersDate = 0;
 		this.lockdown = false;
@@ -632,7 +615,7 @@ export class GlobalRoom extends BasicRoom {
 		}
 		void LoginServer.request('updateuserstats', {
 			date: Date.now(),
-			users: this.userCount,
+			users: Users.onlineCount,
 		});
 	}
 
@@ -748,7 +731,7 @@ export class GlobalRoom extends BasicRoom {
 			official: [],
 			pspl: [],
 			chat: [],
-			userCount: this.userCount,
+			userCount: Users.onlineCount,
 			battleCount: this.battleCount,
 		};
 		for (const room of this.chatRooms) {
@@ -774,18 +757,8 @@ export class GlobalRoom extends BasicRoom {
 		}
 		return roomsData;
 	}
-	checkModjoin(user: User) {
-		return true;
-	}
-	isMuted(user: User) {
-		return undefined;
-	}
-	send(message: string) {
-		Sockets.roomBroadcast(this.roomid, message);
-	}
-	add(message: string) {
-		// TODO: make sure this never happens
-		return this;
+	sendAll(message: string) {
+		Sockets.roomBroadcast('', message);
 	}
 	addChatRoom(title: string) {
 		const id = toID(title) as RoomID;
@@ -891,7 +864,7 @@ export class GlobalRoom extends BasicRoom {
 	checkAutojoin(user: User, connection?: Connection) {
 		if (!user.named) return;
 		for (let [i, staffAutojoin] of this.staffAutojoinList.entries()) {
-			const room = Rooms.get(staffAutojoin) as ChatRoom | GameRoom;
+			const room = Rooms.get(staffAutojoin);
 			if (!room) {
 				this.staffAutojoinList.splice(i, 1);
 				i--;
@@ -916,34 +889,12 @@ export class GlobalRoom extends BasicRoom {
 			}
 		}
 	}
-	onConnect(user: User, connection: Connection) {
+	handleConnect(user: User, connection: Connection) {
 		connection.send(user.getUpdateuserText() + '\n' + this.configRankList + this.formatListText);
-	}
-	onJoin(user: User, connection: Connection) {
-		if (!user) return false; // ???
-		if (this.users[user.id]) return user;
-
-		this.users[user.id] = user;
-		if (++this.userCount > this.maxUsers) {
-			this.maxUsers = this.userCount;
+		if (Users.users.size > this.maxUsers) {
+			this.maxUsers = Users.users.size;
 			this.maxUsersDate = Date.now();
 		}
-
-		return user;
-	}
-	onRename(user: User, oldid: ID, joining: boolean) {
-		delete this.users[oldid];
-		this.users[user.id] = user;
-		return user;
-	}
-	onLeave(user: User) {
-		if (!user) return; // ...
-		if (!(user.id in this.users)) {
-			Monitor.crashlog(new Error(`user ${user.id} already left`));
-			return;
-		}
-		delete this.users[user.id];
-		this.userCount--;
 	}
 	startLockdown(err: Error | null = null, slow = false) {
 		if (this.lockdown && err) return;
@@ -1660,8 +1611,8 @@ export class GameRoom extends BasicChatRoom {
 }
 
 function getRoom(roomid?: string | Room) {
-	if (roomid && (roomid as Room).roomid) return roomid as Room;
-	return Rooms.rooms.get(roomid as RoomID);
+	if (typeof roomid === 'string') return Rooms.rooms.get(roomid as RoomID);
+	return roomid as Room;
 }
 
 export const Rooms = {
@@ -1792,11 +1743,11 @@ export const Rooms = {
 	battleModlogStream: FS('logs/modlog/modlog_battle.txt').createAppendStream(),
 	groupchatModlogStream: FS('logs/modlog/modlog_groupchat.txt').createAppendStream(),
 
-	global: null! as GlobalRoom,
+	global: null! as GlobalRoomState,
 	lobby: null as ChatRoom | null,
 
 	BasicRoom,
-	GlobalRoom,
+	GlobalRoomState,
 	GameRoom,
 	ChatRoom: BasicChatRoom,
 
@@ -1815,8 +1766,4 @@ export const Rooms = {
 
 // initialize
 
-Monitor.notice("NEW GLOBAL: global");
-
-Rooms.global = new GlobalRoom('global');
-
-Rooms.rooms.set('global', Rooms.global);
+Rooms.global = new GlobalRoomState();

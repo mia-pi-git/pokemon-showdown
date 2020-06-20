@@ -391,6 +391,7 @@ export class User extends Chat.MessageContext {
 		this.avatar = DEFAULT_TRAINER_SPRITES[Math.floor(Math.random() * DEFAULT_TRAINER_SPRITES.length)];
 
 		this.connected = true;
+		Users.onlineCount++;
 
 		if (connection.user) connection.user = this;
 		this.connections = [connection];
@@ -457,7 +458,7 @@ export class User extends Chat.MessageContext {
 
 	sendTo(roomid: RoomID | BasicRoom | null, data: string) {
 		if (roomid && typeof roomid !== 'string') roomid = (roomid as BasicRoom).roomid;
-		if (roomid && roomid !== 'global' && roomid !== 'lobby') data = `>${roomid}\n${data}`;
+		if (roomid && roomid !== 'lobby') data = `>${roomid}\n${data}`;
 		for (const connection of this.connections) {
 			if (roomid && !connection.inRooms.has(roomid)) continue;
 			connection.send(data);
@@ -479,7 +480,7 @@ export class User extends Chat.MessageContext {
 			const lockedSymbol = (punishgroups.locked && punishgroups.locked.symbol || '\u203d');
 			return lockedSymbol + this.name;
 		}
-		if (roomid && roomid !== 'global') {
+		if (roomid) {
 			const room = Rooms.get(roomid);
 			if (!room) {
 				throw new Error(`Room doesn't exist: ${roomid}`);
@@ -943,7 +944,10 @@ export class User extends Chat.MessageContext {
 	mergeConnection(connection: Connection) {
 		// the connection has changed name to this user's username, and so is
 		// being merged into this account
-		this.connected = true;
+		if (!this.connected) {
+			this.connected = true;
+			Users.onlineCount++;
+		}
 		if (connection.connectedAt > this.lastConnected) {
 			this.lastConnected = connection.connectedAt;
 		}
@@ -1076,7 +1080,9 @@ export class User extends Chat.MessageContext {
 		return removed;
 	}
 	markDisconnected() {
+		if (!this.connected) return;
 		this.connected = false;
+		Users.onlineCount--;
 		this.lastDisconnected = Date.now();
 		if (!this.registered) {
 			// for "safety"
@@ -1214,12 +1220,7 @@ export class User extends Chat.MessageContext {
 		if (!room) throw new Error(`Room not found: ${roomid}`);
 		if (!connection) {
 			for (const curConnection of this.connections) {
-				// only join full clients, not pop-out single-room
-				// clients
-				// (...no, pop-out rooms haven't been implemented yet)
-				if (curConnection.inRooms.has('global')) {
-					this.joinRoom(room, curConnection);
-				}
+				this.joinRoom(room, curConnection);
 			}
 			return;
 		}
@@ -1292,7 +1293,7 @@ export class User extends Chat.MessageContext {
 	 * The user says message in room.
 	 * Returns false if the rest of the user's messages should be discarded.
 	 */
-	chat(message: string, room: Room, connection: Connection) {
+	chat(message: string, room: Room | null, connection: Connection) {
 		const now = Date.now();
 
 		if (message.startsWith('/cmd userdetails') || message.startsWith('>> ') || this.isSysop) {
@@ -1315,10 +1316,10 @@ export class User extends Chat.MessageContext {
 				);
 				return false;
 			} else {
-				this.chatQueue.push([message, room.roomid, connection]);
+				this.chatQueue.push([message, room ? room.roomid : '', connection]);
 			}
 		} else if (now < this.lastChatMessage + throttleDelay) {
-			this.chatQueue = [[message, room.roomid, connection]];
+			this.chatQueue = [[message, room ? room.roomid : '', connection]];
 			this.startChatQueue(throttleDelay - (now - this.lastChatMessage));
 		} else {
 			this.lastChatMessage = now;
@@ -1363,12 +1364,12 @@ export class User extends Chat.MessageContext {
 		this.lastChatMessage = new Date().getTime();
 
 		const room = Rooms.get(roomid);
-		if (room) {
+		if (room || !roomid) {
 			Monitor.activeIp = connection.ip;
 			Chat.parse(message, room, this, connection);
 			Monitor.activeIp = null;
 		} else {
-			// room is expired, do nothing
+			// room no longer exists; do nothing
 		}
 
 		const throttleDelay = this.trusted ? THROTTLE_DELAY_TRUSTED : THROTTLE_DELAY;
@@ -1513,7 +1514,7 @@ function socketConnect(
 		}
 	});
 
-	user.joinRoom('global', connection);
+	Rooms.global.handleConnect(user, connection);
 }
 function socketDisconnect(worker: StreamWorker, workerid: number, socketid: string) {
 	const id = '' + workerid + '-' + socketid;
@@ -1555,11 +1556,10 @@ function socketReceive(worker: StreamWorker, workerid: number, socketid: string,
 	if (!user) return;
 
 	// The client obviates the room id when sending messages to Lobby by default
-	const roomId = message.substr(0, pipeIndex) || (Rooms.lobby || Rooms.global).roomid;
+	const roomId = message.slice(0, pipeIndex) || (Rooms.lobby && 'lobby') || '';
 	message = message.slice(pipeIndex + 1);
 
-	const room = Rooms.get(roomId);
-	if (!room) return;
+	const room = Rooms.get(roomId) || null;
 	const multilineMessage = Chat.multiLinePattern.test(message);
 	if (multilineMessage) {
 		user.chat(multilineMessage, room, connection);
@@ -1568,7 +1568,8 @@ function socketReceive(worker: StreamWorker, workerid: number, socketid: string,
 
 	const lines = message.split('\n');
 	if (!lines[lines.length - 1]) lines.pop();
-	const maxLineCount = (user.isStaff || room.auth.isStaff(user.id)) ?
+	// eslint-disable-next-line @typescript-eslint/prefer-optional-chain
+	const maxLineCount = (user.isStaff || (room && room.auth.isStaff(user.id))) ?
 		THROTTLE_MULTILINE_WARN_STAFF : THROTTLE_MULTILINE_WARN;
 	if (lines.length > maxLineCount) {
 		connection.popup(`You're sending too many lines at once. Try using a paste service like [[Pastebin]].`);
@@ -1600,6 +1601,7 @@ export const Users = {
 	merge,
 	users,
 	prevUsers,
+	onlineCount: 0,
 	get: getUser,
 	getExact: getExactUser,
 	findUsers,
