@@ -334,6 +334,7 @@ export const commands: ChatCommands = {
 
 	sp: 'showpunishments',
 	showpunishments(target, room, user) {
+		if (!room) return this.requiresRoom();
 		if (!room.persist) {
 			return this.errorReply("This command is unavailable in temporary rooms.");
 		}
@@ -420,6 +421,7 @@ export const commands: ChatCommands = {
 
 	checkchallenges(target, room, user) {
 		if (!this.can('ban', null, room)) return false;
+		if (!room) return this.requiresRoom();
 		if (!this.runBroadcast(true)) return;
 		if (!this.broadcasting) {
 			this.errorReply(`This command must be broadcast:`);
@@ -2452,6 +2454,7 @@ export const commands: ChatCommands = {
 
 	requestshow(target, room, user) {
 		if (!this.canTalk()) return false;
+		if (!room) return this.requiresRoom();
 		if (!room.settings.requestShowEnabled) {
 			return this.errorReply(`Media approvals are disabled in this room.`);
 		}
@@ -2480,6 +2483,7 @@ export const commands: ChatCommands = {
 
 	async approveshow(target, room, user) {
 		if (!this.can('mute', null, room)) return false;
+		if (!room) return this.requiresRoom();
 		if (!room.settings.requestShowEnabled) {
 			return this.errorReply(`Media approvals are disabled in this room.`);
 		}
@@ -2520,6 +2524,7 @@ export const commands: ChatCommands = {
 
 	denyshow(target, room, user) {
 		if (!this.can('mute', null, room)) return false;
+		if (!room) return this.requiresRoom();
 		if (!room.settings.requestShowEnabled) {
 			return this.errorReply(`Media approvals are disabled in this room.`);
 		}

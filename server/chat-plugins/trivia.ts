@@ -1063,6 +1063,7 @@ class TriumvirateModeTrivia extends Trivia {
 
 const commands: ChatCommands = {
 	new(target, room, user) {
+		if (!room) return this.requiresRoom();
 		if (!isTriviaRoom(room)) return this.errorReply("This command can only be used in the Trivia room.");
 		if (!this.can('broadcast', null, room)) return false;
 		if (!this.canTalk()) return;
@@ -1129,6 +1130,7 @@ const commands: ChatCommands = {
 	newhelp: [`/trivia new [mode], [category], [length] - Begin a new trivia game. Requires: + % @ # &`],
 
 	join(target, room, user) {
+		if (!room) return this.requiresRoom();
 		if (!isTriviaRoom(room)) return this.errorReply("This command can only be used in Trivia.");
 		const game = getTriviaGame(this);
 		if (!game) return;
@@ -1139,6 +1141,7 @@ const commands: ChatCommands = {
 	joinhelp: [`/trivia join - Join the current trivia game.`],
 
 	kick(target, room, user) {
+		if (!room) return this.requiresRoom();
 		if (!isTriviaRoom(room)) return this.errorReply("This command can only be used in Trivia.");
 		if (!this.can('mute', null, room)) return false;
 		if (!this.canTalk()) return;
@@ -1155,6 +1158,7 @@ const commands: ChatCommands = {
 	kickhelp: [`/trivia kick [username] - Kick players from a trivia game by username. Requires: % @ # &`],
 
 	leave(target, room, user) {
+		if (!room) return this.requiresRoom();
 		if (!isTriviaRoom(room)) return this.errorReply("This command can only be used in Trivia.");
 		const game = getTriviaGame(this);
 		if (!game) return;
@@ -1165,6 +1169,7 @@ const commands: ChatCommands = {
 	leavehelp: [`/trivia leave - Makes the player leave the game.`],
 
 	start(target, room) {
+		if (!room) return this.requiresRoom();
 		if (!isTriviaRoom(room)) return this.errorReply("This command can only be used in Trivia.");
 		if (!this.can('broadcast', null, room)) return false;
 		if (!this.canTalk()) return;
@@ -1177,6 +1182,7 @@ const commands: ChatCommands = {
 	starthelp: [`/trivia start - Ends the signup phase of a trivia game and begins the game. Requires: + % @ # &`],
 
 	answer(target, room, user) {
+		if (!room) return this.requiresRoom();
 		if (!isTriviaRoom(room)) return this.errorReply("This command can only be used in Trivia.");
 		const game = getTriviaGame(this);
 		if (!game) return;
@@ -1191,6 +1197,7 @@ const commands: ChatCommands = {
 	answerhelp: [`/trivia answer OR /ta [answer] - Answer a pending question.`],
 
 	end(target, room, user) {
+		if (!room) return this.requiresRoom();
 		if (!isTriviaRoom(room)) return this.errorReply("This command can only be used in Trivia.");
 		if (!this.can('broadcast', null, room)) return false;
 		if (!this.canTalk()) return;
@@ -1203,6 +1210,7 @@ const commands: ChatCommands = {
 	'': 'status',
 	players: 'status',
 	status(target, room, user) {
+		if (!room) return this.requiresRoom();
 		if (!isTriviaRoom(room)) return this.errorReply("This command can only be used in Trivia.");
 		if (!this.runBroadcast()) return false;
 		const game = getTriviaGame(this);
@@ -1234,6 +1242,7 @@ const commands: ChatCommands = {
 
 	submit: 'add',
 	add(target, room, user, connection, cmd) {
+		if (!room) return this.requiresRoom();
 		if (room.roomid !== 'questionworkshop') return this.errorReply('This command can only be used in Question Workshop.');
 		if (cmd === 'add' && !this.can('mute', null, room)) return false;
 		if (cmd === 'submit' && !this.can('broadcast', null, room)) return false;
@@ -1310,6 +1319,7 @@ const commands: ChatCommands = {
 	addhelp: [`/trivia add [category] | [question] | [answer1], [answer2], ... [answern] - Adds question(s) to the question database. Requires: % @ # &`],
 
 	review(target, room) {
+		if (!room) return this.requiresRoom();
 		if (room.roomid !== 'questionworkshop') return this.errorReply('This command can only be used in Question Workshop.');
 		if (!this.can('ban', null, room)) return false;
 
@@ -1335,6 +1345,7 @@ const commands: ChatCommands = {
 
 	reject: 'accept',
 	accept(target, room, user, connection, cmd) {
+		if (!room) return this.requiresRoom();
 		if (room.roomid !== 'questionworkshop') return this.errorReply('This command can only be used in Question Workshop.');
 		if (!this.can('ban', null, room)) return false;
 		if (!this.canTalk()) return;
@@ -1421,6 +1432,7 @@ const commands: ChatCommands = {
 	rejecthelp: [`/trivia reject [index1], [index2], ... [indexn] OR all - Remove questions from the submission database using their index numbers or ranges of them. Requires: @ # &`],
 
 	delete(target, room, user) {
+		if (!room) return this.requiresRoom();
 		if (room.roomid !== 'questionworkshop') return this.errorReply('This command can only be used in Question Workshop.');
 		if (!this.can('mute', null, room)) return false;
 		if (!this.canTalk()) return;
@@ -1449,6 +1461,7 @@ const commands: ChatCommands = {
 	deletehelp: [`/trivia delete [question] - Delete a question from the trivia database. Requires: % @ # &`],
 
 	move(target, room, user) {
+		if (!room) return this.requiresRoom();
 		if (room.roomid !== 'questionworkshop') {
 			return this.errorReply('This command can only be used in Question Workshop.');
 		}
@@ -1500,6 +1513,7 @@ const commands: ChatCommands = {
 	],
 
 	qs(target, room, user) {
+		if (!room) return this.requiresRoom();
 		if (room.roomid !== 'questionworkshop') return this.errorReply('This command can only be used in Question Workshop.');
 
 		let buffer = "|raw|<div class=\"ladder\" style=\"overflow-y: scroll; max-height: 300px;\"><table>";
@@ -1560,6 +1574,7 @@ const commands: ChatCommands = {
 	],
 
 	search(target, room, user) {
+		if (!room) return this.requiresRoom();
 		if (room.roomid !== 'questionworkshop') return this.errorReply("This command can only be used in Question Workshop.");
 		if (!this.can('broadcast', null, room)) return false;
 		if (!target.includes(',')) return this.errorReply("No valid search arguments entered.");
@@ -1593,6 +1608,7 @@ const commands: ChatCommands = {
 	searchhelp: [`/trivia search [type], [query] - Searches for questions based on their type and their query. Valid types: submissions, subs, questions, qs. Requires: + % @ * &`],
 
 	rank(target, room, user) {
+		if (!room) return this.requiresRoom();
 		if (!isTriviaRoom(room)) return this.errorReply("This command can only be used in Trivia.");
 
 		let name;
@@ -1625,6 +1641,7 @@ const commands: ChatCommands = {
 
 	alltimeladder: 'ladder',
 	ladder(target, room, user, connection, cmd) {
+		if (!room) return this.requiresRoom();
 		if (!isTriviaRoom(room)) return this.errorReply('This command can only be used in Trivia.');
 		if (!this.runBroadcast()) return false;
 		const cache = cmd === 'ladder' ? cachedAltLadder : cachedLadder;
@@ -1655,6 +1672,7 @@ const commands: ChatCommands = {
 
 	clearquestions: 'clearqs',
 	clearqs(target, room, user) {
+		if (!room) return this.requiresRoom();
 		if (room.roomid !== 'questionworkshop') return this.errorReply("This command can only be used in Question Workshop");
 		if (!this.can('declare', null, room)) return false;
 		const category = toID(target);
@@ -1674,6 +1692,7 @@ const commands: ChatCommands = {
 
 	pastgames: 'history',
 	history(target, room, user) {
+		if (!room) return this.requiresRoom();
 		if (room.roomid !== 'trivia') return this.errorReply("This command can only be used in Trivia.");
 		if (!this.runBroadcast()) return false;
 		if (!triviaData.history?.length) return this.sendReplyBox("There is no game history.");

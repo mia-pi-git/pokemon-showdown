@@ -569,8 +569,8 @@ export const commands: ChatCommands = {
 	pl: 'modlog',
 	timedmodlog: 'modlog',
 	modlog(target, room, user, connection, cmd) {
-		if (!room) (room as Room | undefined) = Rooms.get('global');
-		let roomid: RoomID = (room.roomid === 'staff' ? 'global' : room.roomid);
+		if (!room) room = Rooms.get('global') as ChatRoom | GameRoom;
+		let roomid: RoomID = (room?.roomid === 'staff' ? 'global' : room.roomid);
 
 		if (target.includes(',')) {
 			const targets = target.split(',');

@@ -31,6 +31,7 @@ function getAlias(roomid: RoomID, key: string) {
 export const commands: ChatCommands = {
 	addfaq(target, room, user, connection) {
 		if (!this.can('ban', null, room)) return false;
+		if (!room) return this.requiresRoom();
 		if (!room.persist) return this.errorReply("This command is unavailable in temporary rooms.");
 		if (!target) return this.parse('/help roomfaq');
 
@@ -59,6 +60,7 @@ export const commands: ChatCommands = {
 	removefaq(target, room, user) {
 		if (!this.canTalk()) return this.errorReply("You cannot do this while unable to talk.");
 		if (!this.can('ban', null, room)) return false;
+		if (!room) return this.requiresRoom();
 		if (!room.persist) return this.errorReply("This command is unavailable in temporary rooms.");
 		const topic = toID(target);
 		if (!topic) return this.parse('/help roomfaq');
@@ -78,6 +80,7 @@ export const commands: ChatCommands = {
 	addalias(target, room, user) {
 		if (!this.canTalk()) return this.errorReply("You cannot do this while unable to talk.");
 		if (!this.can('ban', null, room)) return false;
+		if (!room) return this.requiresRoom();
 		if (!room.persist) return this.errorReply("This command is unavailable in temporary rooms.");
 		const [alias, topic] = target.split(',').map(val => toID(val));
 
@@ -98,6 +101,7 @@ export const commands: ChatCommands = {
 	viewfaq: 'roomfaq',
 	rfaq: 'roomfaq',
 	roomfaq(target, room, user, connection, cmd) {
+		if (!room) return this.requiresRoom();
 		if (!roomFaqs[room.roomid]) return this.errorReply("This room has no FAQ topics.");
 		let topic: string = toID(target);
 		if (topic === 'constructor') return false;

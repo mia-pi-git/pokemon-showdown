@@ -88,6 +88,7 @@ function getWinnersInLottery(roomid: RoomID) {
 export const commands: ChatCommands = {
 	lottery: {
 		''(target, room) {
+			if (!room) return this.requiresRoom();
 			const lottery = lotteries[room.roomid];
 			if (!lottery) {
 				return this.errorReply("This room doesn't have a lottery running.");
@@ -96,6 +97,7 @@ export const commands: ChatCommands = {
 		},
 		edit: 'create',
 		create(target, room, user, connection, cmd) {
+			if (!room) return this.requiresRoom();
 			if (!this.can('declare', null, room)) return;
 			if (room.battle || !room.persist) {
 				return this.errorReply('This room does not support the creation of lotteries.');
@@ -137,6 +139,7 @@ export const commands: ChatCommands = {
 		},
 		delete(target, room, user) {
 			if (!this.can('declare', null, room)) return;
+			if (!room) return this.requiresRoom();
 			const lottery = lotteries[room.roomid];
 			if (!lottery) {
 				return this.errorReply('This room does not have a lottery running.');
@@ -148,6 +151,7 @@ export const commands: ChatCommands = {
 		},
 		end(target, room) {
 			if (!this.can('declare', null, room)) return;
+			if (!room) return this.requiresRoom();
 			const lottery = lotteries[room.roomid];
 			if (!lottery) {
 				return this.errorReply('This room does not have a lottery running.');
@@ -230,6 +234,7 @@ export const commands: ChatCommands = {
 			}
 		},
 		participants(target, room, user) {
+			if (!room) return this.requiresRoom();
 			const lottery = lotteries[room.roomid];
 			if (!lottery) {
 				return this.errorReply('This room does not have a lottery running.');
