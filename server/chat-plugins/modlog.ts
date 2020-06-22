@@ -570,7 +570,11 @@ export const commands: ChatCommands = {
 	timedmodlog: 'modlog',
 	modlog(target, room, user, connection, cmd) {
 		if (!room) room = Rooms.get('global') as ChatRoom | GameRoom;
+<<<<<<< HEAD
 		let roomid: RoomID = (room.roomid === 'staff' ? 'global' : room.roomid);
+=======
+		let roomid: RoomID = (room?.roomid === 'staff' ? 'global' : room.roomid);
+>>>>>>> 178411415... support room being null in commands
 
 		if (target.includes(',')) {
 			const targets = target.split(',');
