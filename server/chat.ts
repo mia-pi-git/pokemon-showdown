@@ -35,7 +35,7 @@ export interface PageTable {
 export type ChatHandler = (
 	this: CommandContext,
 	target: string,
-	room: ChatRoom | GameRoom,
+	room: Room | null,
 	user: User,
 	connection: Connection,
 	cmd: string,
@@ -246,7 +246,7 @@ export class PageContext extends MessageContext {
 
 	send(content: string) {
 		if (!content.startsWith('|deinit')) {
-			const roomid = this.room !== Rooms.global ? `[${this.room.roomid}] ` : '';
+			const roomid = this.room ? `[${this.room.roomid}] ` : '';
 			if (!this.initialized) {
 				content = `|init|html\n|title|${roomid}${this.title}\n|pagehtml|${content}`;
 				this.initialized = true;
@@ -365,7 +365,7 @@ export class CommandContext extends MessageContext {
 			message = this.run(commandHandler);
 		} else {
 			if (commandHandler === '!') {
-				if (this.room === Rooms.global) {
+				if (!this.room) {
 					return this.popupReply(`You tried use "${message}" as a global command, but it is not a global command.`);
 				} else if (this.room) {
 					return this.popupReply(`You tried to send "${message}" to the room "${this.room.roomid}" but it failed because you were not in that room.`);
@@ -512,7 +512,7 @@ export class CommandContext extends MessageContext {
 
 		const requireGlobalCommand = (
 			this.pmTarget ||
-			this.room === Rooms.global ||
+			!this.room ||
 			(this.room && !(this.user.id in this.room.users))
 		);
 
@@ -604,7 +604,7 @@ export class CommandContext extends MessageContext {
 		return this.room.game.onChatMessage(this.message, this.user);
 	}
 	pmTransform(originalMessage: string) {
-		if (!this.pmTarget && this.room !== Rooms.global) throw new Error(`Not a PM`);
+		if (!this.pmTarget && this.room) throw new Error(`Not a PM`);
 		const targetIdentity = this.pmTarget ? this.pmTarget.getIdentity() : '~';
 		const prefix = `|pm|${this.user.getIdentity()}|${targetIdentity}|`;
 		return originalMessage.split('\n').map(message => {
@@ -630,7 +630,7 @@ export class CommandContext extends MessageContext {
 			this.add(data);
 		} else {
 			// not broadcasting
-			if (this.pmTarget || this.room === Rooms.global) {
+			if (this.pmTarget || !this.room) {
 				data = this.pmTransform(data);
 				this.connection.send(data);
 			} else {
@@ -1221,6 +1221,11 @@ export class CommandContext extends MessageContext {
 		this.inputUsername = name.trim();
 		this.targetUsername = this.targetUser ? this.targetUser.name : this.inputUsername;
 		return rest;
+	}
+
+	requiresRoom() {
+		this.errorReply(`You tried to use ${this.cmd} as a global command, but it is not one.`);
+		this.errorReply(`Use it in a room instead.`);
 	}
 }
 

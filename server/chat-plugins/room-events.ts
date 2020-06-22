@@ -103,6 +103,7 @@ export const commands: ChatCommands = {
 	roomevent: 'roomevents',
 	roomevents: {
 		''(target, room, user) {
+			if (!room) return this.requiresRoom();
 			if (!room.persist) return this.errorReply("This command is unavailable in temporary rooms.");
 			if (!room.settings.events || !Object.keys(room.settings.events).length) {
 				return this.errorReply("There are currently no planned upcoming events for this room.");
@@ -129,6 +130,7 @@ export const commands: ChatCommands = {
 		create: 'add',
 		edit: 'add',
 		add(target, room, user) {
+			if (!room) return this.requiresRoom();
 			if (!room.persist) return this.errorReply("This command is unavailable in temporary rooms.");
 			if (!this.can('ban', null, room)) return false;
 			if (!room.settings.events) room.settings.events = Object.create(null);
@@ -166,6 +168,7 @@ export const commands: ChatCommands = {
 		},
 
 		rename(target, room, user) {
+			if (!room) return this.requiresRoom();
 			if (!room.persist) return this.errorReply("This command is unavailable in temporary rooms.");
 			if (!this.can('ban', null, room)) return false;
 			let [oldName, newName] = target.split(target.includes('|') ? '|' : ',');
@@ -198,6 +201,7 @@ export const commands: ChatCommands = {
 
 		begin: 'start',
 		start(target, room, user) {
+			if (!room) return this.requiresRoom();
 			if (!room.persist) return this.errorReply("This command is unavailable in temporary rooms.");
 			if (!this.can('ban', null, room)) return false;
 			if (!room.settings.events || !Object.keys(room.settings.events).length) {
@@ -232,6 +236,7 @@ export const commands: ChatCommands = {
 
 		delete: 'remove',
 		remove(target, room, user) {
+			if (!room) return this.requiresRoom();
 			if (!room.persist) return this.errorReply("This command is unavailable in temporary rooms.");
 			if (!this.can('ban', null, room)) return false;
 			if (!room.settings.events || Object.keys(room.settings.events).length === 0) {
@@ -256,6 +261,7 @@ export const commands: ChatCommands = {
 		},
 
 		view(target, room, user) {
+			if (!room) return this.requiresRoom();
 			if (!room.persist) return this.errorReply("This command is unavailable in temporary rooms.");
 			if (!room.settings.events || !Object.keys(room.settings.events).length) {
 				return this.errorReply("There are currently no planned upcoming events for this room.");
@@ -316,6 +322,7 @@ export const commands: ChatCommands = {
 
 		alias: 'addalias',
 		addalias(target, room, user) {
+			if (!room) return this.requiresRoom();
 			if (!room.persist) return this.errorReply("This command is unavailable in temporary rooms.");
 			if (!this.can('ban', null, room)) return false;
 			const [alias, eventId] = target.split(target.includes('|') ? '|' : ',').map(argument => toID(argument));
@@ -338,6 +345,7 @@ export const commands: ChatCommands = {
 
 		deletealias: 'removealias',
 		removealias(target, room, user) {
+			if (!room) return this.requiresRoom();
 			if (!room.persist) return this.errorReply("This command is unavailable in temporary rooms.");
 			if (!this.can('ban', null, room)) return false;
 			target = toID(target);
@@ -465,6 +473,7 @@ export const commands: ChatCommands = {
 
 		sortby(target, room, user) {
 			// preconditions
+			if (!room) return this.requiresRoom();
 			if (!room.persist) return this.errorReply("This command is unavailable in temporary rooms.");
 			if (!room.settings.events || !Object.keys(room.settings.events).length) {
 				return this.errorReply("There are currently no planned upcoming events for this room.");

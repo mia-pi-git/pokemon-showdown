@@ -271,6 +271,7 @@ export const commands: ChatCommands = {
 		htmlqueuemulti: 'new',
 		new(target, room, user, connection, cmd, message) {
 			if (!target) return this.parse('/help poll new');
+			if (!room) return this.requiresRoom();
 			target = target.trim();
 			if (target.length > 1024) return this.errorReply("Poll too long.");
 			if (room.battle) return this.errorReply("Battles do not support polls.");
@@ -379,6 +380,7 @@ export const commands: ChatCommands = {
 		deselect: 'select',
 		vote: 'select',
 		select(target, room, user, connection, cmd) {
+			if (!room) return this.requiresRoom();
 			if (!room.minorActivity || room.minorActivity.activityId !== 'poll') {
 				return this.errorReply("There is no poll running in this room.");
 			}
@@ -401,6 +403,7 @@ export const commands: ChatCommands = {
 			`/poll deselect [number] - Deselects option [number].`,
 		],
 		submit(target, room, user) {
+			if (!room) return this.requiresRoom();
 			if (!room.minorActivity || room.minorActivity.activityId !== 'poll') {
 				return this.errorReply("There is no poll running in this room.");
 			}
@@ -411,6 +414,7 @@ export const commands: ChatCommands = {
 		submithelp: [`/poll submit - Submits your vote.`],
 
 		timer(target, room, user) {
+			if (!room) return this.requiresRoom();
 			if (!room.minorActivity || room.minorActivity.activityId !== 'poll') {
 				return this.errorReply("There is no poll running in this room.");
 			}
@@ -458,6 +462,7 @@ export const commands: ChatCommands = {
 		],
 
 		results(target, room, user) {
+			if (!room) return this.requiresRoom();
 			if (!room.minorActivity || room.minorActivity.activityId !== 'poll') {
 				return this.errorReply("There is no poll running in this room.");
 			}
@@ -473,6 +478,7 @@ export const commands: ChatCommands = {
 		stop: 'end',
 		end(target, room, user) {
 			if (!this.can('minigame', null, room)) return false;
+			if (!room) return this.requiresRoom();
 			if (!this.canTalk()) return;
 			if (!room.minorActivity || room.minorActivity.activityId !== 'poll') {
 				return this.errorReply("There is no poll running in this room.");
@@ -497,6 +503,7 @@ export const commands: ChatCommands = {
 		show: '',
 		display: '',
 		''(target, room, user, connection) {
+			if (!room) return this.requiresRoom();
 			if (!room.minorActivity || room.minorActivity.activityId !== 'poll') {
 				return this.errorReply("There is no poll running in this room.");
 			}

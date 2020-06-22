@@ -74,6 +74,7 @@ export const pages: PageTable = {
 
 export const commands: ChatCommands = {
 	removedaily(target, room, user) {
+		if (!room) return this.requiresRoom();
 		if (!room.persist) return this.errorReply("This command is unavailable in temporary rooms.");
 		let [key, rest] = target.split(',');
 		key = toID(key);
@@ -104,6 +105,7 @@ export const commands: ChatCommands = {
 	},
 	queuedaily: 'setdaily',
 	async setdaily(target, room, user, connection, cmd) {
+		if (!room) return this.requiresRoom();
 		if (!room.persist) return this.errorReply("This command is unavailable in temporary rooms.");
 		let [key, ...rest] = target.split(',');
 		key = toID(key);
@@ -145,6 +147,7 @@ export const commands: ChatCommands = {
 		saveSpotlights();
 	},
 	async daily(target, room, user) {
+		if (!room) return this.requiresRoom();
 		if (!room.persist) return this.errorReply("This command is unavailable in temporary rooms.");
 		const key = toID(target);
 		if (!key) return this.parse('/help daily');
@@ -162,6 +165,7 @@ export const commands: ChatCommands = {
 		room.update();
 	},
 	viewspotlights(target, room, user) {
+		if (!room) return this.requiresRoom();
 		if (!room.persist) return this.errorReply("This command is unavailable in temporary rooms.");
 		return this.parse(`/join view-spotlights-${room.roomid}`);
 	},
