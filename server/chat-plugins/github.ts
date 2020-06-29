@@ -18,14 +18,14 @@ export const github = githubhook({
 github.on(
 	'push',
 	(repo: string, ref: string, result: AnyObject) => {
-		return GithubParser.push(repo, ref, result)
+		return GithubParser.push(repo, ref, result);
 	}
 );
 
 github.on(
 	'pull_request',
 	(repo: string, ref: string, result: AnyObject) => {
-		return GithubParser.pull(repo, ref, result)
+		return GithubParser.pull(repo, ref, result);
 	}
 );
 export const GithubParser = new class {
@@ -56,20 +56,20 @@ export const GithubParser = new class {
 	}
 	push(repo: string, ref: string, result: AnyObject) {
 		const url = result.compare;
-		let buf = result.commits.map((commit: AnyObject) => {
+		const buffer = result.commits.map((commit: AnyObject) => {
 			const message = commit.message;
 			const shortMessage = /.+/.exec(message)![0];
 			const id = commit.id.slice(0, 6);
 			const formattedRepo = `[<font color='FF00FF'>${this.repository(repo)}</font>]`;
 			const userName = Utils.html`<font color='909090'>(${this.getName(commit.author.name)})</font>`;
-			return `${formattedRepo} <a href=\"${url}\"><font color='606060'>${id}</font></a> ${shortMessage} ${userName}`
+			return `${formattedRepo} <a href="${url}"><font color='606060'>${id}</font></a> ${shortMessage} ${userName}`;
 		}).join('<br/ >');
 		if (!this.pushes[repo]) this.pushes[repo] = {};
 		this.pushes[repo][result.pusher.name] = Date.now();
-		this.report(buf);
+		this.report(buffer);
 	}
 	pull(repo: string, ref: string, result: AnyObject) {
-		let committer = toID(result.sender.login);
+		const committer = toID(result.sender.login);
 		if (this.gitbans.has(committer)) return;
 		const num = result.pull_request.number;
 		const url = result.pull_request.html_url;
@@ -80,24 +80,15 @@ export const GithubParser = new class {
 			action = 'updated';
 		}
 		if (action === 'review_requested') {
-			action = 'requested a review for'
-		 }
-		// filter code from github bot
-		// Marking a PR as ready for review after drafting isn't really important
-		if (action === 'ready_for_review') {
-			return;
+			action = 'requested a review for';
 		}
-		// Nobody cares about labels
-		if (action === 'labeled' || action === 'unlabeled') {
-			return;
-		}
-		// not really important to see converting open to draft
-		if (action === 'converted_to_draft') {
+		const blacklisted = ['converted_to_draft', 'ready_for_review', 'converted_to_draft'];
+		if (blacklisted.includes(action)) {
 			return;
 		}
 		this.report(
 			`[<font color='FF00FF'>${repo}</font>] <font color='909090'>${name}</font> ` +
-			`${action} <a href=\"${url}\">PR#${num}</a>: ${title}`
+			`${action} <a href="${url}">PR#${num}</a>: ${title}`
 		);
 	}
 	getName(name: string) {
@@ -112,7 +103,7 @@ export const GithubParser = new class {
 		}
 		return name;
 	}
-}
+};
 
 export const commands: ChatCommands = {
 	git: 'github',
@@ -146,7 +137,7 @@ export const commands: ChatCommands = {
 		},
 		setname(target, room, user) {
 			if (room.roomid !== 'development') return this.errorReply(`This command can only be used in the Development room.`);
-			if (!this.can('declare', null, room)) return false;
+			if (!this.can('ban', null, room)) return false;
 			const [oldID, newName] = target.split(',');
 			if (!target || !oldID || !newName) return this.errorReply(`Specify a GitHub username and new name.`);
 			// @ts-ignore
@@ -163,7 +154,7 @@ export const commands: ChatCommands = {
 		},
 		resetname(target, room, user) {
 			if (room.roomid !== 'development') return this.errorReply(`This command can only be used in the Development room.`);
-			if (!this.can('declare', null, room)) return false;
+			if (!this.can('ban', null, room)) return false;
 			if (!target) return this.errorReply(`Specify a name.`);
 			// @ts-ignore
 			if (!(target in room.settings.usernames)) {
