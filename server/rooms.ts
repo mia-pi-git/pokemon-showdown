@@ -568,12 +568,77 @@ export abstract class BasicRoom {
 		return successUserid;
 	}
 
+<<<<<<< HEAD
 	logUserStats() {
 		let total = 0;
 		let guests = 0;
 		const groups: {[k: string]: number} = {};
 		for (const group of Config.groupsranking) {
 			groups[group] = 0;
+=======
+	onUpdateIdentity(user: User) {}
+	destroy() {}
+}
+
+export class GlobalRoom extends BasicRoom {
+	readonly type: 'global';
+	readonly active: false;
+	readonly settingsList: RoomSettings[];
+	readonly chatRooms: ChatRoom[];
+	/**
+	 * Rooms that users autojoin upon connecting
+	 */
+	readonly autojoinList: RoomID[];
+	/**
+	 * Rooms that staff autojoin upon connecting
+	 */
+	readonly staffAutojoinList: RoomID[];
+	readonly ladderIpLog: WriteStream;
+	readonly users: UserTable;
+	readonly reportUserStatsInterval: NodeJS.Timeout;
+	readonly modlogStream: WriteStream;
+	lockdown: boolean | 'pre' | 'ddos';
+	battleCount: number;
+	lastReportedCrash: number;
+	lastBattle: number;
+	lastWrittenBattle: number;
+	userCount: number;
+	maxUsers: number;
+	maxUsersDate: number;
+	formatList: string;
+
+	readonly game: null;
+	readonly battle: null;
+	readonly tour: null;
+
+	constructor(roomid: RoomID) {
+		if (roomid !== 'global') throw new Error(`The global room's room ID must be 'global'`);
+		super(roomid);
+
+		this.type = 'global';
+		this.active = false;
+		this.settingsList = [];
+		try {
+			this.settingsList = require('../config/chatrooms.json');
+			if (!Array.isArray(this.settingsList)) this.settingsList = [];
+		} catch (e) {} // file doesn't exist [yet]
+
+		if (!this.settingsList.length) {
+			this.settingsList = [{
+				title: 'Lobby',
+				auth: {},
+				creationTime: Date.now(),
+				isOfficial: true,
+				autojoin: true,
+			}, {
+				title: 'Staff',
+				auth: {},
+				creationTime: Date.now(),
+				isPrivate: true,
+				staffRoom: true,
+				staffAutojoin: true,
+			}];
+>>>>>>> add github plugin
 		}
 		for (const i in this.users) {
 			const user = this.users[i];
@@ -804,11 +869,38 @@ export abstract class BasicRoom {
 			this.reportJoin('j', user.getIdentityWithStatus(this.roomid), user);
 		}
 
+<<<<<<< HEAD
 		const staffIntro = this.getStaffIntroMessage(user);
 		if (staffIntro) this.sendUser(user, staffIntro);
 
+=======
+<<<<<<< HEAD
+>>>>>>> add github plugin
 		this.users[user.id] = user;
 		this.userCount++;
+=======
+		const settings = {
+			title,
+			auth: {},
+			creationTime: Date.now(),
+		};
+		const room = Rooms.createChatRoom(id, title, settings);
+		if (id === 'lobby') Rooms.lobby = room;
+		this.settingsList.push(settings);
+		this.chatRooms.push(room);
+		this.writeChatRoomData();
+		return true;
+	}
+
+	prepBattleRoom(format: string) {
+		// console.log('BATTLE START BETWEEN: ' + p1.id + ' ' + p2.id);
+		const roomPrefix = `battle-${toID(Dex.getFormat(format).name)}-`;
+		let battleNum = this.lastBattle;
+		let roomid: RoomID;
+		do {
+			roomid = `${roomPrefix}${++battleNum}` as RoomID;
+		} while (Rooms.rooms.has(roomid));
+>>>>>>> add github plugin
 
 		if (this.minorActivity) this.minorActivity.onConnect(user, connection);
 		if (this.game && this.game.onJoin) this.game.onJoin(user, connection);

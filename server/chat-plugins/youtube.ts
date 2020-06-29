@@ -293,9 +293,16 @@ export function destroy() {
 
 export const commands: ChatCommands = {
 	async randchannel(target, room, user) {
+<<<<<<< HEAD
 		room = this.requireRoom('youtube' as RoomID);
 		if (Object.keys(YouTube.data.channels).length < 1) return this.errorReply(`No channels in the database.`);
 		target = toID(target);
+=======
+		if (!room) return this.requiresRoom();
+		if (room.roomid !== 'youtube') return this.errorReply(`This command can only be used in the YouTube room.`);
+		if (!Config.youtubeKey) return this.errorReply(`Youtube is not configured.`);
+		if (Object.keys(channelData).length < 1) return this.errorReply(`No channels in the database.`);
+>>>>>>> add github plugin
 		this.runBroadcast();
 		const data = await YouTube.randChannel(target);
 		return this.sendReplyBox(data);
@@ -305,10 +312,17 @@ export const commands: ChatCommands = {
 	yt: 'youtube',
 	youtube: {
 		async addchannel(target, room, user) {
+<<<<<<< HEAD
 			room = this.requireRoom('youtube' as RoomID);
 			this.checkCan('mute', null, room);
 			let [id, name] = target.split(',');
 			if (name) name = name.trim();
+=======
+			if (!room) return this.requiresRoom();
+			if (room.roomid !== 'youtube') return this.errorReply(`This command can only be used in the YouTube room.`);
+			if (!Config.youtubeKey) return this.errorReply(`Youtube is not configured.`);
+			const [id, name] = target.split(',');
+>>>>>>> add github plugin
 			if (!id) return this.errorReply('Specify a channel ID.');
 			await YouTube.getChannelData(id, name);
 			this.modlog('ADDCHANNEL', null, `${id} ${name ? `username: ${name}` : ''}`);
@@ -331,7 +345,13 @@ export const commands: ChatCommands = {
 		removechannelhelp: [`/youtube removechannel - Delete channel data from the YouTube database. Requires: % @ #`],
 
 		async channel(target, room, user) {
+<<<<<<< HEAD
 			room = this.requireRoom('youtube' as RoomID);
+=======
+			if (!room) return this.requiresRoom();
+			if (room.roomid !== 'youtube') return this.errorReply(`This command can only be used in the YouTube room.`);
+			if (!Config.youtubeKey) return this.errorReply(`Youtube is not configured.`);
+>>>>>>> add github plugin
 			const channel = YouTube.channelSearch(target);
 			if (!channel) return this.errorReply(`No channels with ID or name ${target} found.`);
 			const data = await YouTube.generateChannelDisplay(channel);
@@ -341,13 +361,37 @@ export const commands: ChatCommands = {
 		channelhelp: [
 			'/youtube channel - View the data of a specified channel. Can be either channel ID or channel name.',
 		],
+<<<<<<< HEAD
 		video() {
 			return this.errorReply(`Use /show instead.`);
+=======
+		async video(target, room, user) {
+			if (!room) return this.requiresRoom();
+			if (room.roomid !== 'youtube') return this.errorReply(`This command can only be used in the YouTube room.`);
+			if (!Config.youtubeKey) return this.errorReply(`Youtube is not configured.`);
+			if (!target) return this.errorReply(`Provide a valid youtube link.`);
+			const html = await YouTube.generateVideoDisplay(target);
+			if (!html) return this.errorReply(`This url is invalid. Please use a youtu.be link or a youtube.com link.`);
+			this.runBroadcast();
+			if (this.broadcasting) {
+				this.addBox(html);
+				return room.update();
+			} else {
+				return this.sendReplyBox(html);
+			}
+>>>>>>> add github plugin
 		},
 
 		channels(target, room, user) {
+<<<<<<< HEAD
 			target = toID(target);
 			return this.parse(`/j view-channels${target ? `-${target}` : ''}`);
+=======
+			let all;
+			if (toID(target) === 'all') all = true;
+			if (!Config.youtubeKey) return this.errorReply(`Youtube is not configured.`);
+			return this.parse(`/j view-channels${all ? '-all' : ''}`);
+>>>>>>> add github plugin
 		},
 		help(target, room, user) {
 			return this.parse('/help youtube');
@@ -369,6 +413,7 @@ export const commands: ChatCommands = {
 			YouTube.save();
 		},
 		interval: 'repeat',
+<<<<<<< HEAD
 		repeat(target, room, user) {
 			room = this.requireRoom('youtube' as RoomID);
 			this.checkCan('declare', null, room);
@@ -376,6 +421,14 @@ export const commands: ChatCommands = {
 				if (!YouTube.interval) return this.errorReply(`The YouTube plugin is not currently running an interval.`);
 				return this.sendReply(`Interval is currently set to ${Chat.toDurationString(YouTube.intervalTime * 60 * 1000)}.`);
 			}
+=======
+		async repeat(target, room, user) {
+			if (!room) return this.requiresRoom();
+			if (room.roomid !== 'youtube') return this.errorReply(`This command can only be used in the YouTube room.`);
+			if (!Config.youtubeKey) return this.errorReply(`Youtube is not configured.`);
+			if (!this.can('declare', null, room)) return false;
+			if (!target) return this.sendReply(`Interval is currently set to ${Chat.toDurationString(YouTube.intervalTime)}.`);
+>>>>>>> add github plugin
 			if (Object.keys(channelData).length < 1) return this.errorReply(`No channels in the database.`);
 			if (isNaN(parseInt(target))) return this.errorReply(`Specify a number (in minutes) for the interval.`);
 			YouTube.runInterval(target);

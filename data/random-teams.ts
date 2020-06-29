@@ -653,12 +653,15 @@ export class RandomTeams {
 				case 'destinybond': case 'healbell':
 					if (movePool.includes('protect') || movePool.includes('wish')) rejected = true;
 					break;
+<<<<<<< HEAD
 				case 'fireblast':
 					if (hasAbility['Serene Grace'] && (!hasMove['trick'] || counter.Status > 1)) rejected = true;
 					break;
 				case 'firepunch':
 					if (movePool.includes('bellydrum') || hasMove['earthquake'] && movePool.includes('substitute')) rejected = true;
 					break;
+=======
+>>>>>>> add github plugin
 				case 'flamecharge': case 'sacredsword':
 					if (counter.damagingMoves.length < 3 && !counter.setupType) rejected = true;
 					if (!hasType['Grass'] && movePool.includes('swordsdance')) rejected = true;
@@ -739,6 +742,9 @@ export class RandomTeams {
 					break;
 				case 'fakeout':
 					if (counter.setupType || hasMove['protect'] || hasMove['rapidspin'] || hasMove['substitute'] || hasMove['uturn']) rejected = true;
+					break;
+				case 'flipturn':
+					if (counter.Status >= 1) rejected = true;
 					break;
 				case 'healingwish': case 'memento':
 					if (counter.setupType || !!counter['recovery'] || hasMove['substitute'] || hasMove['uturn']) rejected = true;
@@ -932,9 +938,25 @@ export class RandomTeams {
 				case 'shadowclaw':
 					if (hasType['Steel'] && hasMove['shadowsneak'] && counter.Physical < 4) rejected = true;
 					break;
+<<<<<<< HEAD
 				case 'dragonpulse': case 'spacialrend':
 					if (hasMove['dracometeor'] && counter.Special < 4) rejected = true;
 					break;
+<<<<<<< HEAD
+=======
+				case 'outrage':
+					if (counter.setupType && (hasMove['scaleshot'] || movePool.includes('scaleshot'))) rejected = true;
+					break;
+=======
+				case 'shadowsneak':
+					if (!hasType['Ghost'] && !!counter['recovery']) rejected = true;
+					if (hasMove['substitute'] || hasMove['toxic'] || hasMove['trickroom']) rejected = true;
+					break;
+				case 'dragonpulse': case 'outrage':
+					if (hasMove['dracometeor'] && counter.Special < 4) rejected = true;
+					break;
+>>>>>>> add github plugin
+>>>>>>> add github plugin
 				case 'darkpulse':
 					if ((hasMove['foulplay'] || hasMove['knockoff'] || hasMove['suckerpunch'] || hasMove['defog']) && counter.setupType !== 'Special') rejected = true;
 					if (!hasType['Dark'] && !!counter.Status) rejected = true;
@@ -1343,7 +1365,15 @@ export class RandomTeams {
 			item = (scarfReqs && this.randomChance(2, 3)) ? 'Choice Scarf' : 'Choice Specs';
 		} else if (((counter.Physical >= 3 && hasMove['defog']) || (counter.Special >= 3 && hasMove['healingwish'])) && !counter['priority'] && !hasMove['uturn'] && !isDoubles) {
 			item = 'Choice Scarf';
+<<<<<<< HEAD
 		} else if (hasMove['raindance'] || hasMove['sunnyday'] || (ability === 'Speed Boost' && !counter['hazards']) || ability === 'Stance Change' && counter.damagingMoves.length >= 3) {
+=======
+<<<<<<< HEAD
+		} else if (hasMove['raindance'] || hasMove['sunnyday'] || (ability === 'Speed Boost' && hasMove['destinybond']) || ability === 'Stance Change' && counter.Physical + counter.Special > 2) {
+=======
+		} else if (hasMove['raindance'] || hasMove['sunnyday'] || ability === 'Stance Change' && counter.Physical + counter.Special > 2) {
+>>>>>>> add github plugin
+>>>>>>> add github plugin
 			item = 'Life Orb';
 		} else if (this.dex.getEffectiveness('Rock', species) >= 1 && (['Defeatist', 'Emergency Exit', 'Multiscale'].includes(ability) || hasMove['courtchange'] || hasMove['defog'] || hasMove['rapidspin']) && !isDoubles) {
 			item = 'Heavy-Duty Boots';
@@ -1513,8 +1543,17 @@ export class RandomTeams {
 				case 'Darmanitan':
 					if (species.gen === 8 && this.randomChance(1, 2)) continue;
 					break;
+<<<<<<< HEAD
 				case 'Magearna': case 'Toxtricity': case 'Zacian': case 'Zamazenta':
+<<<<<<< HEAD
 				case 'Appletun': case 'Blastoise': case 'Butterfree': case 'Copperajah': case 'Grimmsnarl': case 'Inteleon': case 'Rillaboom': case 'Snorlax': case 'Urshifu':
+=======
+				case 'Appletun': case 'Blastoise': case 'Butterfree': case 'Copperajah': case 'Grimmsnarl': case 'Snorlax': case 'Urshifu':
+=======
+				case 'Appletun': case 'Butterfree': case 'Copperajah': case 'Grimmsnarl': case 'Snorlax':
+				case 'Toxtricity': case 'Urshifu': case 'Zacian': case 'Zamazenta':
+>>>>>>> add github plugin
+>>>>>>> add github plugin
 					if (this.gen >= 8 && this.randomChance(1, 2)) continue;
 					break;
 				}

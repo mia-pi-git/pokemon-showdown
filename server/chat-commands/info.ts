@@ -1617,13 +1617,17 @@ export const commands: ChatCommands = {
 		);
 	},
 
+<<<<<<< HEAD
 	suggestions(target, room, user) {
+=======
+	'!suggestion': true,
+	suggestion(target, room, user) {
+>>>>>>> add github plugin
 		if (!this.runBroadcast()) return;
 		this.sendReplyBox(`<a href="https://www.smogon.com/forums/forums/517/">Make a suggestion for Pok&eacute;mon Showdown</a>`);
 	},
 
 	bugreport: 'bugs',
-	bugreports: 'bugs',
 	bugs(target, room, user) {
 		if (!this.runBroadcast()) return;
 		if (room?.battle) {
