@@ -305,8 +305,18 @@ export const Utils = new class Utils {
 	}
 	async namecolor(name: string): Promise<string> {
 		const config = Net('https://play.pokemonshowdown.com/config/config.js');
-		const customcolors: {[k: string]: string} = await config.get().then(res => {
-			return eval(res);
+		const customcolors = await config.get().then(res => {
+			const idx = res.indexOf(' = {');
+			res = res.slice(idx + 4);
+			const colors: {[k: string]: string} = {};
+			for (const line of res.split('\n')) {
+				const [name, base] = line.split(':')
+					.map(item => item.split('//')[0])
+					.map(toID).filter(Boolean);
+				if (!base || !name) continue;
+				colors[name] = base;
+			}
+			return colors;
 		});
 		const HSLToRGB = (H: number, S: number, L: number) => {
 			let C = (100 - Math.abs(2 * L - 100)) * S / 100 / 100;
