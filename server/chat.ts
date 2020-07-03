@@ -35,7 +35,7 @@ export interface PageTable {
 export type ChatHandler = (
 	this: CommandContext,
 	target: string,
-	room: Room,
+	room: Room | null,
 	user: User,
 	connection: Connection,
 	cmd: string,
@@ -688,8 +688,17 @@ export class CommandContext extends MessageContext {
 	}
 
 	privateModAction(msg: string) {
-		this.room!.sendMods(msg);
-		this.roomlog(msg);
+		if (this.pmTarget) {
+			this.user.send(`|pm|${this.user.name}|${this.pmTarget.name}|/log ${msg}`);
+			if (this.pmTarget.isStaff) {
+				this.pmTarget.send(`|pm|${this.user.name}|${this.pmTarget.name}|/log ${msg}`);
+			}
+			Rooms.get('staff')?.sendMods(`${msg} (PM: ${this.pmTarget})`);
+		}
+		if (this.room) {
+			this.room.sendMods(msg);
+			this.roomlog(msg);
+		}
 	}
 	globalModlog(action: string, user: string | User | null, note: string) {
 		let buf = `(${this.room ? this.room.roomid : 'global'}) ${action}: `;
@@ -740,7 +749,8 @@ export class CommandContext extends MessageContext {
 		if (this.room) this.room.roomlog(data);
 	}
 	addModAction(msg: string) {
-		this.room!.addByUser(this.user, msg);
+		if (this.pmTarget) return Chat.sendPM(`/log ${msg}`, this.user, this.pmTarget);
+		if (this.room) return this.room.addByUser(this.user, msg);
 	}
 	update() {
 		if (this.room) this.room.update();
@@ -1224,6 +1234,11 @@ export class CommandContext extends MessageContext {
 		this.inputUsername = name.trim();
 		this.targetUsername = this.targetUser ? this.targetUser.name : this.inputUsername;
 		return rest;
+	}
+
+	requiresRoom() {
+		this.errorReply(`You tried to use ${this.cmd} as a global command, but it is not one.`);
+		this.errorReply(`Use it in a room instead.`);
 	}
 }
 
