@@ -747,8 +747,9 @@ export const commands: ChatCommands = {
 		if (existingRoom && !existingRoom.settings.modjoin) {
 			return this.errorReply(`Your group chat name is too similar to existing chat room '${title}'.`);
 		}
+		const id = `groupchat-${user.id}-${toID(title)}` as RoomID;
 		title = `[G] ${title}`;
-		if (!(await room.rename(title))) {
+		if (!(await room.rename(title, id))) {
 			return this.errorReply(`Unknown error occurred while renaming the groupchat.`);
 		}
 		room.add(Utils.html`|raw|<div class="broadcast-green">This room has been renamed to <b>${target}</b></div>`).update();
