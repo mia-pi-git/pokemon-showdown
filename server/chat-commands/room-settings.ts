@@ -7,7 +7,6 @@
  * @license MIT
  */
 import {Utils} from '../../lib/utils';
-import { throws } from 'assert';
 
 const RANKS: string[] = Config.groupsranking;
 
