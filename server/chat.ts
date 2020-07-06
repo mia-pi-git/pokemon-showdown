@@ -1700,8 +1700,11 @@ export const Chat = new class {
 		const buffer = [];
 		const perm = /(user|this).can\('(.+)'/.exec(command.toString());
 		if (!perm || perm.length < 2) return;
-		for (const group of Config.groupsranking) {
-		if (Auth.hasPermission(group, perm[2] as RoomPermission | GlobalPermission)) buffer.push(group)
+		const shownGroups = ['+', '%', '@', '*', '#', '&'].map(item => Config.groups[item]).sort((a, b) => {
+			return a.rank - b.rank;
+		});
+		for (const group of shownGroups) {
+			if (Auth.hasPermission(group.symbol, perm[2] as RoomPermission | GlobalPermission)) buffer.push(group.symbol);
 		}
 		return `Requires: ${buffer.join(' ')}`;
 	}
