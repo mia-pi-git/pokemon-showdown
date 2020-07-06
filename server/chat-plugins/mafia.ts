@@ -2048,8 +2048,8 @@ export const commands: ChatCommands = {
 		},
 		queuehelp: [
 			`/mafia queue - Shows the upcoming users who are going to host.`,
-			`/mafia queue add, (user) - Adds the user to the hosting queue. Requires: + % @ # &`,
-			`/mafia queue remove, (user) - Removes the user from the hosting queue. Requires: + % @ # &`,
+			`/mafia queue add, (user) - Adds the user to the hosting queue.`,
+			`/mafia queue remove, (user) - Removes the user from the hosting queue.`,
 		],
 
 		qadd: 'queueadd',
@@ -2110,7 +2110,7 @@ export const commands: ChatCommands = {
 			game.logAction(user, `set playercap to ${num}`);
 		},
 		playercaphelp: [
-			`/mafia playercap [cap|none]- Limit the number of players being able to join the game. Player cap cannot be more than 20 or less than 2. Requires: host % @ # &`,
+			`/mafia playercap [cap|none]- Limit the number of players being able to join the game. Player cap cannot be more than 20 or less than 2.`,
 		],
 
 		close(target, room, user) {
@@ -2129,7 +2129,7 @@ export const commands: ChatCommands = {
 			game.updatePlayers();
 			game.logAction(user, `closed signups`);
 		},
-		closehelp: [`/mafia close - Closes signups for the current game. Requires: host % @ # &`],
+		closehelp: [`/mafia close - Closes signups for the current game.`],
 
 		cs: 'closedsetup',
 		closedsetup(target, room, user) {
@@ -3724,8 +3724,8 @@ export const commands: ChatCommands = {
 		buf += `</details><details><summary class="button">Host Commands</summary>`;
 		buf += [
 			`<br/><strong>Commands for game hosts and Cohosts to use</strong>:<br/>`,
-			`/mafia playercap [cap|none]- Limit the number of players able to join the game. Player cap cannot be more than 20 or less than 2. Requires: host % @ # &`,
-			`/mafia close - Closes signups for the current game. Requires: host % @ # &`,
+			`/mafia playercap [cap|none]- Limit the number of players able to join the game. Player cap cannot be more than 20 or less than 2.`,
+			`/mafia close - Closes signups for the current game.`,
 			`/mafia closedsetup [on|off] - Sets if the game is a closed setup. Closed setups don't show the role list to players. Requires host % @ # &`,
 			`/mafia reveal [on|off] - Sets if roles reveal on death or not. Requires host % @ # &`,
 			`/mafia selflynch [on|hammer|off] - Allows players to self lynch themselves either at hammer or anytime. Requires host % @ # &`,

@@ -1219,13 +1219,13 @@ export const commands: ChatCommands = {
 			if (!this.can('lock')) return;
 			this.parse('/join view-help-tickets');
 		},
-		listhelp: [`/helpticket list - Lists all tickets. Requires: % @ &`],
+		listhelp: [`/helpticket list - Lists all tickets.`],
 
 		stats(target, room, user) {
 			if (!this.can('lock')) return;
 			this.parse('/join view-help-stats');
 		},
-		statshelp: [`/helpticket stats - List the stats for help tickets. Requires: % @ &`],
+		statshelp: [`/helpticket stats - List the stats for help tickets.`],
 
 		close(target, room, user) {
 			if (!target) return this.parse(`/help helpticket close`);
@@ -1249,7 +1249,7 @@ export const commands: ChatCommands = {
 			ticket.claimed = user.name;
 			this.sendReply(`You closed ${ticket.creator}'s ticket.`);
 		},
-		closehelp: [`/helpticket close [user] - Closes an open ticket. Requires: % @ &`],
+		closehelp: [`/helpticket close [user] - Closes an open ticket.`],
 
 		ban(target, room, user) {
 			if (!target) return this.parse('/help helpticket ban');
@@ -1351,7 +1351,7 @@ export const commands: ChatCommands = {
 			this.globalModlog(`TICKETBAN`, targetUser || userid, ` by ${user.name}${(target ? `: ${target}` : ``)}`);
 			return true;
 		},
-		banhelp: [`/helpticket ban [user], (reason) - Bans a user from creating tickets for 2 days. Requires: % @ &`],
+		banhelp: [`/helpticket ban [user], (reason) - Bans a user from creating tickets for 2 days.`],
 
 		unban(target, room, user) {
 			if (!target) return this.parse('/help helpticket unban');
@@ -1383,7 +1383,7 @@ export const commands: ChatCommands = {
 			this.globalModlog("UNTICKETBAN", target, ` by ${user.id}`);
 			if (targetUser) targetUser.popup(`${user.name} has ticket unbanned you.`);
 		},
-		unbanhelp: [`/helpticket unban [user] - Ticket unbans a user. Requires: % @ &`],
+		unbanhelp: [`/helpticket unban [user] - Ticket unbans a user.`],
 
 		ignore(target, room, user) {
 			if (!this.can('lock')) return;
@@ -1394,7 +1394,7 @@ export const commands: ChatCommands = {
 			user.update();
 			this.sendReply(`You are now ignoring help ticket notifications.`);
 		},
-		ignorehelp: [`/helpticket ignore - Ignore notifications for unclaimed help tickets. Requires: % @ &`],
+		ignorehelp: [`/helpticket ignore - Ignore notifications for unclaimed help tickets.`],
 
 		unignore(target, room, user) {
 			if (!this.can('lock')) return;
@@ -1405,7 +1405,7 @@ export const commands: ChatCommands = {
 			user.update();
 			this.sendReply(`You will now receive help ticket notifications.`);
 		},
-		unignorehelp: [`/helpticket unignore - Stop ignoring notifications for help tickets. Requires: % @ &`],
+		unignorehelp: [`/helpticket unignore - Stop ignoring notifications for help tickets.`],
 
 		delete(target, room, user) {
 			// This is a utility only to be used if something goes wrong
@@ -1423,18 +1423,18 @@ export const commands: ChatCommands = {
 			}
 			this.sendReply(`You deleted ${target}'s ticket.`);
 		},
-		deletehelp: [`/helpticket delete [user] - Deletes a users ticket. Requires: &`],
+		deletehelp: [`/helpticket delete [user] - Deletes a users ticket.`],
 
 	},
 	helptickethelp: [
 		`/helpticket create - Creates a new ticket, requesting help from global staff.`,
-		`/helpticket list - Lists all tickets. Requires: % @ &`,
-		`/helpticket close [user] - Closes an open ticket. Requires: % @ &`,
-		`/helpticket ban [user], (reason) - Bans a user from creating tickets for 2 days. Requires: % @ &`,
-		`/helpticket unban [user] - Ticket unbans a user. Requires: % @ &`,
-		`/helpticket ignore - Ignore notifications for unclaimed help tickets. Requires: % @ &`,
-		`/helpticket unignore - Stop ignoring notifications for help tickets. Requires: % @ &`,
-		`/helpticket delete [user] - Deletes a user's ticket. Requires: &`,
+		`/helpticket list - Lists all tickets.`,
+		`/helpticket close [user] - Closes an open ticket.`,
+		`/helpticket ban [user], (reason) - Bans a user from creating tickets for 2 days.`,
+		`/helpticket unban [user] - Ticket unbans a user.`,
+		`/helpticket ignore - Ignore notifications for unclaimed help tickets.`,
+		`/helpticket unignore - Stop ignoring notifications for help tickets.`,
+		`/helpticket delete [user] - Deletes a user's ticket.`,
 	],
 };
 exports.commands = commands;

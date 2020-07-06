@@ -348,14 +348,14 @@ export const commands: ChatCommands = {
 		}
 		return this.parse(`/join view-punishments-${room}`);
 	},
-	showpunishmentshelp: [`/showpunishments - Shows the current punishments in the room. Requires: % @ # &`],
+	showpunishmentshelp: [`/showpunishments - Shows the current punishments in the room.`],
 
 	sgp: 'showglobalpunishments',
 	showglobalpunishments(target, room, user) {
 		if (!this.can('lock')) return;
 		return this.parse(`/join view-globalpunishments`);
 	},
-	showglobalpunishmentshelp: [`/showpunishments - Shows the current global punishments. Requires: % @ # &`],
+	showglobalpunishmentshelp: [`/showpunishments - Shows the current global punishments.`],
 
 	host(target, room, user, connection, cmd) {
 		if (!target) return this.parse('/help host');
@@ -367,7 +367,7 @@ export const commands: ChatCommands = {
 			this.sendReply(`IP ${target}: ${host || "ERROR"} [${hostType}]${dnsblMessage}`);
 		});
 	},
-	hosthelp: [`/host [ip] - Gets the host for a given IP. Requires: @ &`],
+	hosthelp: [`/host [ip] - Gets the host for a given IP.`],
 
 	searchip: 'ipsearch',
 	ipsearchall: 'ipsearch',
@@ -423,7 +423,7 @@ export const commands: ChatCommands = {
 		}
 		return this.sendReply(results.join('; '));
 	},
-	ipsearchhelp: [`/ipsearch [ip|range|host], (room) - Find all users with specified IP, IP range, or host. If a room is provided only users in the room will be shown. Requires: &`],
+	ipsearchhelp: [`/ipsearch [ip|range|host], (room) - Find all users with specified IP, IP range, or host. If a room is provided only users in the room will be shown.`],
 
 	checkchallenges(target, room, user) {
 		if (!room) return this.requiresRoom();
@@ -464,7 +464,7 @@ export const commands: ChatCommands = {
 		}
 		this.sendReplyBox(challenges.join(`<br />`));
 	},
-	checkchallengeshelp: [`!checkchallenges [user1], [user2] - Check if the specified users are challenging each other. Requires: @ # &`],
+	checkchallengeshelp: [`!checkchallenges [user1], [user2] - Check if the specified users are challenging each other.`],
 
 	/*********************************************************
 	 * Client fallback
@@ -789,7 +789,7 @@ export const commands: ChatCommands = {
 	datahelp: [
 		`/data [pokemon/item/move/ability/nature] - Get details on this pokemon/item/move/ability/nature.`,
 		`/data [pokemon/item/move/ability/nature], Gen [generation number/format name] - Get details on this pokemon/item/move/ability/nature for that generation/format.`,
-		`!data [pokemon/item/move/ability/nature] - Show everyone these details. Requires: + % @ # &`,
+		`!data [pokemon/item/move/ability/nature] - Show everyone these details.`,
 	],
 
 	dt: 'details',
@@ -811,7 +811,7 @@ export const commands: ChatCommands = {
 			`<code>/details [Pok\u00e9mon/item/move/ability/nature], Gen [generation number]</code>: get details on this Pok\u00e9mon/item/move/ability/nature in that generation.<br />` +
 			`You can also append the generation number to <code>/dt</code>; for example, <code>/dt1 Mewtwo</code> gets details on Mewtwo in Gen 1.<br />` +
 			`<code>/details [Pok\u00e9mon/item/move/ability/nature], [format]</code>: get details on this Pok\u00e9mon/item/move/ability/nature in that format.<br />` +
-			`<code>!details [Pok\u00e9mon/item/move/ability/nature]</code>: show everyone these details. Requires: + % @ # &`
+			`<code>!details [Pok\u00e9mon/item/move/ability/nature]</code>: show everyone these details.`
 		);
 	},
 
@@ -917,8 +917,8 @@ export const commands: ChatCommands = {
 	weaknesshelp: [
 		`/weakness [pokemon] - Provides a Pok\u00e9mon's resistances, weaknesses, and immunities, ignoring abilities.`,
 		`/weakness [type 1]/[type 2] - Provides a type or type combination's resistances, weaknesses, and immunities, ignoring abilities.`,
-		`!weakness [pokemon] - Shows everyone a Pok\u00e9mon's resistances, weaknesses, and immunities, ignoring abilities. Requires: + % @ # &`,
-		`!weakness [type 1]/[type 2] - Shows everyone a type or type combination's resistances, weaknesses, and immunities, ignoring abilities. Requires: + % @ # &`,
+		`!weakness [pokemon] - Shows everyone a Pok\u00e9mon's resistances, weaknesses, and immunities, ignoring abilities.`,
+		`!weakness [type 1]/[type 2] - Shows everyone a type or type combination's resistances, weaknesses, and immunities, ignoring abilities.`,
 	],
 
 	eff: 'effectiveness',
@@ -1524,7 +1524,7 @@ export const commands: ChatCommands = {
 	groupshelp: [
 		`/groups - Explains what the symbols (like % and @) before people's names mean.`,
 		`/groups [global|room] - Explains only global or room symbols.`,
-		`!groups - Shows everyone that information. Requires: + % @ # &`,
+		`!groups - Shows everyone that information.`,
 	],
 
 	punishments(target, room, user) {
@@ -1557,7 +1557,7 @@ export const commands: ChatCommands = {
 	},
 	punishmentshelp: [
 		`/punishments - Explains punishments.`,
-		`!punishments - Show everyone that information. Requires: + % @ # &`,
+		`!punishments - Show everyone that information.`,
 	],
 
 	repo: 'opensource',
@@ -1576,7 +1576,7 @@ export const commands: ChatCommands = {
 	},
 	opensourcehelp: [
 		`/opensource - Links to PS's source code repository.`,
-		`!opensource - Show everyone that information. Requires: + % @ # &`,
+		`!opensource - Show everyone that information.`,
 	],
 
 	staff(target, room, user) {
@@ -1625,7 +1625,7 @@ export const commands: ChatCommands = {
 	},
 	avatarshelp: [
 		`/avatars - Explains how to change avatars.`,
-		`!avatars - Show everyone that information. Requires: + % @ # &`,
+		`!avatars - Show everyone that information.`,
 	],
 
 	optionbutton: 'optionsbutton',
@@ -1654,7 +1654,7 @@ export const commands: ChatCommands = {
 	},
 	introhelp: [
 		`/intro - Provides an introduction to competitive Pok\u00e9mon.`,
-		`!intro - Show everyone that information. Requires: + % @ # &`,
+		`!intro - Show everyone that information.`,
 	],
 
 	mentoring: 'smogintro',
@@ -1715,7 +1715,7 @@ export const commands: ChatCommands = {
 		`/calc - Provides a link to a damage calculator`,
 		`/rcalc - Provides a link to the random battles damage calculator`,
 		`/bsscalc - Provides a link to the Battle Spot damage calculator`,
-		`!calc - Shows everyone a link to a damage calculator. Requires: + % @ # &`,
+		`!calc - Shows everyone a link to a damage calculator.`,
 	],
 
 	capintro: 'cap',
@@ -1731,7 +1731,7 @@ export const commands: ChatCommands = {
 	},
 	caphelp: [
 		`/cap - Provides an introduction to the Create-A-Pok\u00e9mon project.`,
-		`!cap - Show everyone that information. Requires: + % @ # &`,
+		`!cap - Show everyone that information.`,
 	],
 
 	gennext(target, room, user) {
@@ -1977,9 +1977,9 @@ export const commands: ChatCommands = {
 	},
 	ruleshelp: [
 		`/rules - Show links to room rules and global rules.`,
-		`!rules - Show everyone links to room rules and global rules. Requires: + % @ # &`,
-		`/rules [url] - Change the room rules URL. Requires: # &`,
-		`/rules remove - Removes a room rules URL. Requires: # &`,
+		`!rules - Show everyone links to room rules and global rules.`,
+		`/rules [url] - Change the room rules URL.`,
+		`/rules remove - Removes a room rules URL.`,
 	],
 
 	faq(target, room, user) {
@@ -2022,7 +2022,7 @@ export const commands: ChatCommands = {
 	},
 	faqhelp: [
 		`/faq [theme] - Provides a link to the FAQ. Add autoconfirmed, badges, coil, ladder, staff, or tiers for a link to these questions. Add all for all of them.`,
-		`!faq [theme] - Shows everyone a link to the FAQ. Add autoconfirmed, badges, coil, ladder, staff, or tiers for a link to these questions. Add all for all of them. Requires: + % @ # &`,
+		`!faq [theme] - Shows everyone a link to the FAQ. Add autoconfirmed, badges, coil, ladder, staff, or tiers for a link to these questions. Add all for all of them.`,
 	],
 
 	analysis: 'smogdex',
@@ -2191,7 +2191,7 @@ export const commands: ChatCommands = {
 	},
 	smogdexhelp: [
 		`/analysis [pokemon], [generation], [format] - Links to the Smogon University analysis for this Pok\u00e9mon in the given generation.`,
-		`!analysis [pokemon], [generation], [format] - Shows everyone this link. Requires: + % @ # &`,
+		`!analysis [pokemon], [generation], [format] - Shows everyone this link.`,
 	],
 
 	veekun(target, broadcast, user) {
@@ -2280,7 +2280,7 @@ export const commands: ChatCommands = {
 	},
 	veekunhelp: [
 		`/veekun [pokemon] - Links to Veekun website for this pokemon/item/move/ability/nature.`,
-		`!veekun [pokemon] - Shows everyone this link. Requires: + % @ # &`,
+		`!veekun [pokemon] - Shows everyone this link.`,
 	],
 
 	register() {
@@ -2496,7 +2496,7 @@ export const commands: ChatCommands = {
 		room.add(`|c| ${request.name}|/raw ${buf}`);
 		this.privateModAction(`${user.name} approved showing media from ${request.name}.`);
 	},
-	approveshowhelp: [`/approveshow [user] - Approves the media display request of [user]. Requires: % @ # &`],
+	approveshowhelp: [`/approveshow [user] - Approves the media display request of [user].`],
 
 	denyshow(target, room, user) {
 		if (!room) return this.requiresRoom();
@@ -2515,7 +2515,7 @@ export const commands: ChatCommands = {
 		room.sendRankedUsers(`|tempnotifyoff|pendingapprovals`, '%');
 		this.privateModAction(`${user.name} denied ${target}'s request to display ${entry.link}.`);
 	},
-	denyshowhelp: [`/denyshow [user] - Denies the media display request of [user]. Requires: % @ # &`],
+	denyshowhelp: [`/denyshow [user] - Denies the media display request of [user].`],
 
 	approvallog(target, room, user) {
 		if (!room) return this.requiresRoom();
@@ -2564,7 +2564,7 @@ export const commands: ChatCommands = {
 		this.runBroadcast();
 		this.sendReplyBox(buf);
 	},
-	showhelp: [`/show [url] - shows an image or video url in chat. Requires: whitelist % @ # &`],
+	showhelp: [`/show [url] - shows an image or video url in chat.`],
 
 	pi(target, room, user) {
 		if (!this.runBroadcast()) return false;
@@ -2597,7 +2597,7 @@ export const commands: ChatCommands = {
 		}
 	},
 	codehelp: [
-		`!code [code] - Broadcasts code to a room. Accepts multi-line arguments. Requires: + % @ & #`,
+		`!code [code] - Broadcasts code to a room. Accepts multi-line arguments.`,
 		`/code [code] - Shows you code. Accepts multi-line arguments.`,
 	],
 };

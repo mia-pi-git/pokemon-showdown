@@ -330,8 +330,8 @@ export const commands: ChatCommands = {
 			return this.addModAction(`A poll was started by ${user.name}.`);
 		},
 		newhelp: [
-			`/poll create [question], [option1], [option2], [...] - Creates a poll. Requires: % @ # &`,
-			`/poll createmulti [question], [option1], [option2], [...] - Creates a poll, allowing for multiple answers to be selected. Requires: % @ # &`,
+			`/poll create [question], [option1], [option2], [...] - Creates a poll.`,
+			`/poll createmulti [question], [option1], [option2], [...] - Creates a poll, allowing for multiple answers to be selected.`,
 			`To queue a poll, use [queue], [queuemulti], or [htmlqueuemulti].`,
 			`Polls can be used as quiz questions. To do this, prepend all correct answers with a +.`,
 		],
@@ -341,7 +341,7 @@ export const commands: ChatCommands = {
 			if (!this.can('mute', null, room)) return false;
 			this.parse(`/join view-pollqueue-${room.roomid}`);
 		},
-		viewqueuehelp: [`/viewqueue - view the queue of polls in the room. Requires: % @ # &`],
+		viewqueuehelp: [`/viewqueue - view the queue of polls in the room.`],
 
 		clearqueue: 'deletequeue',
 		deletequeue(target, room, user, connection, cmd) {
@@ -375,8 +375,8 @@ export const commands: ChatCommands = {
 			}
 		},
 		deletequeuehelp: [
-			`/poll deletequeue [number] - deletes poll at the corresponding queue slot (1 = next, 2 = the one after that, etc). Requires: % @ # &`,
-			`/poll clearqueue - deletes the queue of polls. Requires: % @ # &`,
+			`/poll deletequeue [number] - deletes poll at the corresponding queue slot (1 = next, 2 = the one after that, etc).`,
+			`/poll clearqueue - deletes the queue of polls.`,
 		],
 
 		deselect: 'select',
@@ -460,8 +460,8 @@ export const commands: ChatCommands = {
 			}
 		},
 		timerhelp: [
-			`/poll timer [minutes] - Sets the poll to automatically end after [minutes] minutes. Requires: % @ # &`,
-			`/poll timer clear - Clears the poll's timer. Requires: % @ # &`,
+			`/poll timer [minutes] - Sets the poll to automatically end after [minutes] minutes.`,
+			`/poll timer clear - Clears the poll's timer.`,
 		],
 
 		results(target, room, user) {
@@ -501,7 +501,7 @@ export const commands: ChatCommands = {
 			this.modlog('POLL END');
 			return this.privateModAction(`The poll was ended by ${user.name}.`);
 		},
-		endhelp: [`/poll end - Ends a poll and displays the results. Requires: % @ # &`],
+		endhelp: [`/poll end - Ends a poll and displays the results.`],
 
 		show: '',
 		display: '',
@@ -526,17 +526,17 @@ export const commands: ChatCommands = {
 		`/poll allows rooms to run their own polls. These polls are limited to one poll at a time per room.`,
 		`Polls can be used as quiz questions. To do this, prepend all correct answers with a +.`,
 		`Accepts the following commands:`,
-		`/poll create [question], [option1], [option2], [...] - Creates a poll. Requires: % @ # &`,
-		`/poll createmulti [question], [option1], [option2], [...] - Creates a poll, allowing for multiple answers to be selected. Requires: % @ # &`,
-		`/poll htmlcreate(multi) [question], [option1], [option2], [...] - Creates a poll, with HTML allowed in the question and options. Requires: # &`,
+		`/poll create [question], [option1], [option2], [...] - Creates a poll.`,
+		`/poll createmulti [question], [option1], [option2], [...] - Creates a poll, allowing for multiple answers to be selected.`,
+		`/poll htmlcreate(multi) [question], [option1], [option2], [...] - Creates a poll, with HTML allowed in the question and options.`,
 		`/poll vote [number] - Votes for option [number].`,
-		`/poll timer [minutes] - Sets the poll to automatically end after [minutes]. Requires: % @ # &`,
+		`/poll timer [minutes] - Sets the poll to automatically end after [minutes].`,
 		`/poll results - Shows the results of the poll without voting. NOTE: you can't go back and vote after using this.`,
 		`/poll display - Displays the poll`,
-		`/poll end - Ends a poll and displays the results. Requires: % @ # &`,
+		`/poll end - Ends a poll and displays the results.`,
 		`/poll deletequeue [number] - deletes poll at the corresponding queue slot (1 = next, 2 = the one after that, etc).`,
-		`/poll clearqueue - deletes the queue of polls. Requires: % @ # &`,
-		`/poll viewqueue - view the queue of polls in the room. Requires: % @ # &`,
+		`/poll clearqueue - deletes the queue of polls.`,
+		`/poll viewqueue - view the queue of polls in the room.`,
 	],
 };
 

@@ -72,7 +72,7 @@ export const commands: ChatCommands = {
 	},
 	othermetashelp: [
 		`/om - Provides links to information on the Other Metagames.`,
-		`!om - Show everyone that information. Requires: + % @ # &`,
+		`!om - Show everyone that information.`,
 	],
 
 	mnm: 'mixandmega',

@@ -104,6 +104,7 @@ const TRANSLATION_DIRECTORY = 'translations/';
 import {FS} from '../lib/fs';
 import {Utils} from '../lib/utils';
 import {formatText, linkRegex, stripFormatting} from './chat-formatter';
+import {Auth} from './user-groups';
 
 // @ts-ignore no typedef available
 import ProbeModule = require('probe-image-size');
@@ -1690,6 +1691,19 @@ export const Chat = new class {
 			num = Number(num);
 		}
 		return (num !== 1 ? pluralSuffix : singular);
+	}
+
+	getRequiresMessage(cmd: string) {
+		let command: ChatCommands | ChatHandler | string | string[] = this.commands[cmd];
+		if (!command) return;
+		if (typeof command === 'string') command = this.commands[cmd];
+		const buffer = [];
+		const perm = /(user|this).can\('(.+)'/.exec(command.toString());
+		if (!perm || perm.length < 2) return;
+		for (const group of Config.groupsranking) {
+		if (Auth.hasPermission(group, perm[2] as RoomPermission | GlobalPermission)) buffer.push(group)
+		}
+		return `Requires: ${buffer.join(' ')}`;
 	}
 
 	/**

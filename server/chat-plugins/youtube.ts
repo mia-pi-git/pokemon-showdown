@@ -195,7 +195,7 @@ export const commands: ChatCommands = {
 			this.modlog('ADDCHANNEL', null, `${id} ${name ? `username: ${name}` : ''}`);
 			return this.privateModAction(`Added channel with id ${id} ${name ? `and username (${name}) ` : ''} to the random channel pool.`);
 		},
-		addchannelhelp: [`/addchannel - Add channel data to the YouTube database. Requires: % @ #`],
+		addchannelhelp: [`/addchannel - Add channel data to the YouTube database.`],
 
 		removechannel(target, room, user) {
 			if (!room) return this.requiresRoom();
@@ -208,7 +208,7 @@ export const commands: ChatCommands = {
 			this.privateModAction(`${user.name} deleted channel with ID or name ${target}.`);
 			return this.modlog(`REMOVECHANNEL`, null, id);
 		},
-		removechannelhelp: [`/youtube removechannel - Delete channel data from the YouTube database. Requires: % @ #`],
+		removechannelhelp: [`/youtube removechannel - Delete channel data from the YouTube database.`],
 
 		async channel(target, room, user) {
 			if (!room) return this.requiresRoom();
@@ -296,12 +296,12 @@ export const commands: ChatCommands = {
 	youtubehelp: [
 		`YouTube commands:`,
 		`/randchannel - View data of a random channel from the YouTube database.`,
-		`/youtube addchannel [channel] - Add channel data to the YouTube database. Requires: % @ #`,
-		`/youtube removechannel [channel]- Delete channel data from the YouTube database. Requires: % @ #`,
+		`/youtube addchannel [channel] - Add channel data to the YouTube database.`,
+		`/youtube removechannel [channel]- Delete channel data from the YouTube database.`,
 		`/youtube channel [channel] - View the data of a specified channel. Can be either channel ID or channel name.`,
 		`/youtube video [video] - View data of a specified video. Can be either channel ID or channel name.`,
-		`/youtube update [channel], [name] - sets a channel's PS username to [name]. Requires: % @ #`,
-		`/youtube repeat [time] - Sets an interval for [time] minutes, showing a random channel each time. Requires: # &`,
+		`/youtube update [channel], [name] - sets a channel's PS username to [name].`,
+		`/youtube repeat [time] - Sets an interval for [time] minutes, showing a random channel each time.`,
 	],
 };
 

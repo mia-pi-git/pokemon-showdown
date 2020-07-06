@@ -128,7 +128,7 @@ export const commands: ChatCommands = {
 		room.saveSettings();
 	},
 	modchathelp: [
-		`/modchat [off/autoconfirmed/trusted/+/%/@/*/player/#/&] - Set the level of moderated chat. Requires: % \u2606 for off/autoconfirmed/+ options, * @ # & for all the options`,
+		`/modchat [off/autoconfirmed/trusted/+/%/@/*/player/#/&] - Set the level of moderated chat.options`,
 	],
 
 	ioo(target, room, user) {
@@ -165,7 +165,7 @@ export const commands: ChatCommands = {
 		}
 	},
 	inviteonlyhelp: [
-		`/inviteonly [on|off] - Sets modjoin %. Users can't join unless invited with /invite. Requires: # &`,
+		`/inviteonly [on|off] - Sets modjoin %. Users can't join unless invited with /invite.`,
 		`/ioo - Shortcut for /inviteonly on`,
 		`/inviteonlynext OR /ionext - Sets your next battle to be invite-only.`,
 		`/ionext off - Sets your next battle to be publicly visible.`,
@@ -234,8 +234,8 @@ export const commands: ChatCommands = {
 		if (!room.settings.isPrivate) this.parse('/hiddenroom');
 	},
 	modjoinhelp: [
-		`/modjoin [+|%|@|*|player|&|#|off] - Sets modjoin. Users lower than the specified rank can't join this room unless they have a room rank. Requires: \u2606 # &`,
-		`/modjoin [sync|off] - Sets modjoin. Only users who can speak in modchat can join this room. Requires: \u2606 # &`,
+		`/modjoin [+|%|@|*|player|&|#|off] - Sets modjoin. Users lower than the specified rank can't join this room unless they have a room rank.`,
+		`/modjoin [sync|off] - Sets modjoin. Only users who can speak in modchat can join this room.`,
 	],
 
 	roomlanguage(target, room, user) {
@@ -501,10 +501,10 @@ export const commands: ChatCommands = {
 		},
 	},
 	banwordhelp: [
-		`/banword add [words] - Adds the comma-separated list of phrases to the banword list of the current room. Requires: # &`,
+		`/banword add [words] - Adds the comma-separated list of phrases to the banword list of the current room.`,
 		`/banword addregex [words] - Adds the comma-separated list of regular expressions to the banword list of the current room. Requires &`,
-		`/banword delete [words] - Removes the comma-separated list of phrases from the banword list. Requires: # &`,
-		`/banword list - Shows the list of banned words in the current room. Requires: % @ # &`,
+		`/banword delete [words] - Removes the comma-separated list of phrases from the banword list.`,
+		`/banword list - Shows the list of banned words in the current room.`,
 	],
 
 	showapprovals(target, room, user) {
@@ -641,10 +641,14 @@ export const commands: ChatCommands = {
 			this.sendReply(`The chat room '${target}' was created.`);
 		}
 	},
+<<<<<<< HEAD
 	makechatroomhelp: [
 		`/makeprivatechatroom [roomname] - Creates a new private room named [roomname]. Requires: &`,
 		`/makepublicchatroom [roomname] - Creates a new public room named [roomname]. Requires: &`,
 	],
+=======
+	makechatroomhelp: [`/makechatroom [roomname] - Creates a new room named [roomname].`],
+>>>>>>> Refactor help messages
 
 	subroomgroupchat: 'makegroupchat',
 	makegroupchat(target, room, user, connection, cmd) {
@@ -730,36 +734,6 @@ export const commands: ChatCommands = {
 		`/subroomgroupchat [roomname] - Creates a subroom groupchat of the current room. Can only be used in a public room you have staff in.`,
 	],
 
-	async renamegroupchat(target, room, user) {
-		if (!room) return this.requiresRoom();
-		if (!user.authAtLeast(Users.HOST_SYMBOL, room) || !user.can('lock')) return false;
-		 let title = target.trim();
-		if (!title) return this.parse('/help renamegroupchat');
-		if (room.minorActivity || room.game || room.tour) {
-			return this.errorReply("Cannot rename room when there's a tour/game/poll/announcement running.");
-		}
-		if (title.length >= 32) {
-			return this.errorReply("Title must be under 32 characters long.");
-		} else if (this.filter(title) !== title) {
-			return this.errorReply("Invalid title.");
-		}
-		const existingRoom = Rooms.search(toID(title));
-		if (existingRoom && !existingRoom.settings.modjoin) {
-			return this.errorReply(`Your group chat name is too similar to existing chat room '${title}'.`);
-		}
-		const creatorID = room.roomid.split('-')[1];
-		const id = `groupchat-${creatorID}-${toID(title)}` as RoomID;
-		title = `[G] ${title}`;
-		if (!(await room.rename(title, id))) {
-			return this.errorReply(`Unknown error occurred while renaming the groupchat.`);
-		}
-		room.add(Utils.html`|raw|<div class="broadcast-green">This room has been renamed to <b>${target}</b></div>`).update();
-	},
-	renamegroupchathelp: [
-		'/renamegroupchat [name]: renames the current room to [name], if it\'s a groupchat.',
-		`Requires: % ${Users.HOST_SYMBOL} @ &`,
-	],
-
 	groupchatuptime: 'roomuptime',
 	roomuptime(target, room, user, connection, cmd) {
 		if (!this.runBroadcast()) return;
@@ -804,7 +778,7 @@ export const commands: ChatCommands = {
 		return this.errorReply(`The room "${target}" isn't registered.`);
 	},
 	deregisterchatroomhelp: [
-		`/deregisterchatroom [roomname] - Deletes room [roomname] after the next server restart. Requires: &`,
+		`/deregisterchatroom [roomname] - Deletes room [roomname] after the next server restart.`,
 	],
 
 	deletechatroom: 'deleteroom',
@@ -869,8 +843,8 @@ export const commands: ChatCommands = {
 		room.destroy();
 	},
 	deleteroomhelp: [
-		`/deleteroom [roomname] - Deletes room [roomname]. Must be typed in the room to delete. Requires: &`,
-		`/deletegroupchat - Deletes the current room, if it's a groupchat. Requires: ★ # &`,
+		`/deleteroom [roomname] - Deletes room [roomname]. Must be typed in the room to delete.`,
+		`/deletegroupchat - Deletes the current room, if it's a groupchat.`,
 	],
 
 	rename() {
@@ -1011,9 +985,9 @@ export const commands: ChatCommands = {
 		}
 	},
 	privateroomhelp: [
-		`/secretroom - Makes a room secret. Secret rooms are visible to & and up. Requires: &`,
-		`/hiddenroom [on/off] - Makes a room hidden. Hidden rooms are visible to % and up, and inherit global ranks. Requires: \u2606 &`,
-		`/publicroom - Makes a room public. Requires: \u2606 &`,
+		`/secretroom - Makes a room secret. Secret rooms are visible to & and up.`,
+		`/hiddenroom [on/off] - Makes a room hidden. Hidden rooms are visible to % and up, and inherit global ranks.`,
+		`/publicroom - Makes a room public.`,
 	],
 
 	hidenext(target, room, user) {
@@ -1189,8 +1163,8 @@ export const commands: ChatCommands = {
 	},
 
 	subroomhelp: [
-		`/subroom [room] - Marks the current room as a subroom of [room]. Requires: &`,
-		`/unsubroom - Unmarks the current room as a subroom. Requires: &`,
+		`/subroom [room] - Marks the current room as a subroom of [room].`,
+		`/unsubroom - Unmarks the current room as a subroom.`,
 		`/subrooms - Displays the current room's subrooms.`,
 		`/parentroom - Displays the current room's parent room.`,
 	],
@@ -1353,8 +1327,8 @@ export const commands: ChatCommands = {
 	},
 	roomaliashelp: [
 		`/roomalias - displays a list of all room aliases of the room the command was entered in.`,
-		`/roomalias [alias] - adds the given room alias to the room the command was entered in. Requires: &`,
-		`/removeroomalias [alias] - removes the given room alias of the room the command was entered in. Requires: &`,
+		`/roomalias [alias] - adds the given room alias to the room the command was entered in.`,
+		`/removeroomalias [alias] - removes the given room alias of the room the command was entered in.`,
 	],
 
 	deleteroomalias: 'removeroomalias',
@@ -1387,7 +1361,7 @@ export const commands: ChatCommands = {
 		}
 	},
 	removeroomaliashelp: [
-		`/removeroomalias [alias] - removes the given room alias of the room the command was entered in. Requires: &`,
+		`/removeroomalias [alias] - removes the given room alias of the room the command was entered in.`,
 	],
 
 	resettierdisplay: 'roomtierdisplay',
@@ -1431,8 +1405,8 @@ export const commands: ChatCommands = {
 	},
 	roomtierdisplayhelp: [
 		`/roomtierdisplay - displays the current room's display.`,
-		`/roomtierdisplay [option] - changes the current room's tier display. Valid options are: tiers, doubles tiers, numbers. Requires: # &`,
-		`/resettierdisplay - resets the current room's tier display. Requires: # &`,
+		`/roomtierdisplay [option] - changes the current room's tier display. Valid options are: tiers, doubles tiers, numbers.`,
+		`/resettierdisplay - resets the current room's tier display.`,
 	],
 };
 

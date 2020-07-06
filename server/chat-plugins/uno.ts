@@ -927,6 +927,7 @@ export const commands: ChatCommands = {
 	},
 
 	unohelp: [
+<<<<<<< HEAD
 		`/uno create [player cap] - creates a new UNO game with an optional player cap (default player cap at 12). Use the command [createpublic] to force a public game or [createprivate] to force a private game. Requires: % @ # &`,
 		`/uno setcap [player cap] - adjusts the player cap of the current UNO game. Requires: % @ # &`,
 		`/uno timer [amount] - sets an auto disqualification timer for [amount] seconds. Requires: % @ # &`,
@@ -934,6 +935,14 @@ export const commands: ChatCommands = {
 		`/uno end - ends the current game of UNO. Requires: % @ # &`,
 		`/uno start - starts the current game of UNO. Requires: % @ # &`,
 		`/uno disqualify [player] - disqualifies the player from the game. Requires: % @ # &`,
+=======
+		`/uno create [player cap] - creates a new UNO game with an optional player cap (default player cap at 6). Use the command [createpublic] to force a public game or [createprivate] to force a private game.`,
+		`/uno timer [amount] - sets an auto disqualification timer for [amount] seconds.`,
+		`/uno autostart [amount] - sets an auto starting timer for [amount] seconds.`,
+		`/uno end - ends the current game of UNO.`,
+		`/uno start - starts the current game of UNO.`,
+		`/uno disqualify [player] - disqualifies the player from the game.`,
+>>>>>>> Refactor help messages
 		`/uno hand - displays your own hand.`,
 		`/uno getusers - displays the players still in the game.`,
 		`/uno [spectate|unspectate] - spectate / unspectate the current private UNO game.`,

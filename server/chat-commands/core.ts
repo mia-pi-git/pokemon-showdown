@@ -676,7 +676,7 @@ export const commands: ChatCommands = {
 	},
 	clearstatushelp: [
 		`/clearstatus - Clears your status message.`,
-		`/clearstatus user, reason - Clears another person's status message. Requires: % @ &`,
+		`/clearstatus user, reason - Clears another person's status message.`,
 	],
 
 	unaway: 'back',
@@ -831,7 +831,7 @@ export const commands: ChatCommands = {
 			this.sendReply(`Battle input log re-requested.`);
 		}
 	},
-	exportinputloghelp: [`/exportinputlog - Asks players in a battle for permission to export an inputlog. Requires: &`],
+	exportinputloghelp: [`/exportinputlog - Asks players in a battle for permission to export an inputlog.`],
 
 	importinputlog(target, room, user, connection) {
 		if (!this.can('importinputlog')) return;
@@ -863,7 +863,7 @@ export const commands: ChatCommands = {
 			battleRoom.add(`|html|<div class="broadcast broadcast-blue"><strong>This is an imported replay</strong><br />Players will need to be manually added with <code>/addplayer</code> or <code>/restoreplayers</code></div>`);
 		}, 500);
 	},
-	importinputloghelp: [`/importinputlog [inputlog] - Starts a battle with a given inputlog. Requires: + % @ &`],
+	importinputloghelp: [`/importinputlog [inputlog] - Starts a battle with a given inputlog.`],
 
 	acceptdraw: 'offertie',
 	accepttie: 'offertie',
@@ -918,7 +918,7 @@ export const commands: ChatCommands = {
 			}
 		}
 	},
-	offertiehelp: [`/offertie - Offers a tie to all players in a battle; if all accept, it ties. Requires: \u2606 @ # &`],
+	offertiehelp: [`/offertie - Offers a tie to all players in a battle; if all accept, it ties.`],
 
 	rejectdraw: 'rejecttie',
 	rejecttie(target, room, user) {
@@ -1114,7 +1114,7 @@ export const commands: ChatCommands = {
 			this.errorReply("/kickbattle - User isn't in battle.");
 		}
 	},
-	kickbattlehelp: [`/kickbattle [username], [reason] - Kicks a user from a battle with reason. Requires: % @ &`],
+	kickbattlehelp: [`/kickbattle [username], [reason] - Kicks a user from a battle with reason.`],
 
 	kickinactive(target, room, user) {
 		this.parse(`/timer on`);
@@ -1193,8 +1193,8 @@ export const commands: ChatCommands = {
 		this.modlog('FORCEWIN', targetUser.id);
 	},
 	forcewinhelp: [
-		`/forcetie - Forces the current match to end in a tie. Requires: &`,
-		`/forcewin [user] - Forces the current match to end in a win for a user. Requires: &`,
+		`/forcetie - Forces the current match to end in a tie.`,
+		`/forcewin [user] - Forces the current match to end in a win for a user.`,
 	],
 
 	/*********************************************************
@@ -1563,6 +1563,9 @@ export const commands: ChatCommands = {
 			// If the help command is a function, parse it instead
 			this.run(currentBestHelp.help);
 		} else if (Array.isArray(currentBestHelp.help)) {
+			const command = currentBestHelp.for[0];
+			const requiresMessage = Chat.getRequiresMessage(command);
+			if (requiresMessage) currentBestHelp.help.push(requiresMessage);
 			this.sendReply(currentBestHelp.help.map(line => this.tr(line)).join('\n'));
 		}
 	},

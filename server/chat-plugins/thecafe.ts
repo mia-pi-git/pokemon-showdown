@@ -204,10 +204,10 @@ export const commands: ChatCommands = {
 	foodfighthelp: [
 		`/foodfight <generator> - Gives you a randomly generated Foodfight dish, ingredient list and team. Generator can be either 'random', 'ou', 'ag', or left blank. If left blank, uses Battle Factory to generate an importable team.`,
 		`/checkfoodfight <username> - Gives you the last team and dish generated for the entered user, or your own if left blank. Anyone can check their own info, checking other people requires: % @ # &`,
-		`/adddish <dish>, <ingredient>, <ingredient>, ... - Adds a dish to the database. Requires: % @ # &`,
-		`/addingredients <dish>, <ingredient>, <ingredient>, ... - Adds extra ingredients to a dish in the database. Requires: % @ # &`,
-		`/removedish <dish> - Removes a dish from the database. Requires: % @ # &`,
-		`/viewdishes - Shows the entire database of dishes. Requires: % @ # &`,
+		`/adddish <dish>, <ingredient>, <ingredient>, ... - Adds a dish to the database.`,
+		`/addingredients <dish>, <ingredient>, <ingredient>, ... - Adds extra ingredients to a dish in the database.`,
+		`/removedish <dish> - Removes a dish from the database.`,
+		`/viewdishes - Shows the entire database of dishes.`,
 	],
 };
 
