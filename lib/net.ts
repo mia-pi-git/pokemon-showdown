@@ -19,6 +19,10 @@ export interface NetRequestOptions extends https.RequestOptions {
 	query?: PostData;
 }
 
+export class NetServer {
+
+}
+
 export class HttpError extends Error {
 	statusCode?: number;
 	body: string;

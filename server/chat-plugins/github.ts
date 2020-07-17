@@ -56,6 +56,7 @@ export const GithubParser = new class {
 	}
 	shouldShow(id: string, repo: string) {
 		if (gitData.bans.includes(id)) return false;
+		if (!this.pushes[id]) return true;
 		if (!this.pushes[repo]) this.pushes[repo] = {};
 		if (Date.now() - this.pushes[repo][id] > cooldown) return true;
 		if (Date.now() - this.pushes[repo][id] < cooldown) this.pushes[repo][id] = Date.now();
@@ -87,6 +88,8 @@ export const GithubParser = new class {
 		this.report(buffer);
 	}
 	pull(repo: string, ref: string, result: AnyObject) {
+		const branch = /[^/]+$/.exec(ref)![0];
+		if (branch !== 'master') return;
 		const committer = toID(result.sender.login);
 		if (gitData.bans.includes(committer)) return;
 		const num = result.pull_request.number;
@@ -106,7 +109,7 @@ export const GithubParser = new class {
 			return;
 		}
 		this.report(
-			`[<font color='FF00FF'>${repo}</font>] <font color='909090'>${name}</font> ` +
+			`[<font color='FF00FF'>${this.repository(repo)}</font>] <font color='909090'>${name}</font> ` +
 			`${action} <a href="${url}">PR#${num}</a>: ${title}`
 		);
 	}
