@@ -36,6 +36,7 @@ import {RoomGame, RoomGamePlayer} from './room-game';
 import {Roomlogs} from './roomlogs';
 import * as crypto from 'crypto';
 import {RoomAuth} from './user-groups';
+import { chatfilter } from './chat-plugins/chat-monitor';
 
 /*********************************************************
  * the Room object.
@@ -672,7 +673,6 @@ export abstract class BasicRoom {
 	async rename(newTitle: string, newID?: RoomID) {
 		if (!newID) newID = toID(newTitle) as RoomID;
 		if (this.game || this.tour) return;
-
 		const oldID = this.roomid;
 		this.roomid = newID;
 		this.title = newTitle;

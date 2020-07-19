@@ -567,15 +567,8 @@ export class CommandContext extends MessageContext {
 		if (typeof commandHandler === 'string') commandHandler = Chat.commands[commandHandler] as ChatHandler;
 		let result;
 		try {
-			result = commandHandler.call(this, this.target, this.room, this.user, this.connection, this.cmd, this.message);
-			if (result.then) {
-				result = result.catch((err: Error) => {
-					if (err.name?.endsWith('ErrorMessage')) {
-						this.errorReply(err.message);
-						return false;
-					}
-				});
-			}
+			result = commandHandler.call(this, this.target, this.room, this.user, this.connection, this.cmd, this.message)
+
 		} catch (err) {
 			if (err.name?.endsWith('ErrorMessage')) {
 				this.errorReply(err.message);
