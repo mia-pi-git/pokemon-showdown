@@ -181,7 +181,7 @@ export const LogViewer = new class {
 			`<div class="message-log" style="overflow-wrap: break-word">`;
 
 		if (Config.storage?.pms === 'sqlite') {
-			const database = await Rooms.get(roomid)?.log.databasePromise;
+			const database = Rooms.get(roomid)?.log.databasePromise;
 			const [y, m, d] = day.split('-');
 			const results = await database?.all(`SELECT * FROM roomlogs_${roomid} WHERE day = ${d} AND month = '${m}' AND year = '${y}'`);
 			buf += results?.map(item => {
