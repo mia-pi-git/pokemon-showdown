@@ -9,6 +9,7 @@
 
 import {FS} from '../lib/fs';
 import {Utils} from '../lib/utils';
+import * as sqlite from 'sqlite';
 
 interface RoomlogOptions {
 	isMultichannel?: boolean;
@@ -67,6 +68,7 @@ export class Roomlog {
 	roomlogStream?: Streams.WriteStream | null;
 	sharedModlog: boolean;
 	roomlogFilename: string;
+	databasePromise?: Promise<sqlite.Database>;
 	constructor(room: BasicRoom, options: RoomlogOptions = {}) {
 		this.roomid = room.roomid;
 
@@ -85,8 +87,20 @@ export class Roomlog {
 
 		this.roomlogFilename = '';
 
-		this.setupModlogStream();
-		void this.setupRoomlogStream(true);
+		void this.initStorage();
+	}
+	async initStorage() {
+		if (Config.storage?.logs === 'sqlite') {
+			this.databasePromise = sqlite.open('../sqlite.db');
+			const db = await this.databasePromise;
+			await db.exec(
+				`CREATE TABLE IF NOT EXISTS roomlogs_${this.roomid}
+				(log STRING NOT NULL, day INTEGER, month INTEGER, year INTEGER)`
+			);
+		} else {
+			this.setupModlogStream();
+			void this.setupRoomlogStream(true);
+		}
 	}
 	getScrollback(channel = 0) {
 		let log = this.log;
@@ -241,11 +255,23 @@ export class Roomlog {
 			return {user: parts[section - 1], message: parts[section]};
 		}
 	}
-	roomlog(message: string, date = new Date()) {
+	async roomlog(message: string, date = new Date()) {
 		if (!this.roomlogStream) return;
 		const timestamp = Chat.toTimestamp(date).split(' ')[1] + ' ';
+		const [year, month, day] = Chat.toTimestamp(new Date()).split(' ')[0].split('-');
 		message = message.replace(/<img[^>]* src="data:image\/png;base64,[^">]+"[^>]*>/g, '');
-		void this.roomlogStream.write(timestamp + message + '\n');
+		if (Config.storage?.logs === 'sqlite') {
+			const db = await this.databasePromise;
+			if (!db) throw new Error("SQLite database does not exist.");
+			await db.run(`INSERT INTO roomlogs_${this.roomid} VALUES($log, $day, $month, $year)`, {
+				'$log': timestamp + message,
+				'$day': day,
+				'$month': month,
+				'$year': year,
+			});
+		} else {
+			void this.roomlogStream.write(timestamp + message + '\n');
+		}
 	}
 	modlog(message: string) {
 		if (!this.modlogStream) return;
@@ -256,33 +282,51 @@ export class Roomlog {
 		const roomlogPath = `logs/chat`;
 		const modlogStreamExisted = this.modlogStream !== null;
 		const roomlogStreamExisted = this.roomlogStream !== null;
+		const useSql = Config.storage?.logs === 'sqlite';
 		await this.destroy();
+		const checkTable = async (newID?: string) => {
+			const db = await this.databasePromise;
+			if (!db) throw new Error("SQLite log database does not exist.");
+			try {
+				await db.exec(`SELECT * FROM roomlogs_${newID ? newID : this.roomid}`);
+			} catch (e) {
+				return false;
+			}
+			return true;
+		};
+		const renameTable = async () => {
+			const db = await this.databasePromise;
+			if (!db) throw new Error("SQLite log database does not exist.");
+			db.exec(`ALTER TABLE roomlogs_${this.roomid} RENAME TO roomlogs_${newID}`);
+		};
 		await Promise.all([
 			FS(modlogPath + `/modlog_${this.roomid}.txt`).exists(),
-			FS(roomlogPath + `/${this.roomid}`).exists(),
+			useSql ? checkTable() : FS(roomlogPath + `/${this.roomid}`).exists(),
 			FS(modlogPath + `/modlog_${newID}.txt`).exists(),
-			FS(roomlogPath + `/${newID}`).exists(),
+			useSql ? checkTable(newID) : FS(roomlogPath + `/${newID}`).exists(),
 		]).then(([modlogExists, roomlogExists, newModlogExists, newRoomlogExists]) => {
 			return Promise.all([
 				modlogExists && !newModlogExists ?
 					FS(modlogPath + `/modlog_${this.roomid}.txt`).rename(modlogPath + `/modlog_${newID}.txt`) :
 					undefined,
 				roomlogExists && !newRoomlogExists ?
-					FS(roomlogPath + `/${this.roomid}`).rename(roomlogPath + `/${newID}`) :
+					useSql ? renameTable() : FS(roomlogPath + `/${this.roomid}`).rename(roomlogPath + `/${newID}`) :
 					undefined,
 			]);
 		});
 		this.roomid = newID;
 		Roomlogs.roomlogs.set(newID, this);
-		if (modlogStreamExisted) {
-			// set modlogStream to undefined (uninitialized) instead of null (disabled)
-			this.modlogStream = undefined;
-			this.setupModlogStream();
-		}
-		if (roomlogStreamExisted) {
-			this.roomlogStream = undefined;
-			this.roomlogFilename = "";
-			await this.setupRoomlogStream(true);
+		if (Config.storage?.logs !== 'sqlite')  {
+			if (modlogStreamExisted) {
+				// set modlogStream to undefined (uninitialized) instead of null (disabled)
+				this.modlogStream = undefined;
+				this.setupModlogStream();
+			}
+			if (roomlogStreamExisted) {
+				this.roomlogStream = undefined;
+				this.roomlogFilename = "";
+				await this.setupRoomlogStream(true);
+			}
 		}
 		return true;
 	}
@@ -309,16 +353,18 @@ export class Roomlog {
 
 	destroy() {
 		const promises = [];
-		if (this.sharedModlog) {
-			this.modlogStream = null;
-		}
-		if (this.modlogStream) {
-			promises.push(this.modlogStream.writeEnd());
-			this.modlogStream = null;
-		}
-		if (this.roomlogStream) {
-			promises.push(this.roomlogStream.writeEnd());
-			this.roomlogStream = null;
+		if (Config.storage?.logs !== 'sqlite') {
+			if (this.sharedModlog) {
+				this.modlogStream = null;
+			}
+			if (this.modlogStream) {
+				promises.push(this.modlogStream.writeEnd());
+				this.modlogStream = null;
+			}
+			if (this.roomlogStream) {
+				promises.push(this.roomlogStream.writeEnd());
+				this.roomlogStream = null;
+			}
 		}
 		Roomlogs.roomlogs.delete(this.roomid);
 		return Promise.all(promises);

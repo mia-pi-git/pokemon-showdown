@@ -11,6 +11,7 @@ import * as child_process from 'child_process';
 import * as util from 'util';
 import * as path from 'path';
 import * as Dashycode from '../../lib/dashycode';
+import * as sqlite from 'sqlite';
 
 const execFile = util.promisify(child_process.execFile);
 const DAY = 24 * 60 * 60 * 1000;
@@ -179,13 +180,22 @@ export const LogViewer = new class {
 		buf += `<p><a roomid="view-chatlog-${roomid}--${prevDay}" class="blocklink" style="text-align:center">▲<br />${prevDay}</a></p>` +
 			`<div class="message-log" style="overflow-wrap: break-word">`;
 
-		const stream = await roomLog.getLog(day);
-		if (!stream) {
-			buf += `<p class="message-error">Room "${roomid}" doesn't have logs for ${day}</p>`;
+		if (Config.storage?.pms === 'sqlite') {
+			const database = await Rooms.get(roomid)?.log.databasePromise;
+			const [y, m, d] = day.split('-');
+			const results = await database?.all(`SELECT * FROM roomlogs_${roomid} WHERE day = ${d} AND month = '${m}' AND year = '${y}'`);
+			buf += results?.map(item => {
+				return this.renderLine(item.log, opts);
+			}).join(' ');
 		} else {
-			let line;
-			while ((line = await stream.readLine()) !== null) {
-				buf += this.renderLine(line, opts);
+			const stream = await roomLog.getLog(day);
+			if (!stream) {
+				buf += `<p class="message-error">Room "${roomid}" doesn't have logs for ${day}</p>`;
+			} else {
+				let line;
+				while ((line = await stream.readLine()) !== null) {
+					buf += this.renderLine(line, opts);
+				}
 			}
 		}
 		buf += `</div>`;
