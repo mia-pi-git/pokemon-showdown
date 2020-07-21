@@ -49,7 +49,7 @@ class LogReaderRoom {
 	}
 }
 
-const LogReader = new class {
+export const LogReader = new class {
 	async get(roomid: RoomID) {
 		if (!await FS(`logs/chat/${roomid}`).exists()) return null;
 		return new LogReaderRoom(roomid);
@@ -181,9 +181,11 @@ export const LogViewer = new class {
 			`<div class="message-log" style="overflow-wrap: break-word">`;
 
 		if (Config.storage?.pms === 'sqlite') {
-			const database = Rooms.get(roomid)?.log.databasePromise;
+			const database = Rooms.get(roomid)?.log.database;
 			const [y, m, d] = day.split('-');
-			const results = await database?.all(`SELECT * FROM roomlogs_${roomid} WHERE day = ${d} AND month = '${m}' AND year = '${y}'`);
+			const results = await database?.all(
+				`SELECT * FROM roomlogs_${roomid} WHERE day = ${d} AND month = '${m}' AND year = '${y}' ORDER BY timestamp`
+			);
 			buf += results?.map(item => {
 				return this.renderLine(item.log, opts);
 			}).join(' ');

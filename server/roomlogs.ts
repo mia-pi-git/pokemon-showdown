@@ -68,7 +68,7 @@ export class Roomlog {
 	roomlogStream?: Streams.WriteStream | null;
 	sharedModlog: boolean;
 	roomlogFilename: string;
-	databasePromise?: sqlite.Database;
+	database?: sqlite.Database;
 	constructor(room: BasicRoom, options: RoomlogOptions = {}) {
 		this.roomid = room.roomid;
 
@@ -91,11 +91,11 @@ export class Roomlog {
 	}
 	async initStorage() {
 		if (Config.storage?.logs === 'sqlite') {
-			this.databasePromise = await sqlite.open('../sqlite.db');
-			const db = this.databasePromise;
+			this.database = await sqlite.open('../sqlite.db');
+			const db = this.database;
 			await db.exec(
 				`CREATE TABLE IF NOT EXISTS roomlogs_${this.roomid}
-				(log STRING NOT NULL, day INTEGER, month INTEGER, year INTEGER)`
+				(log STRING NOT NULL, day INTEGER, month INTEGER, year INTEGER, timestamp INTEGER)`
 			);
 		} else {
 			this.setupModlogStream();
@@ -261,13 +261,14 @@ export class Roomlog {
 		const [year, month, day] = Chat.toTimestamp(new Date()).split(' ')[0].split('-');
 		message = message.replace(/<img[^>]* src="data:image\/png;base64,[^">]+"[^>]*>/g, '');
 		if (Config.storage?.logs === 'sqlite') {
-			const db = this.databasePromise;
+			const db = this.database;
 			if (!db) throw new Error("SQLite database does not exist.");
-			await db.run(`INSERT INTO roomlogs_${this.roomid} VALUES($log, $day, $month, $year)`, {
+			await db.run(`INSERT INTO roomlogs_${this.roomid} VALUES($log, $day, $month, $year, $timestamp)`, {
 				'$log': timestamp + message,
 				'$day': day,
 				'$month': month,
 				'$year': year,
+				'$timestamp': Date.now(),
 			});
 		} else {
 			void this.roomlogStream.write(timestamp + message + '\n');
@@ -285,7 +286,7 @@ export class Roomlog {
 		const useSql = Config.storage?.logs === 'sqlite';
 		await this.destroy();
 		const checkTable = async (newID?: string) => {
-			const db = this.databasePromise;
+			const db = this.database;
 			if (!db) throw new Error("SQLite log database does not exist.");
 			try {
 				await db.exec(`SELECT * FROM roomlogs_${newID ? newID : this.roomid}`);
@@ -294,8 +295,8 @@ export class Roomlog {
 			}
 			return true;
 		};
-		const renameTable = async () => {
-			const db = this.databasePromise;
+		const renameTable = () => {
+			const db = this.database;
 			if (!db) throw new Error("SQLite log database does not exist.");
 			db.exec(`ALTER TABLE roomlogs_${this.roomid} RENAME TO roomlogs_${newID}`);
 		};
