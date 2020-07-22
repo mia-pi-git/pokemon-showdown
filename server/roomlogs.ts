@@ -288,11 +288,11 @@ export class Roomlog {
 		const roomlogStreamExisted = this.roomlogStream !== null;
 		const useSql = Config.storage?.logs === 'sqlite';
 		await this.destroy();
-		const checkTable = async (newID?: string) => {
+		const checkTable = async (ID?: string) => {
 			const db = this.database;
 			if (!db) throw new Error("SQLite log database does not exist.");
 			try {
-				await db.exec(`SELECT * FROM roomlogs_${newID ? newID : this.roomid}`);
+				await db.exec(`SELECT * FROM roomlogs_${ID ? ID : this.roomid}`);
 			} catch (e) {
 				return false;
 			}
@@ -320,7 +320,7 @@ export class Roomlog {
 		});
 		this.roomid = newID;
 		Roomlogs.roomlogs.set(newID, this);
-		if (Config.storage?.logs !== 'sqlite')  {
+		if (Config.storage?.logs !== 'sqlite') {
 			if (modlogStreamExisted) {
 				// set modlogStream to undefined (uninitialized) instead of null (disabled)
 				this.modlogStream = undefined;
