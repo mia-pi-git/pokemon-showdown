@@ -92,12 +92,12 @@ export class Roomlog {
 	}
 	async initStorage() {
 		if (Config.storage?.logs === 'sqlite') {
-			this.database = await sqlite.open('../sqlite.db');
-			const db = this.database;
-			await db.exec(
-				`CREATE TABLE IF NOT EXISTS roomlogs_${this.roomid}
-				(log STRING NOT NULL, day INTEGER, month INTEGER, year INTEGER, timestamp INTEGER)`
-			);
+			this.database = await sqlite.open('../sqlite.db').then(database => {
+				return database.exec(
+					`CREATE TABLE IF NOT EXISTS roomlogs_${this.roomid}
+					(log STRING NOT NULL, day INTEGER, month INTEGER, year INTEGER, timestamp INTEGER)`
+				);
+			});
 			this.databaseUpdates = [];
 		} else {
 			this.setupModlogStream();
@@ -265,7 +265,7 @@ export class Roomlog {
 		if (useSql) {
 			const db = this.database;
 			if (!db) return;
-			// escape so that sql doesn't trip up on the " symbols
+			// escape so that sql doesn't crash on the " symbols
 			message = message.replace(/"/g, `""`);
 			const promise = db.exec(
 				`INSERT INTO roomlogs_${this.roomid} VALUES("${timestamp + message}", "${day}", "${month}", "${year}", "${Date.now()}")`

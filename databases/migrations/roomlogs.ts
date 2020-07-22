@@ -68,7 +68,10 @@ exports.SQLiteConverter = new class {
 		return true;
 	}
 	/**
-	 * NOT RECOMMENDED FOR BIG SERVERS
+	 * NOT RECOMMENDED FOR BIG SERVERS.
+	 * NOT.
+	 * RECOMMENDED.
+	 * SERIOUSLY.
 	 */
 	async convert() {
 		console.log(`Converting all room logs to SQLite.`);
