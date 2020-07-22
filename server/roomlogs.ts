@@ -69,6 +69,7 @@ export class Roomlog {
 	sharedModlog: boolean;
 	roomlogFilename: string;
 	database?: sqlite.Database;
+	databaseUpdates?: Promise<sqlite.Statement | sqlite.Database>[];
 	constructor(room: BasicRoom, options: RoomlogOptions = {}) {
 		this.roomid = room.roomid;
 
@@ -97,6 +98,7 @@ export class Roomlog {
 				`CREATE TABLE IF NOT EXISTS roomlogs_${this.roomid}
 				(log STRING NOT NULL, day INTEGER, month INTEGER, year INTEGER, timestamp INTEGER)`
 			);
+			this.databaseUpdates = [];
 		} else {
 			this.setupModlogStream();
 			void this.setupRoomlogStream(true);
@@ -256,21 +258,22 @@ export class Roomlog {
 		}
 	}
 	async roomlog(message: string, date = new Date()) {
-		if (!this.roomlogStream) return;
+		const useSql = Config.storage?.logs === 'sqlite';
 		const timestamp = Chat.toTimestamp(date).split(' ')[1] + ' ';
 		const [year, month, day] = Chat.toTimestamp(new Date()).split(' ')[0].split('-');
 		message = message.replace(/<img[^>]* src="data:image\/png;base64,[^">]+"[^>]*>/g, '');
-		if (Config.storage?.logs === 'sqlite') {
+		if (useSql) {
 			const db = this.database;
-			if (!db) throw new Error("SQLite database does not exist.");
-			await db.run(`INSERT INTO roomlogs_${this.roomid} VALUES($log, $day, $month, $year, $timestamp)`, {
-				'$log': timestamp + message,
-				'$day': day,
-				'$month': month,
-				'$year': year,
-				'$timestamp': Date.now(),
-			});
+			if (!db) return;
+			// escape so that sql doesn't trip up on the " symbols
+			message = message.replace(/"/g, `""`);
+			const promise = db.exec(
+				`INSERT INTO roomlogs_${this.roomid} VALUES("${timestamp + message}", "${day}", "${month}", "${year}", "${Date.now()}")`
+			);
+			this.databaseUpdates?.push(promise);
+			return Promise.all(this.databaseUpdates!);
 		} else {
+			if (!this.roomlogStream) return;
 			void this.roomlogStream.write(timestamp + message + '\n');
 		}
 	}

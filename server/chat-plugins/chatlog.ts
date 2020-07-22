@@ -11,13 +11,12 @@ import * as child_process from 'child_process';
 import * as util from 'util';
 import * as path from 'path';
 import * as Dashycode from '../../lib/dashycode';
-import * as sqlite from 'sqlite';
 
 const execFile = util.promisify(child_process.execFile);
 const DAY = 24 * 60 * 60 * 1000;
 const MAX_RESULTS = 3000;
 
-class LogReaderRoom {
+export class LogReaderRoom {
 	roomid: RoomID;
 	constructor(roomid: RoomID) {
 		this.roomid = roomid;
