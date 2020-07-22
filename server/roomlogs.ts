@@ -92,7 +92,7 @@ export class Roomlog {
 	}
 	async initStorage() {
 		if (Config.storage?.logs === 'sqlite') {
-			this.database = await sqlite.open('../sqlite.db').then(database => {
+			this.database = await sqlite.open('./sqlite.db').then(database => {
 				return database.exec(
 					`CREATE TABLE IF NOT EXISTS roomlogs_${this.roomid}
 					(log STRING NOT NULL, day INTEGER, month INTEGER, year INTEGER, timestamp INTEGER)`

@@ -7,31 +7,30 @@ global.Monitor = Monitor;
 import {FS} from '../../lib/fs';
 import {Rooms} from '../../server/rooms';
 import {LogReaderRoom} from '../../server/chat-plugins/chatlog';
+import * as sqlite from 'sqlite';
 
 exports.SQLiteConverter = new class {
 	exists(roomid: string, day: string) {
 		return FS(`logs/chat/${roomid}/${day.slice(0, -3)}/${day}.txt`).existsSync();
 	}
-	parseDay(day: string) {
-		return day.split('-');
+	escape(line: string) {
+		return line.replace(/"/g, '$&$&');
 	}
-
 	async convertDay(roomid: string, day: string) {
 		if (!day) throw new Error('no day passed to convertDay.');
 		if (!roomid) throw new Error('no roomid passed to convertDay.');
 		console.log(`Converting logs for ${day} on ${roomid}.`);
 		if (!this.exists(roomid, day)) return [];
-		const [y, m, d] = this.parseDay(day);
-		const stream = FS(`logs/chat/${roomid}/${y}-${m}/${day}.txt`).createReadStream();
-		let line;
-		const database = await [...Rooms.rooms.values()][0].log.database;
-		database.exec(
+		const [y, m, d] = day.split('-');
+		const database = await sqlite.open('./sqlite.db');
+		await database.exec(
 			`CREATE TABLE IF NOT EXISTS roomlogs_${roomid} (log STRING NOT NULL, day INTEGER, month INTEGER, year INTEGER, timestamp INTERGET)`
 		);
 		try {
-			while ((line = await stream.readLine()) !== null) {
-				await database.run(
-					`INSERT INTO roomlogs_${roomid} VALUES("${line.replace('"', '""')}", "${d}", "${m}", "${y}", "${Date.now()}")`
+			const lines = FS(`logs/chat/${roomid}/${y}-${m}/${y}-${m}-${d}.txt`).readSync().split('\n');
+			for (const line of lines) {
+				await database.exec(
+					`INSERT INTO roomlogs_${roomid} VALUES("${this.escape(line)}", "${d}", "${m}", "${y}", "${Date.now()}")`
 				);
 			}
 		} catch (e) {
