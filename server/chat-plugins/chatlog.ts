@@ -5,17 +5,52 @@
  * @license MIT
  */
 
-import {FS} from "../../lib/fs";
+import {FS, FileReadStream} from "../../lib/fs";
 import {Utils} from '../../lib/utils';
 import * as child_process from 'child_process';
 import * as util from 'util';
 import * as path from 'path';
 import * as Dashycode from '../../lib/dashycode';
+import * as sqlite from 'sqlite';
 
 const execFile = util.promisify(child_process.execFile);
 const DAY = 24 * 60 * 60 * 1000;
 const MAX_RESULTS = 3000;
 
+export class LogReaderSQL {
+	roomid: RoomID;
+	database: sqlite.Database;
+	constructor(roomid: RoomID) {
+		this.roomid = roomid;
+		this.database = Rooms.get(roomid)?.log.database!;
+	}
+	async listMonths(): Promise<string[]> {
+		const statement = `SELECT month, year FROM roomlogs_${this.roomid}`;
+		const results = await this.database.all(statement);
+		const buffer: string[] = [];
+		for (const result of results) {
+			const month = `${result.year}-${result.month}`;
+			if (!buffer.includes(month)) buffer.push(month);
+		}
+		return buffer;
+	}
+	async listDays(month: string) {
+		const statement = `SELECT day, month, year FROM roomlogs_${this.roomid} WHERE month = '${month}'`;
+		const results = await this.database.all(statement);
+		const buffer: string[] = [];
+		for (const result of results) {
+			const day = `${result.year}-${result.month}-${result.day}`;
+			if (!buffer.includes(day)) buffer.push(day);
+		}
+		return buffer.sort();
+	}
+	async getLog(day: string) {
+		const month = LogReader.getMonth(day);
+		const statement = `SELECT log FROM roomlogs_${this.roomid} WHERE day = '${day}' AND month = '${month}'`;
+		const results = await this.database.all(statement);
+		return results.map(item => item.log);
+	}
+}
 export class LogReaderRoom {
 	roomid: RoomID;
 	constructor(roomid: RoomID) {
@@ -50,8 +85,14 @@ export class LogReaderRoom {
 
 export const LogReader = new class {
 	async get(roomid: RoomID) {
-		if (!await FS(`logs/chat/${roomid}`).exists()) return null;
-		return new LogReaderRoom(roomid);
+		if (Config.storage?.logs === 'sqlite') {
+			const room = Rooms.get(roomid);
+			if (!room) return null;
+			return new LogReaderSQL(roomid);
+		} else {
+			if (!await FS(`logs/chat/${roomid}`).exists()) return null;
+			return new LogReaderRoom(roomid);
+		}
 	}
 
 	async list() {
@@ -114,6 +155,7 @@ export const LogReader = new class {
 	async read(roomid: RoomID, day: string, limit: number) {
 		const roomLog = await LogReader.get(roomid);
 		const stream = await roomLog!.getLog(day);
+		if (!(stream instanceof FileReadStream)) return '';
 		let buf = '';
 		let i = LogViewer.results || 0;
 		if (!stream) {
@@ -190,6 +232,9 @@ export const LogViewer = new class {
 			}).join(' ');
 		} else {
 			const stream = await roomLog.getLog(day);
+			if (!(stream instanceof FileReadStream)) {
+				throw new Error(`Chatlog is configured to use SQL, but it is reading from a stream instead.`);
+			}
 			if (!stream) {
 				buf += `<p class="message-error">Room "${roomid}" doesn't have logs for ${day}</p>`;
 			} else {

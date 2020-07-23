@@ -435,7 +435,7 @@ export class FSPath {
 	}
 }
 
-class FileReadStream extends ReadStream {
+export class FileReadStream extends ReadStream {
 	fd: Promise<number>;
 
 	constructor(file: string) {

@@ -301,7 +301,7 @@ export class Roomlog {
 		const renameTable = () => {
 			const db = this.database;
 			if (!db) throw new Error("SQLite log database does not exist.");
-			db.exec(`ALTER TABLE roomlogs_${this.roomid} RENAME TO roomlogs_${newID}`);
+			return db.exec(`ALTER TABLE roomlogs_${this.roomid} RENAME TO roomlogs_${newID}`);
 		};
 		await Promise.all([
 			FS(modlogPath + `/modlog_${this.roomid}.txt`).exists(),
