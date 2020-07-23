@@ -1564,7 +1564,7 @@ export const commands: ChatCommands = {
 			this.run(currentBestHelp.help);
 		} else if (Array.isArray(currentBestHelp.help)) {
 			const command = currentBestHelp.for[0];
-			const requiresMessage = Chat.getRequiresMessage(command);
+			const requiresMessage = Chat.getRequiresMessage(command, user);
 			if (requiresMessage) currentBestHelp.help.push(requiresMessage);
 			this.sendReply(currentBestHelp.help.map(line => this.tr(line)).join('\n'));
 		}

@@ -641,14 +641,10 @@ export const commands: ChatCommands = {
 			this.sendReply(`The chat room '${target}' was created.`);
 		}
 	},
-<<<<<<< HEAD
 	makechatroomhelp: [
-		`/makeprivatechatroom [roomname] - Creates a new private room named [roomname]. Requires: &`,
-		`/makepublicchatroom [roomname] - Creates a new public room named [roomname]. Requires: &`,
+		`/makeprivatechatroom [roomname] - Creates a new private room named [roomname].`,
+		`/makepublicchatroom [roomname] - Creates a new public room named [roomname].`,
 	],
-=======
-	makechatroomhelp: [`/makechatroom [roomname] - Creates a new room named [roomname].`],
->>>>>>> Refactor help messages
 
 	subroomgroupchat: 'makegroupchat',
 	makegroupchat(target, room, user, connection, cmd) {

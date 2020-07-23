@@ -108,6 +108,7 @@ import {Auth} from './user-groups';
 
 // @ts-ignore no typedef available
 import ProbeModule = require('probe-image-size');
+import { groupEnd } from 'console';
 const probe: (url: string) => Promise<{width: number, height: number}> = ProbeModule;
 
 const EMOJI_REGEX = /[\p{Emoji_Modifier_Base}\p{Emoji_Presentation}\uFE0F]/u;
@@ -1693,18 +1694,18 @@ export const Chat = new class {
 		return (num !== 1 ? pluralSuffix : singular);
 	}
 
-	getRequiresMessage(cmd: string) {
-		let command: ChatCommands | ChatHandler | string | string[] = this.commands[cmd];
+	getRequiresMessage(cmd: string, user: User) {
+		let command: AnnotatedChatCommands | AnnotatedChatHandler | string | string[] = this.commands[cmd] as AnnotatedChatHandler;
 		if (!command) return;
-		if (typeof command === 'string') command = this.commands[cmd];
+		if (typeof command === 'string') command = this.commands[cmd] as AnnotatedChatCommands;
 		const buffer = [];
-		const perm = /(user|this).can\('(.+)'/.exec(command.toString());
+		const perm = /(user|this).can\((.+)/.exec(command.toString());
 		if (!perm || perm.length < 2) return;
 		const shownGroups = ['+', '%', '@', '*', '#', '&'].map(item => Config.groups[item]).sort((a, b) => {
 			return a.rank - b.rank;
 		});
 		for (const group of shownGroups) {
-			if (Auth.hasPermission(group.symbol, perm[2] as RoomPermission | GlobalPermission)) buffer.push(group.symbol);
+			if (Auth.hasPermission(user, perm[2], group.symbol)) buffer.push(group.symbol);
 		}
 		return `Requires: ${buffer.join(' ')}`;
 	}
