@@ -6,7 +6,7 @@ const ROOMFAQ_FILE = 'config/chat-plugins/faqs.json';
 const MAX_ROOMFAQ_LENGTH = 8192;
 
 type FAQs = {[k: string]: {[k: string]: string}};
-let roomFaqs: FAQs = {};
+export let roomFaqs: FAQs = {};
 
 export async function loadFaqs() {
 	let faqs: FAQs = {};
@@ -17,9 +17,6 @@ export async function loadFaqs() {
 			results = await database.all(`SELECT * FROM roomfaqs`);
 		} catch (e) {
 			if (!e.message.includes('no such table')) throw e;
-			void database.exec(
-				`CREATE TABLE IF NOT EXISTS roomfaqs (content STRING NOT NULL, name STRING NOT NULL, aliases STRING, room STRING NOT NULL)`
-			);
 		}
 		if (!results) return faqs;
 		for (const result of results) {
