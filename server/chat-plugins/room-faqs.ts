@@ -1,20 +1,67 @@
 import {FS} from '../../lib/fs';
 import {Utils} from '../../lib/utils';
+import * as sqlite from 'sqlite';
 
 const ROOMFAQ_FILE = 'config/chat-plugins/faqs.json';
 const MAX_ROOMFAQ_LENGTH = 8192;
 
-let roomFaqs: {[k: string]: {[k: string]: string}} = {};
+type FAQs = {[k: string]: {[k: string]: string}};
+let roomFaqs: FAQs = {};
+
+export async function loadFaqs() {
+	let faqs: FAQs = {};
+	if (Config.storage?.plugins === 'sqlite') {
+		let results;
+		const database = await sqlite.open('./sqlite.db');
+		try {
+			results = await database.all(`SELECT * FROM roomfaqs`);
+		} catch (e) {
+			if (!e.message.includes('no such table')) throw e;
+			void database.exec(
+				`CREATE TABLE IF NOT EXISTS roomfaqs (content STRING NOT NULL, name STRING NOT NULL, aliases STRING, room STRING NOT NULL)`
+			);
+		}
+		if (!results) return faqs;
+		for (const result of results) {
+			faqs[result.room][result.name] = result.content;
+		}
+		return faqs;
+	} else {
+		faqs = JSON.parse(FS(ROOMFAQ_FILE).readIfExistsSync() || "{}");
+	}
+	return faqs;
+}
+
+export async function saveRoomFaqs() {
+	if (Config.storage?.plugins === 'sqlite') {
+		const database = await sqlite.open('./sqlite.db');
+		const promises = [];
+		void database.exec(
+			`CREATE TABLE IF NOT EXISTS roomfaqs (content STRING NOT NULL, name STRING NOT NULL, room STRING NOT NULL)`
+		);
+		for (const room in roomFaqs) {
+			const roomEntries = roomFaqs[room];
+			for (const faq in roomEntries) {
+				const entry = roomEntries[faq].replace(/"/g, '""');
+				const statement = `INSERT INTO roomfaqs ("${entry}", "${faq}", "${room}")`;
+				promises.push(database.exec(statement));
+			}
+		}
+		return Promise.all(promises);
+	} else {
+		FS(ROOMFAQ_FILE).writeUpdate(() => JSON.stringify(roomFaqs));
+	}
+}
+
 try {
-	roomFaqs = JSON.parse(FS(ROOMFAQ_FILE).readIfExistsSync() || "{}");
+	(async () => {
+		roomFaqs = await loadFaqs();
+	})();
 } catch (e) {
 	if (e.code !== 'MODULE_NOT_FOUND' && e.code !== 'ENOENT') throw e;
 }
 if (!roomFaqs || typeof roomFaqs !== 'object') roomFaqs = {};
 
-function saveRoomFaqs() {
-	FS(ROOMFAQ_FILE).writeUpdate(() => JSON.stringify(roomFaqs));
-}
 
 /**
  * Aliases are implemented as a "regular" FAQ entry starting with a >. EX: {a: "text", b: ">a"}
