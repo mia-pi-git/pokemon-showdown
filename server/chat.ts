@@ -107,6 +107,7 @@ import {formatText, linkRegex, stripFormatting} from './chat-formatter';
 
 // @ts-ignore no typedef available
 import ProbeModule = require('probe-image-size');
+import { Auth } from './user-groups';
 const probe: (url: string) => Promise<{width: number, height: number}> = ProbeModule;
 
 const EMOJI_REGEX = /[\p{Emoji_Modifier_Base}\p{Emoji_Presentation}\uFE0F]/u;
@@ -1828,7 +1829,6 @@ export const Chat = new class {
 			}</code>`;
 		}
 	}
-
 	getDataPokemonHTML(species: Species, gen = 7, tier = '') {
 		if (typeof species === 'string') species = Dex.deepClone(Dex.getSpecies(species));
 		let buf = '<li class="result">';
