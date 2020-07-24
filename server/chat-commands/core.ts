@@ -1240,6 +1240,9 @@ export const commands: ChatCommands = {
 		if (!user.named) {
 			return this.popupReply(`You must choose a username before you challenge someone.`);
 		}
+		if (user.namelocked && !(targetUser.locked || targetUser.namelocked)) {
+			return this.popupReply(`You are namelocked, and can only challenge other locked or namelocked users.`);
+		}
 		if (Config.pmmodchat) {
 			const userGroup = user.group;
 			if (Config.groupsranking.indexOf(userGroup) < Config.groupsranking.indexOf(Config.pmmodchat as GroupSymbol)) {
