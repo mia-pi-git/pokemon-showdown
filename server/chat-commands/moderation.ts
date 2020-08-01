@@ -1117,7 +1117,9 @@ export const commands: ChatCommands = {
 
 	whitelist(target, room, user) {
 		if (!user.authAtLeast('&')) return false;
-		const [command, userid] = Utils.splitFirst(target, ',').map(item => item.trim());
+		if (!target) return this.parse(`/help whitelist`);
+		const command = this.splitTarget(target);
+		const userid = toID(this.targetUsername);
 		if (!command) return this.parse(`/help whitelist`);
 		const supportedPerms = Users.Auth.supportedPermissions();
 		if (!supportedPerms.includes(command)) {
@@ -1136,6 +1138,8 @@ export const commands: ChatCommands = {
 		auth.permissions[command].push(toID(userid));
 		auth.save();
 		this.globalModlog(`WHITELIST`, userid, ` ${command}: by ${user.name}`);
+		const targetUser = Users.get(this.targetUsername);
+		if (targetUser) targetUser.popup(`${user.name} has given you access to use the "${command}" permission.`);
 		return this.privateGlobalModAction(`${user.name} whitelisted ${userid} to use the "${command}" permission.`);
 	},
 	whitelisthelp: [
