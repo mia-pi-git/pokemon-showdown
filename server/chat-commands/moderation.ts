@@ -1115,6 +1115,36 @@ export const commands: ChatCommands = {
 	},
 	modnotehelp: [`/modnote [note] - Adds a moderator note that can be read through modlog. Requires: % @ # &`],
 
+	whitelist(target, room, user) {
+		if (!user.authAtLeast('&')) return false;
+		const [command, userid] = Utils.splitFirst(target, ',').map(item => item.trim());
+		if (!command) return this.parse(`/help whitelist`);
+		const supportedPerms = Users.Auth.supportedPermissions();
+		if (!supportedPerms.includes(command)) {
+			this.errorReply(`${command} is an invalid permission.`);
+			return this.sendReplyBox(
+				`<details><summary>Valid permissions:</summary>` +
+				supportedPerms.map(item => `<code>${item}</code>`).join(', ') +
+				`</details>`
+			);
+		}
+		const auth = Users.globalAuth;
+		if (!auth.permissions[command]) {
+			auth.permissions[command] = [];
+		}
+		if (auth.permissions[command].includes(user)) return this.errorReply(`${userid} is already whitelisted for ${command}.`);
+		auth.permissions[command].push(toID(userid));
+		auth.save();
+		this.globalModlog(`WHITELIST`, userid, ` ${command}: by ${user.name}`);
+		return this.privateGlobalModAction(`${user.name} whitelisted ${userid} to use the "${command}" permission.`);
+	},
+	whitelisthelp: [
+		`/whitelist [command], [user] - Allows the [user] to use [command].`,
+		`Prefix the [command] with a / if the permission is a chat command.`,
+		`Otherwise, it will be treated as a permission group, and allow the user to use all commands that use that group`,
+		`Requires: &`,
+	],
+
 	globalpromote: 'promote',
 	promote(target, room, user, connection, cmd) {
 		if (!target) return this.parse('/help promote');

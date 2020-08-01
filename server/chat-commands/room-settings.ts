@@ -300,7 +300,7 @@ export const commands: ChatCommands = {
 			if (rank && rank !== 'whitelist' && !Users.Auth.isValidSymbol(rank)) {
 				return this.errorReply(`${rank} is not a valid rank.`);
 			}
-			if (!Users.Auth.supportedRoomPermissions(room).includes(perm)) {
+			if (!Users.Auth.supportedPermissions(room).includes(perm)) {
 				return this.errorReply(`${perm} is not a valid room permission.`);
 			}
 
@@ -345,7 +345,7 @@ export const commands: ChatCommands = {
 		''(target, room, user) {
 			if (!room) return this.requiresRoom();
 
-			const allPermissions = Users.Auth.supportedRoomPermissions(room);
+			const allPermissions = Users.Auth.supportedPermissions(room);
 			const permissionGroups = allPermissions.filter(perm => !perm.startsWith('/'));
 			const permissions = allPermissions.filter(perm => perm.startsWith('/'));
 

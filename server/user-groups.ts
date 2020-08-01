@@ -118,14 +118,24 @@ export abstract class Auth extends Map<ID, GroupSymbol | ''> {
 		if (jurisdiction === true && permission !== 'jurisdiction') {
 			jurisdiction = group['jurisdiction'] || true;
 		}
-		const roomPermissions = room ? room.settings.permissions : null;
-		if (roomPermissions) {
-			if (cmd && roomPermissions[`/${cmd}`]) {
-				if (!auth.atLeast(user, roomPermissions[`/${cmd}`])) return false;
-				jurisdiction = 'su';
-			} else if (roomPermissions[permission]) {
-				if (!auth.atLeast(user, roomPermissions[permission])) return false;
-				jurisdiction = 'su';
+		const permissions = room ? room.settings.permissions : Users.globalAuth.permissions;
+		if (cmd) {
+			const commandPermissions = permissions?.[`/${cmd}`];
+			const permissionGroup = permissions?.[permission];
+			if (commandPermissions) {
+				if (Config.groupsranking.includes(permissions?.[`/${cmd}`])) {
+					if (!auth.atLeast(user, commandPermissions)) return false;
+					jurisdiction = 'su';
+				} else {
+					if (commandPermissions.includes(user?.id)) jurisdiction = 'su';
+				}
+			} else if (permissionGroup) {
+				if (Config.groupsranking.includes(permissionGroup)) {
+					if (!auth.atLeast(user, permissionGroup)) return false;
+					jurisdiction = 'su';
+				} else {
+					if (permissionGroup.includes(user?.id)) jurisdiction = 'su';
+				}
 			}
 		}
 
@@ -134,13 +144,18 @@ export abstract class Auth extends Map<ID, GroupSymbol | ''> {
 	static atLeast(symbol: EffectiveGroupSymbol, symbol2: EffectiveGroupSymbol) {
 		return Auth.getGroup(symbol).rank >= Auth.getGroup(symbol2).rank;
 	}
-	static supportedRoomPermissions(room: Room | null = null) {
-		const permissions: string[] = ROOM_PERMISSIONS.slice();
+	/**
+	 * @param room Pass a room to make it return room commands only.
+	 */
+	static supportedPermissions(room: Room | null = null) {
+		const permissions: string[] = (room ? ROOM_PERMISSIONS : GLOBAL_PERMISSIONS).slice();
 		for (const cmd in Chat.commands) {
 			const entry = Chat.commands[cmd];
-			if (typeof entry !== 'function') continue;
-			if (entry.hasRoomPermissions) {
-				permissions.push(`/${cmd}`);
+			if (typeof entry !== 'function' || cmd.includes('help')) continue;
+			if (room) {
+				if (entry.hasRoomPermissions) permissions.push(`/${cmd}`);
+			} else {
+				if (!entry.hasRoomPermissions) permissions.push(`/${cmd}`);
 			}
 		}
 		return permissions;
@@ -261,11 +276,13 @@ export class RoomAuth extends Auth {
 
 export class GlobalAuth extends Auth {
 	usernames = new Map<ID, string>();
+	permissions: AnyObject = {};
 	constructor() {
 		super();
 		this.load();
 	}
 	save() {
+		FS('config/whitelist.json').writeUpdate(() => JSON.stringify(this.permissions));
 		FS('config/usergroups.csv').writeUpdate(() => {
 			let buffer = '';
 			for (const [userid, groupSymbol] of this) {
@@ -283,6 +300,14 @@ export class GlobalAuth extends Auth {
 			this.usernames.set(id, name);
 			super.set(id, symbol.charAt(0) as GroupSymbol);
 		}
+		let permissions;
+		try {
+			permissions = JSON.parse(FS('config/whitelist.json').readIfExistsSync() || "{}");
+		} catch (e) {
+			if (!e.message.includes('ENOENT')) throw e;
+			permissions = {};
+		}
+		this.permissions = permissions;
 	}
 	set(id: ID, group: GroupSymbol, username?: string) {
 		if (!username) username = id;
