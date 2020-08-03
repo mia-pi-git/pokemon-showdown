@@ -45,6 +45,7 @@ export type AnnotatedChatHandler = ChatHandler & {
 	requiresRoom: boolean,
 	hasRoomPermissions: boolean,
 	broadcastable: boolean,
+	disabled: boolean,
 };
 export interface ChatCommands {
 	[k: string]: ChatHandler | string | string[] | ChatCommands;
@@ -577,7 +578,10 @@ export class CommandContext extends MessageContext {
 	}
 	run(commandHandler: string | {call: (...args: any[]) => any}) {
 		// type checked above
-		if (typeof commandHandler === 'string') commandHandler = Chat.commands[commandHandler] as ChatHandler;
+		if (typeof commandHandler === 'string') commandHandler = Chat.commands[commandHandler] as AnnotatedChatHandler;
+		if ((commandHandler as AnnotatedChatHandler).disabled) {
+			return this.errorReply(`The command ${this.cmdToken}${this.cmd} has been disabled by staff.`);
+		}
 		let result;
 		try {
 			result = commandHandler.call(this, this.target, this.room, this.user, this.connection, this.cmd, this.message);
@@ -1620,7 +1624,15 @@ export const Chat = new class {
 		return commandTable;
 	}
 	loadPluginData(plugin: AnyObject) {
+		let commandData: AnyObject = {};
+		try {
+			commandData = require('../config/command-data');
+		} catch (e) {};
 		if (plugin.commands) {
+			for (const command in plugin.commands) {
+				// add cached command properties first, so if newer ones exist they can overwrite the old properties
+				if (commandData[command]) Object.assign(plugin.commands[command], commandData[command]);
+			}
 			Object.assign(Chat.commands, this.annotateCommands(plugin.commands));
 		}
 		if (plugin.pages) Object.assign(Chat.pages, plugin.pages);
@@ -1689,6 +1701,16 @@ export const Chat = new class {
 		for (const file of files) {
 			this.loadPlugin(`chat-plugins/${file}`);
 		}
+	}
+	writeCommandData() {
+		const buffer: AnyObject = {};
+		for (const command in Chat.commands) {
+			const handler = Chat.commands[command];
+			if (typeof handler !== 'function') continue;
+			const cmdName = Chat.baseCommand(command);
+			buffer[cmdName] = {...handler};
+		}
+		FS('config/command-data.json').writeUpdate(() => JSON.stringify(buffer));
 	}
 	destroy() {
 		for (const handler of Chat.destroyHandlers) {

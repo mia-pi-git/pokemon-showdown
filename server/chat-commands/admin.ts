@@ -257,6 +257,30 @@ export const commands: ChatCommands = {
 		this.sendReply(`||[Main process] RSS: ${results[0]}, Heap: ${results[1]} / ${results[2]}`);
 	},
 
+	enablecommand: 'disablecommand',
+	disablecommand(target, room, user, connection, cmd) {
+		if (!this.canUseConsole()) return false;
+		target = toID(target);
+		if (!Chat.commands[Chat.baseCommand(target)]) {
+			return this.errorReply(`The command /${target} does not exist.`);
+		}
+		const disable = cmd.includes('disable');
+		const baseCommand = Chat.baseCommand(target);
+		if (!baseCommand) return this.errorReply(`Command /${baseCommand} does not exist.`);
+		const handler = Chat.commands[baseCommand];
+		if (typeof handler !== 'function') throw new Error(`Command transformed by Chat.baseCommand is still not a function.`);
+		if (disable && handler.disabled) return this.errorReply(`The command /${baseCommand} is already disabled.`);
+		if (!disable && !handler.disabled) return this.errorReply(`The command /${baseCommand} is already enabled.`);
+		handler.disabled = disable ? true : false;
+		Chat.writeCommandData();
+		const toNotify = ['staff', 'development', 'upperstaff'] as RoomID[];
+		if (room && !toNotify.includes(room.roomid)) {
+			this.sendReply(`The command /${baseCommand} was ${disable ? 'disabled' : 'enabled'}.`);
+		}
+		this.globalModlog(`${disable ? 'DISABLE' : 'ENABLE'}COMMAND`, null, `${target}: by ${user.id}`);
+		return Rooms.global.notifyRooms(toNotify, `${user.name} ${disable ? 'disabled' : 'enabled'} the command /${baseCommand}.`);
+	},
+
 	forcehotpatch: 'hotpatch',
 	async hotpatch(target, room, user, connection, cmd) {
 		if (!target) return this.parse('/help hotpatch');
@@ -300,6 +324,7 @@ export const commands: ChatCommands = {
 				if (requiresForce(patch)) return this.errorReply(requiresForceMessage);
 
 				Chat.destroy();
+				Chat.writeCommandData();
 
 				const processManagers = ProcessManager.processManagers;
 				for (const manager of processManagers.slice()) {
