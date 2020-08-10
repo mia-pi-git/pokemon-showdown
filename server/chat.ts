@@ -23,7 +23,7 @@ To reload chat commands:
 
 */
 
-import type {RoomPermission, GlobalPermission} from './user-groups';
+import type {RoomPermission, GlobalPermission, GroupInfo} from './user-groups';
 
 export type PageHandler = (this: PageContext, query: string[], user: User, connection: Connection)
 => Promise<string | null | void> | string | null | void;
@@ -46,6 +46,7 @@ export type AnnotatedChatHandler = ChatHandler & {
 	broadcastable: boolean,
 	cmd: string,
 	fullCmd: string,
+	useRank: string,
 };
 export interface ChatCommands {
 	[k: string]: ChatHandler | string | string[] | ChatCommands;
@@ -109,6 +110,7 @@ import {formatText, linkRegex, stripFormatting} from './chat-formatter';
 
 // @ts-ignore no typedef available
 import ProbeModule = require('probe-image-size');
+import { ENETRESET } from 'constants';
 const probe: (url: string) => Promise<{width: number, height: number}> = ProbeModule;
 
 const EMOJI_REGEX = /[\p{Emoji_Modifier_Base}\p{Emoji_Presentation}\uFE0F]/u;
@@ -1646,6 +1648,9 @@ export const Chat = new class {
 			entry.requiresRoom = /\bthis\.requiresRoom\(/.test(handlerCode);
 			entry.hasRoomPermissions = /\bthis\.can\([^,)\n]*, [^,)\n]*,/.test(handlerCode);
 			entry.broadcastable = /\bthis\.(?:canBroadcast|runBroadcast)\(/.test(handlerCode);
+			entry.useRank = /atLeast(.*)/.test(handlerCode) ? /atLeast\([^,)\n]*, '(.*)'[^,)\n]*/.exec(handlerCode)?.[1] :
+				/\bthis\.can\('(.*)', [^,)\n]*,/.test(handlerCode) ? /\bthis\.can\('(.*)', [^,)\n]*,/.exec(handlerCode)?.[1] :
+				/canUseConsole/.test(handlerCode) ? 'console' : ' ';
 
 			// This is usually the same as `entry.name`, but some weirdness like
 			// `commands.a = b` could screw it up. This should make it consistent.
@@ -1737,6 +1742,16 @@ export const Chat = new class {
 	stripHTML(htmlContent: string) {
 		if (!htmlContent) return '';
 		return htmlContent.replace(/<[^>]*>/g, '');
+	}
+	getRequiresMessage(handler: AnnotatedChatHandler) {
+		const requiresRank = handler.useRank || ' ';
+		let buffer = `Requires: `;
+		const ranking = Config.groupsranking;
+		buffer += ranking.filter(item => {
+			return ranking.includes(requiresRank as GroupSymbol) && Config.groups[item]?.rank >= Config.groups[requiresRank]?.rank ||
+				Config.groups[item][requiresRank as keyof GroupInfo];
+		}).join(' ');
+		return buffer;
 	}
 	/**
 	 * Validates input regex and ensures it won't crash.
