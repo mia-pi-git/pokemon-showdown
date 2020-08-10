@@ -12,8 +12,8 @@ import {LogViewer} from './chatlog';
 import {ROOMFAQ_FILE} from './room-faqs';
 
 const PATH = 'config/chat-plugins/help.json';
-// 6: filters out conveniently short aliases
-const MINIMUM_LENGTH = 6;
+// 3: filters out conveniently short aliases
+const MINIMUM_LENGTH = 3;
 
 export let helpData: PluginData;
 
@@ -104,7 +104,7 @@ export class HelpResponder {
 		if (response) {
 			let buf = '';
 			buf += Utils.html`<strong>You said:</strong> ${question}<br />`;
-			buf += `<strong>Our automated reply:</strong> ${Chat.formatText(response)}`;
+			buf += `<strong>Our automated reply:</strong> ${Chat.formatText(response, true)}`;
 			if (!hideButton) {
 				buf += Utils.html`<hr /><button class="button" name="send" value="A: ${question}">`;
 				buf += `Send to the Help room if you weren't answered correctly or wanted to help </button>`;
@@ -188,7 +188,7 @@ export class HelpResponder {
 		return this.roomFaqs;
 	}
 	tryAddRegex(inputString: string, raw?: boolean) {
-		let [args, faq] = inputString.split('=>');
+		let [args, faq] = inputString.split('=>').map(item => item.trim());
 		faq = this.getFaqID(toID(faq)) as string;
 		if (!faq) throw new Chat.ErrorMessage("Invalid FAQ.");
 		if (!this.data.pairs) this.data.pairs = {};
@@ -259,7 +259,7 @@ export const commands: ChatCommands = {
 			}
 			return this.parse(`/j view-helpfilter-${target}`);
 		},
-		view(target, room, user) {
+		view(target) {
 			return this.parse(`/join view-helpfilter-${target}`);
 		},
 		toggle(target, room, user) {
@@ -372,15 +372,14 @@ export const commands: ChatCommands = {
 	},
 	helpfilterhelp() {
 		const help = [
-			`<code>/helpfilter stats</code> - Shows stats for the Help filter (matched lines and the FAQs that match them.)`,
-			`<code>/helpfilter keys</code> - View regex keys for the Help filter.`,
+			`<code>/helpfilter view [page]</code> - View the helpfilter page [page]. Requires: % @ # &`,
 			`<code>/helpfilter toggle [on | off]</code> - Enables or disables the Help filter. Requires: @ # &`,
 			`<code>/helpfilter add [input] => [faq]</code> - Adds regex made from the input string to the Help filter, to respond with [faq] to matches.`,
 			`<code>/helpfilter remove [faq], [regex index]</code> - removes the regex matching the [index] from the Help filter's responses for [faq].`,
 			`<code>/helpfilter queue [regex] => [faq]</code> - Adds [regex] for [faq] to the queue for Help staff to review.`,
 			`<code>/helpfilter approve [index]</code> - Approves the regex at position [index] in the queue for use in the Help filter.`,
 			`<code>/helpfilter deny [index]</code> - Denies the regex at position [index] in the Help filter queue.`,
-			`Indexes can be found in /helpfilter keys.`,
+			`Indexes can be found in /helpfilter view keys.`,
 			`Requires: @ # &`,
 		];
 		return this.sendReplyBox(help.join('<br/ >'));
@@ -395,7 +394,7 @@ export const pages: PageTable = {
 		let buf = '';
 		const refresh = (type: string, extra?: string[]) => {
 			let button = `<button class="button" name="send" value="/join view-helpfilter-${type}`;
-			button += `${extra ? `-${extra.join('-')}` : ''}" style="float: right">`;
+			button += `${extra?.filter(Boolean).length ? `-${extra.join('-')}` : ''}" style="float: right">`;
 			button += `<i class="fa fa-refresh"></i> Refresh</button><br />`;
 			return button;
 		};
