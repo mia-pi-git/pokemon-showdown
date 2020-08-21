@@ -14,8 +14,11 @@ import {roomFaqs} from './room-faqs';
 const PATH = 'config/chat-plugins/help.json';
 // 4: filters out conveniently short aliases
 const MINIMUM_LENGTH = 4;
+const BAN_DURATION = 2 * 24 * 60 * 60 * 1000;
 
 export let helpData: PluginData;
+
+Punishments.roomPunishmentTypes.set('HELPFILTERBYPASSBAN', 'banned from bypassing the Help filter');
 
 try {
 	helpData = JSON.parse(FS(PATH).readSync());
@@ -220,6 +223,11 @@ export class HelpResponder {
 		this.writeState();
 		return true;
 	}
+	checkBanned(user: User) {
+		const room = this.getRoom();
+		if (!room) return;
+		return Punishments.getRoomPunishType(room, user.id) === 'HELPFILTERBYPASSBAN';
+	}
 }
 
 export const Answerer = new HelpResponder(helpData);
@@ -229,7 +237,7 @@ export const chatfilter: ChatFilter = (message, user, room) => {
 	if (!helpRoom) return message;
 	if (room?.roomid === helpRoom.roomid && helpRoom.auth.get(user.id) === ' ' && !Answerer.disabled) {
 		if (message.startsWith('a:') || message.startsWith('A:')) return message.replace(/(a|A):/, '');
-		const reply = Answerer.visualize(message, false, user);
+		const reply = Answerer.visualize(message, Answerer.checkBanned(user), user);
 		if (message.startsWith('/') || message.startsWith('!')) return message;
 		if (!reply) {
 			return message;
@@ -377,6 +385,34 @@ export const commands: ChatCommands = {
 			Answerer.writeState();
 			this.privateModAction(`${user.name} denied regex with queue number ${target}`);
 			this.modlog(`HELPFILTER DENY`, null, `${target}`);
+		},
+		unbuttonban: 'buttonban',
+		async buttonban(target, room, user, connection, cmd) {
+			const helpRoom = Answerer.getRoom();
+			if (!helpRoom) return this.errorReply(`There is no room configured to use the Help filter.`);
+			if (!this.can('ban', null, helpRoom)) return;
+			this.room = helpRoom;
+			target = this.splitTarget(target);
+			const targetUser = this.targetUser;
+			if (!targetUser) return this.errorReply(`User not found.`);
+			const unban = cmd === 'unbuttonban';
+			const banned = Answerer.checkBanned(targetUser);
+			if (unban && !banned) {
+				return this.errorReply(`That user is not banned from using the bypass.`);
+			} else if (!unban && banned) {
+				return this.errorReply(`That user is banned from using the bypass already.`);
+			}
+			if (!unban) {
+				Punishments.roomPunish(
+					helpRoom.roomid, user,
+					['HELPFILTERBYPASSBAN', toID(user), Date.now() + BAN_DURATION, target]
+				);
+				this.privateModAction(`${user.name} banned ${targetUser.name} from using the Help filter bypass button.`);
+			} else {
+				Punishments.roomUnpunish(helpRoom.roomid, targetUser.id, 'HELPFILTERBYPASSBAN');
+				this.privateModAction(`${user.name} allowed ${targetUser.name} to use the Help filter bypass button again.`);
+			}
+			return this.modlog(`HELPFILTER ${unban ? "UN" : ''}BUTTONBAN`, targetUser, target);
 		},
 	},
 	helpfilterhelp() {
