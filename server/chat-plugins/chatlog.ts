@@ -11,6 +11,8 @@ import * as child_process from 'child_process';
 import * as util from 'util';
 import * as path from 'path';
 import * as Dashycode from '../../lib/dashycode';
+import * as crypto from 'crypto';
+import {Net} from '../../lib/net';
 
 const DAY = 24 * 60 * 60 * 1000;
 const MAX_RESULTS = 3000;
@@ -159,8 +161,15 @@ const LogReader = new class {
 
 export const LogViewer = new class {
 	results: number;
+	colorCaches: {all: {[k: string]: string}, custom:  {[k: string]: string}}
 	constructor() {
 		this.results = 0;
+		this.colorCaches = {
+			all: {},
+			custom: {},
+		}
+		// request and parse custom color object from the client
+		void this.loadCustomColors();
 	}
 	async day(roomid: RoomID, day: string, opts?: string) {
 		const month = LogReader.getMonth(day);
@@ -305,8 +314,12 @@ export const LogViewer = new class {
 				if (opts !== 'all') return `<div class="notice">[uhtml box hidden]</div>`;
 				return `<div class="notice">${message.slice(message.indexOf(',') + 1)}</div>`;
 			}
+			const color = ` style="color: ${this.usernameColor(name.slice(1))}"`;
 			const group = name.charAt(0) !== ' ' ? `<small>${name.charAt(0)}</small>` : ``;
-			return `<div class="chat"><small>[${timestamp}] </small><strong>${group}${name.slice(1)}:</strong> <q>${Chat.formatText(message)}</q></div>`;
+			return (
+				`<div class="chat"><small>[${timestamp}] </small><strong${color}>${group}${name.slice(1)}:</strong>` +
+				` <q>${Chat.formatText(message)}</q></div>`
+			);
 		}
 		case 'html': case 'raw': {
 			const [, html] = Utils.splitFirst(line, '|', 1);
@@ -427,6 +440,80 @@ export const LogViewer = new class {
 	}
 	linkify(buf: string) {
 		return buf.replace(/<a roomid="/g, `<a target="replace" href="/`);
+	}
+	/** Shamelessly stolen from the client.*/
+	usernameColor(name: string) {
+		name = toID(name);
+		if (this.colorCaches.all[name]) return this.colorCaches.all[name];
+		function toHash(str: string) {
+			return crypto.createHash('md5').update(str).digest('hex');
+		}
+		let hash;
+		if (this.colorCaches.custom[name]) {
+			hash = toHash(this.colorCaches.custom[name]);
+		} else {
+			hash = toHash(name);
+		}
+		let H = parseInt(hash.substr(4, 4), 16) % 360; // 0 to 360
+		let S = parseInt(hash.substr(0, 4), 16) % 50 + 40; // 40 to 89
+		let L = Math.floor(parseInt(hash.substr(8, 4), 16) % 20 + 30); // 30 to 49
+
+		let {R, G, B} = this.HSLToRGB(H, S, L);
+		let lum = R * R * R * 0.2126 + G * G * G * 0.7152 + B * B * B * 0.0722; // 0.013 (dark blue) to 0.737 (yellow)
+
+		let HLmod = (lum - 0.2) * -150; // -80 (yellow) to 28 (dark blue)
+		if (HLmod > 18) HLmod = (HLmod - 18) * 2.5;
+		else if (HLmod < 0) HLmod = (HLmod - 0) / 3;
+		else HLmod = 0;
+		// let mod = ';border-right: ' + Math.abs(HLmod) + 'px solid ' + (HLmod > 0 ? 'red' : '#0088FF');
+		let Hdist = Math.min(Math.abs(180 - H), Math.abs(240 - H));
+		if (Hdist < 15) {
+			HLmod += (15 - Hdist) / 3;
+		}
+
+		L += HLmod;
+		let {R: r, G: g, B: b} = this.HSLToRGB(H, S, L);
+		const toHex = (x: number) => {
+			const hex = Math.round(x * 255).toString(16);
+			return hex.length === 1 ? '0' + hex : hex;
+		};
+		this.colorCaches.all[name] = `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+		return this.colorCaches.all[name];
+	}
+	private HSLToRGB(H: number, S: number, L: number) {
+		const C = (100 - Math.abs(2 * L - 100)) * S / 100 / 100;
+		const X = C * (1 - Math.abs((H / 60) % 2 - 1));
+		const m = L / 100 - C / 2;
+
+		let R1;
+		let G1;
+		let B1;
+		switch (Math.floor(H / 60)) {
+		case 1: R1 = X; G1 = C; B1 = 0; break;
+		case 2: R1 = 0; G1 = C; B1 = X; break;
+		case 3: R1 = 0; G1 = X; B1 = C; break;
+		case 4: R1 = X; G1 = 0; B1 = C; break;
+		case 5: R1 = C; G1 = 0; B1 = X; break;
+		case 0: default: R1 = C; G1 = X; B1 = 0; break;
+		}
+		const R = R1 + m;
+		const G = G1 + m;
+		const B = B1 + m;
+		return {R, G, B};
+	}
+	private loadCustomColors() {
+		return Net(`https://${Config.routes.client}/config/config.js`).get().then(res => {
+			// delete comments, keep newlines
+			res = res.replace(/\/\/(.*)/g, '');
+			// trim off beginning code that gets in the way, allows us to validate if it exists
+			[, res] = res.split('Config.customcolors = ');
+			if (!res) return;
+			// break it at the first object ending
+			[res] = res.split('}');
+			// replace ' with " for valid JSON, add ending, and parse
+			const parsed = JSON.parse(res.replace(/'/g, '"') + '}');
+			return Object.assign(this.colorCaches.custom, parsed);
+		}) as AnyObject;
 	}
 };
 
