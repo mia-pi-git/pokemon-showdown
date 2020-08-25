@@ -1,0 +1,10 @@
+CREATE TABLE IF NOT EXISTS youtube_data (
+	id TEXT NOT NULL PRIMARY KEY,
+	name TEXT NOT NULL,
+	username TEXT,
+	videos TEXT NOT NULL,
+	subs TEXT NOT NULL,
+	desc TEXT NOT NULL,
+	icon TEXT NOT NULL,
+	views INTEGER
+)

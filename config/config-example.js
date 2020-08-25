@@ -457,7 +457,11 @@ exports.forcedpublicprefixes = [];
  */
 exports.startuphook = function () {};
 
-
+/**
+ * Types of storage to use for different things.
+ * @type AnyObject
+ */
+exports.storage = {};
 /**
  * chatlogreader - the search method used for searching chatlogs.
  * @type {'ripgrep' | 'fs'}

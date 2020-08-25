@@ -8,30 +8,109 @@
 import {Net} from '../../lib/net';
 import {FS} from '../../lib/fs';
 import {Utils} from '../../lib/utils';
+import * as Sqlite from 'better-sqlite3';
 
 const ROOT = 'https://www.googleapis.com/youtube/v3/';
 const STORAGE_PATH = 'config/chat-plugins/youtube.json';
 
-let channelData: AnyObject;
-
-try {
-	channelData = JSON.parse(FS(STORAGE_PATH).readIfExistsSync() || "{}");
-} catch (e) {
-	channelData = {};
+interface YoutubeDataWriter {
+	write: (id: ID, data: AnyObject) => void;
+	remove: (id: ID) => void;
+	save: () => void;
 }
+
+class YoutubeSQLWriter implements YoutubeDataWriter {
+	database: Sqlite.Database;
+	constructor() {
+		this.database = new Sqlite('./databases/sqlite.db');
+		try {
+			this.database.prepare(`SELECT * FROM youtube_data`);
+		} catch (e) {
+			if (!e.message.includes('no such table')) throw e;
+			this.database.exec(FS('databases/chat-plugins/youtube.sql').readIfExistsSync());
+		}
+	}
+	write(id: ID, data: AnyObject) {
+		let {name, description, icon, videos, subs, views, username} = data;
+		subs = (Array.isArray(subs) ? subs : [subs]).join(',');
+		views = (Array.isArray(views) ? views : [views]).join(',');
+		this.database.prepare(
+			`REPLACE INTO youtube_data (id, name, username, videos, subs, desc, icon, views)
+			VALUES($id, $name, $username, $videos, $subs, $desc, $icon, $views)`
+		).run({
+			id, name, desc: description, icon, videos, subs, views, username,
+		});
+	}
+	remove(id: ID) {
+		this.database.prepare(`DELETE FROM youtube_data WHERE id = '${id}'`).run();
+	}
+	save() {
+		for (const entry in YouTube.data) {
+			this.write(entry as ID, YouTube.data[entry]);
+		}
+	}
+	static load() {
+		const data: AnyObject = {};
+		const cachedDataPath = FS('config/chat-plugins/youtube.json');
+		if (cachedDataPath.existsSync()) {
+			const JSONData = cachedDataPath.readSync();
+			cachedDataPath.unlinkIfExistsSync();
+			return JSON.parse(JSONData); // we're going to presume it's valid - else it _should_ crash
+		}
+		const database = new Sqlite('./databases/sqlite.db');
+		database.exec(FS('./databases/youtube.sql').readIfExistsSync());
+		const results = database.prepare(`SELECT * FROM youtube_data`).all();
+		for (const result of results) {
+			const item = {...result};
+			// transform to string to deal with legacy data that isn't an array
+			item.subs = String(result.subs).split(',');
+			item.views = String(result.views).split(',');
+			item.description = result.desc;
+			data[result.id] = item;
+		}
+		return data;
+	}
+}
+
+class YoutubeJSONWriter implements YoutubeDataWriter {
+	data: AnyObject;
+	constructor() {
+		this.data = YoutubeJSONWriter.load();
+	}
+	write(id: ID, data: AnyObject) {
+		this.data[id] = data;
+		this.save();
+	}
+	remove(id: ID) {
+		delete this.data[id];
+		this.save();
+	}
+	save() {
+		return FS(STORAGE_PATH).writeUpdate(() => JSON.stringify(this.data));
+	}
+	static load() {
+		return JSON.parse(FS(STORAGE_PATH).readIfExistsSync() || "{}");
+	}
+}
+
+const channelData: AnyObject = (Config.storage.youtube === 'sql' ? YoutubeSQLWriter : YoutubeJSONWriter).load();
 
 export class YoutubeInterface {
 	interval: NodeJS.Timer | null;
 	intervalTime: number;
 	data: AnyObject;
+	dataWriter: YoutubeDataWriter;
 	constructor(data?: AnyObject) {
 		this.data = data ? data : {};
 		this.interval = null;
 		this.intervalTime = 0;
+		this.dataWriter = Config.storage.youtube === 'sql' ? new YoutubeSQLWriter() : new YoutubeJSONWriter();
 	}
 	async getChannelData(link: string, username?: string) {
 		if (!Config.youtubeKey) {
-			throw new Chat.ErrorMessage(`This server does not support YouTube commands. If you're the owner, you can enable them by setting up Config.youtubekey.`);
+			throw new Chat.ErrorMessage(
+				`This server does not support YouTube commands. If you're the owner, you can enable them by setting up Config.youtubekey.`
+			);
 		}
 		const id = this.getId(link);
 		if (!id) return null;
@@ -60,7 +139,9 @@ export class YoutubeInterface {
 		if (!id) return;
 		// url isn't needed but it destructures wrong without it
 		// eslint-disable-next-line @typescript-eslint/no-unused-vars
-		const {name, description, url, icon, videos, subs, views, username} = await this.get(id);
+		let {name, description, url, icon, videos, subs, views, username} = await this.get(id);
+		subs = subs[0];
+		views = views[0];
 		// credits asheviere for most of the html
 		let buf = `<div class="infobox"><table style="margin:0px;"><tr>`;
 		buf += `<td style="margin:5px;padding:5px;min-width:175px;max-width:160px;text-align:center;border-bottom:0px;">`;
@@ -164,11 +245,16 @@ export class YoutubeInterface {
 		return buf;
 	}
 	save() {
-		return FS(STORAGE_PATH).writeUpdate(() => JSON.stringify(this.data));
+		return this.dataWriter.save();
+	}
+	removeChannel(id: ID) {
+		this.dataWriter.remove(id);
+		delete this.data[id];
+		return this.save();
 	}
 }
 
-const YouTube = new YoutubeInterface(channelData);
+export const YouTube = new YoutubeInterface(channelData);
 
 export const commands: ChatCommands = {
 	async randchannel(target, room, user) {
@@ -194,7 +280,7 @@ export const commands: ChatCommands = {
 			if (!room) return this.requiresRoom();
 			if (room.roomid !== 'youtube') return this.errorReply(`This command can only be used in the YouTube room.`);
 			let [id, name] = target.split(',');
-			name = name.trim();
+			if (name) name = name.trim();
 			if (!id) return this.errorReply('Specify a channel ID.');
 			const data = await YouTube.getChannelData(id, name);
 			if (!data) {
@@ -211,8 +297,7 @@ export const commands: ChatCommands = {
 			if (!this.can('mute', null, room)) return false;
 			const id = YouTube.channelSearch(target);
 			if (!id) return this.errorReply(`Channel with ID or name ${target} not found.`);
-			delete YouTube.data[id];
-			YouTube.save();
+			YouTube.removeChannel(id as ID);
 			this.privateModAction(`${user.name} deleted channel with ID or name ${target}.`);
 			return this.modlog(`REMOVECHANNEL`, null, id);
 		},
@@ -328,7 +413,7 @@ export const pages: PageTable = {
 		const isStaff = user.can('mute', null, Rooms.get('youtube')!);
 		for (const id of Utils.shuffle(Object.keys(channelData))) {
 			const name = YouTube.get(id).name;
-			const psid = YouTube.get(id).username;
+			const psid = YouTube.get(id).username?.trim();
 			if (!all && !psid) continue;
 			buffer += `<details><summary>${name}`;
 			if (isStaff) buffer += `<small><i> (Channel ID: ${id})</i></small>`;
