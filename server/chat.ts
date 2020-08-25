@@ -48,11 +48,21 @@ export type AnnotatedChatHandler = ChatHandler & {
 	fullCmd: string,
 	isPrivate: boolean,
 };
+
+export interface CustomChatHandler {
+	handler: ChatHandler;
+	requiresRoom?: boolean;
+	help?: string[];
+	hasRoomPermissions?: boolean;
+	broadcastable?: boolean;
+	isPrivate?: boolean;
+}
+
 export interface ChatCommands {
-	[k: string]: ChatHandler | string | string[] | ChatCommands;
+	[k: string]: ChatHandler | string | string[] | ChatCommands | boolean | CustomChatHandler;
 }
 export interface AnnotatedChatCommands {
-	[k: string]: AnnotatedChatHandler | string | string[] | AnnotatedChatCommands;
+	[k: string]: AnnotatedChatHandler | string | string[] | AnnotatedChatCommands | CustomChatHandler;
 }
 
 export type SettingsHandler = (
@@ -567,6 +577,10 @@ export class CommandContext extends MessageContext {
 				return this.parseCommand(cmdToken + 'help ' + fullCmd.slice(0, -4), true);
 			}
 			if (commandHandler && typeof commandHandler === 'object') {
+				if ('handler' in commandHandler && typeof commandHandler['handler'] === 'function') {
+					commandHandler = commandHandler['handler'];
+					break;
+				}
 				const spaceIndex = target.indexOf(' ');
 				if (spaceIndex > 0) {
 					cmd = target.substr(0, spaceIndex).toLowerCase();
@@ -1658,7 +1672,7 @@ export const Chat = new class {
 	annotateCommands(commandTable: AnyObject, namespace = ''): AnnotatedChatCommands {
 		for (const cmd in commandTable) {
 			const entry = commandTable[cmd];
-			if (typeof entry === 'object') {
+			if (typeof entry === 'object' && !('handler' in entry)) {
 				this.annotateCommands(entry, `${namespace}${cmd} `);
 			}
 			if (typeof entry !== 'function') continue;

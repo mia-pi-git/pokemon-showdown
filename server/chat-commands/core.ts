@@ -16,6 +16,7 @@
 /* eslint no-else-return: "error" */
 import {Utils} from '../../lib/utils';
 import type {UserSettings} from '../users';
+import type {AnnotatedChatHandler} from '../chat';
 
 const avatarTable = new Set([
 	'aaron',
@@ -1617,6 +1618,11 @@ export const commands: ChatCommands = {
 			}
 			if (typeof nextNamespace === 'string') {
 				throw new Error(`Recursive alias in "${target}"`);
+			}
+			if (typeof nextNamespace === 'object' && 'help' in nextNamespace) {
+				currentBestHelp = {
+					help: nextNamespace.help as string[] | AnnotatedChatHandler, for: cmds.slice(0, i + 1),
+				};
 			}
 			if (Array.isArray(nextNamespace)) {
 				this.sendReply(`'/${cmds.slice(0, i + 1).join(' ')}' is a help command.`);
