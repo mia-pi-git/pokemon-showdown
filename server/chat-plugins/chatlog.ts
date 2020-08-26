@@ -11,6 +11,7 @@ import * as child_process from 'child_process';
 import * as util from 'util';
 import * as path from 'path';
 import * as Dashycode from '../../lib/dashycode';
+import { PRIORITY_BELOW_NORMAL } from "constants";
 
 const DAY = 24 * 60 * 60 * 1000;
 const MAX_RESULTS = 3000;
@@ -444,6 +445,33 @@ export const LogSearcher = new class {
 		return `^` + searches.map(term => `(?=.*${term})`).join('');
 	}
 
+	private async getDateFiles(roomid: RoomID, date?: string | null) {
+		const allMonths = await new LogReaderRoom(roomid).listMonths();
+		let searchedMonths: string[] = [];
+		if (['all', 'alltime'].includes(toID(date)) || !date) {
+			return allMonths;
+		}
+		switch (date.length) {
+		case 4: case 5:
+			if (date.length > 5) date = date.slice(0, -4);
+			searchedMonths = allMonths.filter(item => item.split('-')[0] === date);
+			if (!searchedMonths.length) throw new Chat.ErrorMessage(`No logs for year ${date}`);
+			return searchedMonths;
+		case 7:
+			if (!FS(`logs/chat/${roomid}/${date}`).existsSync()) {
+				throw new Chat.ErrorMessage(`No logs for month ${date}.`);
+			}
+			searchedMonths = allMonths.filter(item => item.substr(0, 7) === date);
+			return searchedMonths;
+		case 10:
+			if (!FS(`logs/chat/${roomid}/${date.substr(0, 7)}/${date}.txt`).existsSync()) {
+				throw new Chat.ErrorMessage(`Logs for date ${date} not found.`);
+			}
+			return [`${date.substr(0, 7)}/${date}.txt`];
+		}
+		return [date];
+	}
+
 	fsSearch(roomid: RoomID, search: string, date: string, limit: number | null) {
 		const isAll = (date === 'all');
 		const isYear = (date.length === 4);
@@ -529,13 +557,13 @@ export const LogSearcher = new class {
 		}
 		return {results, total};
 	}
-	async ripgrepSearchMonth(roomid: RoomID, search: string, limit: number, month: string) {
+	async ripgrepSearchDate(roomid: RoomID, search: string, limit: number, date: string) {
 		let results;
 		let count = 0;
 		try {
 			const {stdout} = await execFile('rg', [
 				'-e', this.constructRegex(search),
-				`logs/chat/${roomid}/${month}`,
+				`logs/chat/${roomid}/${date}`,
 				'-C', '3',
 				'-m', `${limit}`,
 				'-P',
@@ -545,7 +573,7 @@ export const LogSearcher = new class {
 			});
 			results = stdout.split('--');
 		} catch (e) {
-			if (e.code !== 1) throw e; // 2 means an error in ripgrep
+			if (e.code !== 1 && !e.message.includes('stdout maxBuffer')) throw e; // 2 means an error in ripgrep
 			if (e.stdout) {
 				results = e.stdout.split('--');
 			} else {
@@ -561,15 +589,15 @@ export const LogSearcher = new class {
 		limit?: number | null,
 		date?: string | null
 	) {
-		const months = (date && toID(date) !== 'all' ? [date] : await new LogReaderRoom(roomid).listMonths()).reverse();
+		const dates = await this.getDateFiles(roomid, date);
 		let count = 0;
 		let results: string[] = [];
 		if (!limit || limit > MAX_RESULTS) limit = MAX_RESULTS;
 		if (!date) date = 'all';
 		while (count < MAX_RESULTS) {
-			const month = months.shift();
-			if (!month) break;
-			const output = await this.ripgrepSearchMonth(roomid, search, limit, month);
+			const date = dates.shift();
+			if (!date) break;
+			const output = await this.ripgrepSearchDate(roomid, search, limit, date);
 			results = results.concat(output.results);
 			count += output.count;
 		}
@@ -586,7 +614,12 @@ export const LogSearcher = new class {
 		let curDate = '';
 		if (limit > MAX_RESULTS) limit = MAX_RESULTS;
 		const searchRegex = new RegExp(this.constructRegex(search), "i");
-		const sorted = results.sort().map(chunk => {
+		const sorted = results.sort((a, b) => {
+			const sep = a.includes('.txt-') ? '.txt-' : '.txt:';
+			const aTime = a.split(sep)[0].replace(`logs/chat/${roomid}/`, '').split('/')[1];
+			const bTime = b.split(sep)[0].replace(`logs/chat/${roomid}/`, '').split('/')[1];
+			return new Date(bTime).getTime() - new Date(aTime).getTime();
+	  }).map(chunk => {
 			const section = chunk.split('\n').map(line => {
 				const sep = line.includes('.txt-') ? '.txt-' : '.txt:';
 				const [name, text] = line.split(sep);
