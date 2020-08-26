@@ -10,8 +10,8 @@ import {FS} from '../../lib/fs';
 import {Utils} from '../../lib/utils';
 import {LogViewer} from './chatlog';
 import {roomFaqs} from './room-faqs';
+import * as Sqlite from 'better-sqlite3';
 
-const PATH = 'config/chat-plugins/help.json';
 // 4: filters out conveniently short aliases
 const MINIMUM_LENGTH = 4;
 
@@ -27,22 +27,137 @@ const COMMON_TERMS = [
 
 Punishments.roomPunishmentTypes.set('HELPSUGGESTIONBAN', "Banned from submitting suggestions to the Help filter");
 
-export let helpData: PluginData;
+export class HelpDataWriter {
+	database: Sqlite.Database;
+	constructor() {
+		this.database = new Sqlite('./databases/sqlite.db');
+	}
+	static load() {
+		const JSONPath = FS('config/chat-plugins/help.json');
+		if (JSONPath.existsSync()) {
+			const parsedData: PluginData = JSON.parse(JSONPath.readSync());
+			JSONPath.unlinkIfExistsSync();
+			return new HelpDataWriter().convertJSON(parsedData);
+		}
+		const data: PluginData = {
+			pairs: {},
+			stats: {},
+			queue: [],
+			settings: {},
+		};
+		const database = new Sqlite('./databases/sqlite.db');
+		try {
+			const results = {
+				pairs: database.prepare(`SELECT * FROM help_regexes`).all(),
+				stats: database.prepare(`SELECT * FROM help_stats`).all(),
+				queue: database.prepare(`SELECT * FROM help_queue`).all(),
+				settings: database.prepare(`SELECT * FROM help_settings`).get(),
+			};
+			// transform into the proper formats
+			for (const pair of results.pairs) {
+				const type = pair.faq;
+				if (!data.pairs[type]) data.pairs[type] = [];
+				data.pairs[type].push(pair.regex);
+			}
 
-try {
-	helpData = JSON.parse(FS(PATH).readSync());
-} catch (e) {
-	if (e.code !== 'ENOENT') throw e;
-	helpData = {
-		stats: {},
-		pairs: {},
-		settings: {
-			filterDisabled: false,
-			queueDisabled: false,
-		},
-		queue: [],
-	};
+			for (const log of results.stats) {
+				const date = log.date;
+				if (!data.stats) data.stats = {};
+				if (!data.stats[date]) data.stats[date] = {total: 0, matches: []};
+				// made to exist above
+				data.stats[date].total!++;
+				data.stats[date].matches!.push(log);
+			}
+
+			for (const setting of Object.keys(results.settings)) {
+				data.settings[setting as keyof FilterSettings] = parseInt(results.settings[setting]) >= 1;
+			}
+			Object.assign(data.queue, results.queue);
+		} catch (e) {
+			database.exec(FS('databases/schemas/chat-plugins/help.sql').readIfExistsSync());
+			return data;
+		}
+		return data;
+	}
+	writeStat(entry: LoggedMessage) {
+		if (!entry.date) entry.date = Chat.toTimestamp(new Date()).split(' ')[0];
+		const {message, date, faqName, regex} = entry;
+		this.database.prepare(
+			`INSERT INTO help_stats (message, date, faqName, regex)
+			VALUES(?, ?, ?, ?)`
+		).run(message, date, faqName, regex);
+		return this;
+	}
+	writeRegex(faq: string, regex: string) {
+		this.database.prepare(
+			`INSERT INTO help_regexes (faq, regex) VALUES(?, ?)`
+		).run(faq, regex);
+		return this;
+	}
+	removeRegex(faq: string, regex: string) {
+		this.database.prepare(
+			`DELETE FROM help_regexes WHERE faq = ? AND regex = ?`
+		).run(faq, regex);
+		return this;
+	}
+	deleteReferences(faq: string) {
+		this.database.prepare(`DELETE FROM help_regexes WHERE faq = ?`).run(faq);
+		this.database.prepare(`DELETE FROM help_queue WHERE faq = ?`).run(faq);
+		return this;
+	}
+	editQueue(type: 'REMOVE' | 'INSERT', target: string, user?: ID) {
+		switch (type) {
+		case 'INSERT':
+			this.database.prepare(
+				`INSERT INTO help_queue (string, submitter) VALUES(?, ?)`
+			).run(target, user);
+			break;
+		case 'REMOVE':
+			this.database.prepare(
+				`DELETE FROM help_queue WHERE string = ?`
+			).run(target);
+			break;
+		}
+		return this;
+	}
+	/** For migrations. */
+	convertJSON(data: PluginData) {
+		const {pairs, stats, queue} = data;
+		if (pairs) {
+			for (const faq in pairs) {
+				for (const regex of pairs[faq]) {
+					this.writeRegex(faq, regex);
+				}
+			}
+		}
+		if (stats) {
+			for (const date in stats) {
+				for (const message of (stats[date].matches || [])) {
+					this.writeStat(message);
+				}
+			}
+		}
+		if (queue) {
+			for (const item of queue) {
+				const {regexString, submitter} = item;
+				this.editQueue('INSERT', regexString, submitter);
+			}
+		}
+		return data;
+	}
+	writeSettings(settings: FilterSettings) {
+		let {filterDisabled, queueDisabled} = settings;
+		(filterDisabled as boolean | number) = filterDisabled ? 1 : 0;
+		(queueDisabled as boolean | number) = queueDisabled ? 1 : 0;
+		this.database.prepare(`DELETE FROM help_settings`).run();
+		this.database.prepare(
+			`INSERT INTO help_settings (filterDisabled, queueDisabled)
+			VALUES (?, ?)`
+		).run(filterDisabled, queueDisabled);
+	}
 }
+
+export const helpData: PluginData = HelpDataWriter.load();
 
 /**
  * A message caught by the Help filter.
@@ -54,6 +169,8 @@ interface LoggedMessage {
 	faqName: string;
 	/** The regex that it's matched to. */
 	regex: string;
+	/** The date it's matched on. */
+	date: string;
 }
 /** Object of stats for that day. */
 interface DayStats {
@@ -63,7 +180,7 @@ interface DayStats {
 
 interface QueueEntry {
 	/** User who submitted. */
-	userid: ID;
+	submitter: ID;
 	/** Regex string submitted */
 	regexString: string;
 }
@@ -89,10 +206,12 @@ export class HelpResponder {
 	queue: QueueEntry[];
 	data: PluginData;
 	settings: FilterSettings;
+	logger: HelpDataWriter;
 	constructor(data: PluginData) {
 		this.data = data;
 		this.queue = data.queue || [];
 		this.settings = data.settings || {queueDisabled: false, filterDisabled: false};
+		this.logger = new HelpDataWriter();
 	}
 	getRoom() {
 		const room = Config.helpFilterRoom ? Rooms.get(Config.helpFilterRoom) : Rooms.get('help');
@@ -153,7 +272,10 @@ export class HelpResponder {
 		if (Config.nofswriting) return true;
 		const room = this.getRoom();
 		if (roomFaqs[room.roomid][faq]) return true;
-		if (this.data.pairs[faq]) delete this.data.pairs[faq];
+		if (this.data.pairs[faq]) {
+			delete this.data.pairs[faq];
+			this.logger.deleteReferences(faq);
+		}
 		for (const item of this.queue) {
 			const [, targetFaq] = item.regexString.split('=>');
 			if (toID(targetFaq).includes(toID(faq))) {
@@ -209,6 +331,7 @@ export class HelpResponder {
 			message: entry,
 			faqName: faq,
 			regex: expression,
+			date: day,
 		};
 		const stats = {
 			matches: today.matches || [],
@@ -217,17 +340,7 @@ export class HelpResponder {
 		const dayLog = Object.assign(this.data.stats[day], stats);
 		dayLog.matches.push(log);
 		dayLog.total++;
-		return this.writeState();
-	}
-	writeState() {
-		this.data.queue = this.queue;
-		for (const faq in this.data.pairs) {
-			// while writing, clear old data. In the meantime, the rest of the data is inaccessible
-			// so this is the best place to clear the data
-			this.updateFaqData(faq);
-		}
-		this.data.queue = this.queue;
-		return FS(PATH).writeUpdate(() => JSON.stringify(this.data));
+		this.logger.writeStat(log);
 	}
 	tryAddRegex(inputString: string, raw?: boolean) {
 		let [args, faq] = inputString.split('=>').map(item => item.trim());
@@ -241,7 +354,7 @@ export class HelpResponder {
 		}
 		Chat.validateRegex(regex);
 		this.data.pairs[faq].push(regex);
-		return this.writeState();
+		return this.logger.writeRegex(faq, regex);
 	}
 	tryRemoveRegex(faq: string, index: number) {
 		faq = this.getFaqID(faq) as string;
@@ -249,9 +362,23 @@ export class HelpResponder {
 		if (!this.data.pairs) this.data.pairs = {};
 		if (!this.data.pairs[faq]) throw new Chat.ErrorMessage(`There are no regexes for ${faq}.`);
 		if (!this.data.pairs[faq][index]) throw new Chat.ErrorMessage("Your provided index is invalid.");
-		this.data.pairs[faq].splice(index, 1);
-		this.writeState();
+		const regex = this.data.pairs[faq][index];
+		delete this.data.pairs[faq][index];
+		this.logger.removeRegex(faq, regex);
 		return true;
+	}
+	queueItem(target: string, user: User) {
+		this.queue.push({submitter: user.id, regexString: target});
+		this.logger.editQueue('INSERT', target, user.id);
+	}
+	unQueue(str: string) {
+		let index = -1;
+		for (const item of this.queue) {
+			if (item.regexString === str) index = this.queue.indexOf(item);
+		}
+		if (index < 0) throw new Chat.ErrorMessage(`That item does not exist in queue.`);
+		this.queue.splice(index, 1);
+		this.logger.editQueue('REMOVE', str);
 	}
 	ban(userid: string, reason = '') {
 		const room = this.getRoom();
@@ -259,11 +386,10 @@ export class HelpResponder {
 		const punishment: [string, ID, number, string] = ['HELPSUGGESTIONBAN', toID(user), Date.now() + BAN_DURATION, reason];
 		for (const entry of this.queue) {
 			const index = this.queue.indexOf(entry);
-			if (entry.userid === user) {
+			if (entry.submitter === user) {
 				this.queue.splice(index, 1);
 			}
 		}
-		this.writeState();
 		return Punishments.roomPunish(room.roomid, user, punishment);
 	}
 	isBanned(user: User | string) {
@@ -351,9 +477,9 @@ export const commands: ChatCommands = {
 				if (Answerer.settings.filterDisabled) return this.errorReply(`The Help auto-response filter is already disabled.`);
 				Answerer.settings.filterDisabled = true;
 			}
-			Answerer.writeState();
 			this.privateModAction(`${user.name} ${Answerer.settings.filterDisabled ? 'disabled' : 'enabled'} the Help auto-response filter.`);
 			this.modlog(`HELPFILTER`, null, Answerer.settings.filterDisabled ? 'OFF' : 'ON');
+			Answerer.logger.writeSettings(Answerer.settings);
 		},
 		forceadd: 'add',
 		add(target, room, user, connection, cmd) {
@@ -406,7 +532,7 @@ export const commands: ChatCommands = {
 			const regex = Answerer.stringRegex(target);
 			const entry = {
 				regexString: target,
-				userid: user.id,
+				submitter: user.id,
 			};
 			if (Object.values(Answerer.queue).filter(item => {
 				const {regexString} = item;
@@ -416,7 +542,7 @@ export const commands: ChatCommands = {
 			}
 			Chat.validateRegex(regex);
 			Answerer.queue.push(entry);
-			Answerer.writeState();
+			Answerer.queueItem(target, user);
 			return this.sendReply(`Added "${target}" to the regex suggestion queue.`);
 		},
 		approve(target, room, user) {
@@ -427,19 +553,17 @@ export const commands: ChatCommands = {
 			this.room = helpRoom;
 			const index = parseInt(target) - 1;
 			if (isNaN(index)) return this.errorReply(`Invalid queue index.`);
-			const {regexString, userid} = Answerer.queue[index];
-			if (!regexString) return this.errorReply(`Item does not exist in queue.`);
-			const regex = Answerer.stringRegex(regexString);
-			// validated on submission
+			const item = Answerer.queue[index];
+			if (!item) return this.errorReply(`Item does not exist in queue.`);
+			const {regexString, submitter} = item;
 			const faq = Answerer.getFaqID(regexString.split('=>')[1].trim());
 			if (!faq) return this.errorReply(`Invalid FAQ.`);
-			if (!Answerer.data.pairs[faq]) helpData.pairs[faq] = [];
-			Answerer.data.pairs[faq].push(regex);
 			Answerer.queue.splice(index, 1);
-			Answerer.writeState();
+			Answerer.tryAddRegex(regexString);
+			Answerer.unQueue(regexString);
 
-			this.privateModAction(`${user.name} approved regex for use with queue number ${target} (suggested by ${userid})`);
-			this.modlog(`HELPFILTER APPROVE`, null, `${target}: ${regexString} (from ${userid})`);
+			this.privateModAction(`${user.name} approved regex for use with queue number ${target} (suggested by ${submitter})`);
+			this.modlog(`HELPFILTER APPROVE`, null, `${target}: ${regexString} (from ${submitter})`);
 		},
 		deny(target, room, user) {
 			const helpRoom = Answerer.getRoom();
@@ -450,9 +574,12 @@ export const commands: ChatCommands = {
 			target = target.trim();
 			const index = parseInt(target) - 1;
 			if (isNaN(index)) return this.errorReply(`Invalid queue index.`);
-			if (!Answerer.queue[index]) throw new Chat.ErrorMessage(`Item does not exist in queue.`);
+			const item = Answerer.queue[index];
+			if (!item) throw new Chat.ErrorMessage(`Item does not exist in queue.`);
+			const {regexString} = item;
+			Answerer.unQueue(regexString);
 			Answerer.queue.splice(index, 1);
-			Answerer.writeState();
+
 			this.privateModAction(`${user.name} denied regex with queue number ${target}`);
 			this.modlog(`HELPFILTER DENY`, null, `${target}`);
 		},
@@ -503,7 +630,7 @@ export const commands: ChatCommands = {
 			} else {
 				return this.errorReply(`Unrecognized setting.`);
 			}
-			Answerer.writeState();
+			Answerer.logger.writeSettings(Answerer.settings);
 			this.privateModAction(`${user.name} ${Answerer.settings.queueDisabled ? 'disabled' : 'enabled'} the Help suggestion queue.`);
 		},
 		clearqueue: 'emptyqueue',
@@ -511,7 +638,7 @@ export const commands: ChatCommands = {
 			if (!room || room.roomid !== 'help') return this.errorReply(`Must be used in the Help room.`);
 			if (!HelpResponder.canOverride(user)) return this.errorReply(`/helpfilter ${this.cmd} - Access denied.`);
 			Answerer.queue = [];
-			Answerer.writeState();
+			Answerer.logger.database.exec(`DELETE FROM help_queue`);
 			this.privateModAction(`${user.name} cleared the Help suggestion queue.`);
 			this.modlog(`HELPFILTER CLEARQUEUE`);
 		},
@@ -592,8 +719,8 @@ export const pages: PageTable = {
 				for (const regex of regexes) {
 					const index = regexes.indexOf(regex) + 1;
 					const button = `<button class="button" name="send"value="/hf remove ${item}, ${index}">Remove</button>`;
-					buffer += `<td>${index}</td><td><code>${regex}</code></td>`;
-					if (canChange) buffer += `<td>${button}</td>`;
+					buffer += `<tr><td>${index}</td><td><code>${regex}</code></td>`;
+					if (canChange) buffer += `<td>${button}</td></tr>`;
 				}
 				buffer += `</details>`;
 				return buffer;
@@ -612,17 +739,17 @@ export const pages: PageTable = {
 			buf += `</tr>`;
 			if (!helpData.queue) helpData.queue = [];
 			for (const request of helpData.queue) {
-				const {regexString, userid} = request;
-				if (!canViewAll && userid !== user.id) continue;
-				const submitter = Users.get(userid) ? Users.get(userid)?.name : userid;
-				buf += `<tr><td>${submitter}</td>`;
+				const {regexString, submitter} = request;
+				if (!canViewAll && submitter !== user.id) continue;
+				const name = Users.get(submitter) ? Users.get(submitter)?.name : submitter;
+				buf += `<tr><td>${name}</td>`;
 				buf += `<td>${regexString}</td>`;
 				buf += `<td><code>${Answerer.stringRegex(regexString)}</td>`;
 				const index = helpData.queue.indexOf(request) + 1;
 				if (canChange) {
 					buf += `<td><button class="button" name="send"value="/hf approve ${index}">Approve</button>`;
 					buf += `<button class="button" name="send"value="/hf deny ${index}">Deny</button>`;
-					buf += `<button class="button" name="send"value="/hf ban ${userid}">Ban from submitting</button>`;
+					buf += `<button class="button" name="send"value="/hf ban ${submitter}">Ban from submitting</button>`;
 				}
 				buf += `</td></tr>`;
 			}
