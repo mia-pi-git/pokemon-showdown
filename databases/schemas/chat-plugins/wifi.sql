@@ -1,0 +1,4 @@
+CREATE TABLE IF NOT EXISTS giveaway_stats (
+	id TEXT NOT NULL PRIMARY KEY,
+	count TEXT NOT NULL
+)

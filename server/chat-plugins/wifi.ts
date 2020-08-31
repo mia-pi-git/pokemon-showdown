@@ -6,25 +6,50 @@
 
 import {FS} from '../../lib/fs';
 import {Utils} from '../../lib/utils';
+import * as Sqlite from 'better-sqlite3';
 
 Punishments.roomPunishmentTypes.set('GIVEAWAYBAN', 'banned from giveaways');
 
 const BAN_DURATION = 7 * 24 * 60 * 60 * 1000;
 const RECENT_THRESHOLD = 30 * 24 * 60 * 60 * 1000;
 
-const STATS_FILE = 'config/chat-plugins/wifi.json';
+const stats: {[k: string]: number[]} = loadStats();
 
-let stats: {[k: string]: number[]} = {};
-try {
-	stats = JSON.parse(FS(STATS_FILE).readIfExistsSync() || "{}");
-} catch (e) {
-	if (e.code !== 'MODULE_NOT_FOUND' && e.code !== 'ENOENT') throw e;
+function loadStats() {
+	const statDatabase = new Sqlite(`${__dirname}/../../databases/chat-plugins.db`);
+	const loadedStats: {[k: string]: number[]} = {};
+	const results = statDatabase.prepare(`SELECT * FROM giveaway_count`).all();
+	for (const result of results) {
+		const {id, count} = result;
+		loadedStats[id] = count.split(',');
+	}
+	return loadedStats;
 }
-if (!stats || typeof stats !== 'object') stats = {};
 
 function saveStats() {
-	FS(STATS_FILE).writeUpdate(() => JSON.stringify(stats));
+	const statDatabase = new Sqlite(`${__dirname}/../../databases/chat-plugins.db`);
+	for (const mon in stats) {
+		const count = stats[mon].join(',');
+		statDatabase.prepare(
+			`REPLACE INTO giveaway_count(id, count) VALUES(?, ?)`
+		).run(mon, count);
+	}
 }
+
+function convertJSONStats() {
+	let results = {};
+	const JSONPath = FS(`config/chat-plugins/wifi.json`);
+	if (!JSONPath.existsSync()) return;
+	try {
+		results = JSON.parse(JSONPath.readIfExistsSync() || "{}");
+	} catch {}
+	Object.assign(stats, results);
+	saveStats();
+	JSONPath.unlinkIfExistsSync();
+}
+
+loadStats();
+convertJSONStats();
 
 function toPokemonId(str: string) {
 	return str.toLowerCase().replace(/é/g, 'e').replace(/[^a-z0-9 -/]/g, '');
