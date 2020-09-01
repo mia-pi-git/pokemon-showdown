@@ -1,21 +1,44 @@
+import * as Sqlite from 'better-sqlite3';
 import {FS} from '../../lib/fs';
 
-const DISHES_FILE = 'config/chat-plugins/thecafe-foodfight.json';
 const FOODFIGHT_COOLDOWN = 5 * 60 * 1000;
 
 const thecafe = Rooms.get('thecafe') as ChatRoom;
 
-let dishes: {[k: string]: string[]} = {};
-try {
-	dishes = JSON.parse(FS(DISHES_FILE).readIfExistsSync() || "{}");
-} catch (e) {
-	if (e.code !== 'MODULE_NOT_FOUND' && e.code !== 'ENOENT') throw e;
+const dishes: {[k: string]: string[]} = {};
+
+function loadDishes() {
+	const JSONPath = FS(`config/chat-plugins/thecafe-foodfight.json`);
+	if (JSONPath.existsSync()) {
+		const rawData = JSON.parse(JSONPath.readIfExistsSync() || "{}");
+		Object.assign(dishes, rawData);
+		return saveDishes();
+	}
+	const database = new Sqlite(`${__dirname}/../../databases/chat-plugins.db`);
+	const rawDishes = database.prepare(`SELECT * FROM foodfight_data`).all();
+	for (const entry of rawDishes) {
+		const {ingredients, dish} = entry;
+		dishes[dish] = ingredients.split(',');
+	}
 }
-if (!dishes || typeof dishes !== 'object') dishes = {};
 
 function saveDishes() {
-	void FS(DISHES_FILE).write(JSON.stringify(dishes));
+	const database = new Sqlite(`${__dirname}/../../databases/chat-plugins.db`);
+	const statement = database.prepare(`REPLACE INTO foodfight_data (dish, ingredients) VALUES(?, ?)`);
+	for (const d in dishes) {
+		const ingredients = dishes[d].join(',');
+		statement.run(d, ingredients);
+	}
 }
+
+function removeDish(dish: string) {
+	delete dishes[dish];
+	const database = new Sqlite(`${__dirname}/../../databases/chat-plugins.db`);
+	database.prepare(`DELETE FROM foodfight_data WHERE dish = ?`).run(dish);
+	saveDishes();
+}
+
+loadDishes();
 
 function generateTeam(generator = '') {
 	let potentialPokemon = Object.keys(Dex.data.Pokedex).filter(mon => {
@@ -165,8 +188,7 @@ export const commands: ChatCommands = {
 		if (id === 'constructor') return this.errorReply("Invalid dish.");
 		if (!dishes[id]) return this.errorReply(`Dish '${target}' not found.`);
 
-		delete dishes[id];
-		saveDishes();
+		removeDish(id);
 		this.sendReply(`Dish '${target}' deleted successfully.`);
 	},
 	viewdishes(target, room, user, connection) {
@@ -188,7 +210,8 @@ export const commands: ChatCommands = {
 export const pages: PageTable = {
 	foodfight(query, user, connection) {
 		if (!user.named) return Rooms.RETRY_AFTER_LOGIN;
-		let buf = `|title|Foodfight\n|pagehtml|<div class="pad ladder"><h2>Foodfight Dish list</h2>`;
+		this.title = 'Foodfight';
+		let buf = `<div class="pad ladder"><h2>Foodfight Dish list</h2>`;
 		if (!user.can('mute', null, thecafe)) {
 			return buf + `<p>Access denied</p></div>`;
 		}
