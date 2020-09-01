@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS room_faqs (
+	name TEXT NOT NULL PRIMARY KEY,
+	content TEXT NOT NULL,
+	aliases TEXT,
+	room TEXT NOT NULL
+)

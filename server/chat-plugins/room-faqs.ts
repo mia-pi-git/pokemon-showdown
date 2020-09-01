@@ -1,32 +1,118 @@
 import {FS} from '../../lib/fs';
 import {Utils} from '../../lib/utils';
+import * as Sqlite from 'better-sqlite3';
 
-export const ROOMFAQ_FILE = 'config/chat-plugins/faqs.json';
+const ROOMFAQ_FILE = 'config/chat-plugins/faqs.json';
 const MAX_ROOMFAQ_LENGTH = 8192;
 
-export let roomFaqs: {[k: string]: {[k: string]: string}} = {};
-try {
-	roomFaqs = JSON.parse(FS(ROOMFAQ_FILE).readIfExistsSync() || "{}");
-} catch (e) {
-	if (e.code !== 'MODULE_NOT_FOUND' && e.code !== 'ENOENT') throw e;
+export const roomFaqs: Map<string, Map<string, FaqEntry>> = new Map();
+export const faqAliases: Map<string, Map<string, string>> = new Map();
+
+interface FaqEntry {
+	content: string;
+	aliases: string[];
+	name: string;
+	room: string;
 }
-if (!roomFaqs || typeof roomFaqs !== 'object') roomFaqs = {};
+
+function loadFaqs() {
+	if (FS(ROOMFAQ_FILE).existsSync()) {
+		return convertJSON();
+	}
+	const database = new Sqlite(`${__dirname}/../../databases/chat-plugins.db`);
+	const rawData = database.prepare(`SELECT * FROM room_faqs`).all();
+	for (const faq of rawData) {
+		const {name, aliases, room} = faq;
+		const roomAliases = getAliasesByRoom(room);
+		const faqs = getRoomFaqs(room);
+		for (const alias of (aliases || '').split(',').filter(Boolean)) {
+			roomAliases.set(alias, name);
+		}
+		faqs.set(name, faq);
+	}
+}
 
 function saveRoomFaqs() {
-	FS(ROOMFAQ_FILE).writeUpdate(() => JSON.stringify(roomFaqs));
+	const database = new Sqlite(`${__dirname}/../../databases/chat-plugins.db`);
+	for (const faqMap of roomFaqs.values()) {
+		for (const entry of faqMap.values()) {
+			const {content, name, room} = entry;
+			const aliases = getFaqAliases(room, name);
+			database.prepare(
+				`REPLACE INTO room_faqs (name, content, aliases, room) VALUES (?, ?, ?, ?)`
+			).run(name, content, aliases.join(','), room);
+		}
+	}
 }
 
-/**
- * Aliases are implemented as a "regular" FAQ entry starting with a >. EX: {a: "text", b: ">a"}
- * This is done to allow easy checking whether a key is associated with
- * a value or alias as well as preserve backwards compatibility.
- */
-function getAlias(roomid: RoomID, key: string) {
-	if (!roomFaqs[roomid]) return false;
-	const value = roomFaqs[roomid][key];
-	if (value && value[0] === '>') return value.substr(1);
-	return false;
+function convertJSON() {
+	const JSONPath = FS(ROOMFAQ_FILE);
+	const faqData = JSON.parse(JSONPath.readIfExistsSync() || "{}");
+	JSONPath.unlinkIfExistsSync();
+	for (const room in faqData) {
+		const roomEntries: {[k: string]: string} = faqData[room];
+		const roomAliases = getAliasesByRoom(room);
+		const faqs = getRoomFaqs(room);
+		for (const key in roomEntries) {
+			const entry = roomEntries[key];
+			if (entry.startsWith('>')) {
+				// this entry is an alias, set it into the map and continue the loop
+				roomAliases.set(key, entry.slice(1));
+				continue;
+			}
+			// find all the aliases so that they can be set into the entry object (which is used for loading from SQLite)
+			const aliases = Object.keys(roomEntries).filter(item => {
+				return roomEntries[item].startsWith('>') && roomEntries[item].slice(1) === key;
+			});
+			const newEntry = {
+				content: entry,
+				name: key,
+				room: room,
+				aliases: aliases,
+			};
+			faqs.set(key, newEntry);
+		}
+	}
+	saveRoomFaqs();
 }
+
+function getFaqAliases(room: RoomID | string, name: string) {
+	const faqs = getAliasesByRoom(room);
+	const buffer: string[] = [];
+	for (const [alias, faq] of faqs) {
+		if (faq === toID(name)) buffer.push(alias);
+	}
+	return buffer.filter(Boolean);
+}
+
+export function getRoomFaqs(room: string) {
+	const roomMap = roomFaqs.get(room);
+	if (roomMap) return roomMap;
+	const faqMap: Map<string, FaqEntry> = new Map();
+	roomFaqs.set(room, faqMap);
+	return faqMap;
+}
+
+export function getAliasesByRoom(room: string) {
+	const aliasMap = faqAliases.get(room);
+	if (aliasMap) return aliasMap;
+	const aliases: Map<string, string> = new Map();
+	faqAliases.set(room, aliases);
+	return aliases;
+}
+
+export function getFaq(room: string, topic: string): FaqEntry | undefined {
+	topic = toID(topic);
+	const faqs = getRoomFaqs(room);
+	const faq = faqs.get(topic);
+	if (faq) return faq;
+	const roomAliases = getAliasesByRoom(room);
+	const aliasedFaq = roomAliases.get(topic);
+	if (!aliasedFaq) return;
+	return faqs.get(aliasedFaq);
+}
+
+loadFaqs();
 
 export const commands: ChatCommands = {
 	addfaq(target, room, user, connection) {
@@ -50,8 +136,13 @@ export const commands: ChatCommands = {
 
 		text = text.replace(/^>/, '&gt;');
 
-		if (!roomFaqs[room.roomid]) roomFaqs[room.roomid] = {};
-		roomFaqs[room.roomid][topic] = text;
+		const faqs = getRoomFaqs(room.roomid);
+		faqs.set(topic, {
+			content: text,
+			aliases: [],
+			name: topic,
+			room: room.roomid,
+		});
 		saveRoomFaqs();
 		this.sendReplyBox(Chat.formatText(text, true));
 		this.privateModAction(`${user.name} added a FAQ for '${topic}'`);
@@ -65,14 +156,20 @@ export const commands: ChatCommands = {
 		const topic = toID(target);
 		if (!topic) return this.parse('/help roomfaq');
 
-		if (!(roomFaqs[room.roomid] && roomFaqs[room.roomid][topic])) return this.errorReply("Invalid topic.");
-		delete roomFaqs[room.roomid][topic];
-		Object.keys(roomFaqs[room.roomid]).filter(
-			val => getAlias(room.roomid, val) === topic
-		).map(
-			val => delete roomFaqs[room.roomid][val]
-		);
-		if (!Object.keys(roomFaqs[room.roomid]).length) delete roomFaqs[room.roomid];
+		const faqs = getRoomFaqs(room.roomid);
+		const aliases = getAliasesByRoom(room.roomid);
+		const isFaq = !!faqs.get(topic);
+		const isAlias = !!aliases.get(topic);
+		if (!isFaq && !isAlias) return this.errorReply("Invalid topic.");
+		if (isFaq) {
+			faqs.delete(topic);
+			for (const [alias, baseFaq] of aliases) {
+				if (baseFaq === topic) aliases.delete(alias);
+			}
+		}
+		if (isAlias) aliases.delete(topic);
+		const database = new Sqlite(`${__dirname}/../../databases/chat-plugins.db`);
+		if (isFaq) database.prepare(`DELETE FROM room_faqs WHERE name = ?`).run(topic);
 		saveRoomFaqs();
 		this.privateModAction(`${user.name} removed the FAQ for '${topic}'`);
 		this.modlog('ROOMFAQ', null, `removed ${topic}`);
@@ -82,18 +179,21 @@ export const commands: ChatCommands = {
 		if (!this.canTalk()) return this.errorReply("You cannot do this while unable to talk.");
 		if (!this.can('ban', null, room)) return false;
 		if (!room.persist) return this.errorReply("This command is unavailable in temporary rooms.");
-		const [alias, topic] = target.split(',').map(val => toID(val));
+		const [alias, topic] = target.split(',').map(toID);
 
 		if (!(alias && topic)) return this.parse('/help roomfaq');
 		if (alias.length > 25) return this.errorReply("FAQ topics should not exceed 25 characters.");
 
-		if (!(roomFaqs[room.roomid] && topic in roomFaqs[room.roomid])) {
+		const roomAliases = getAliasesByRoom(room.roomid);
+		const faqs = getRoomFaqs(room.roomid);
+		if (!faqs.get(topic)) {
 			return this.errorReply(`The topic ${topic} was not found in this room's faq list.`);
 		}
-		if (getAlias(room.roomid, topic)) {
-			return this.errorReply(`You cannot make an alias of an alias. Use /addalias ${alias}, ${getAlias(room.roomid, topic)} instead.`);
+		const baseTopic = roomAliases.get(alias);
+		if (baseTopic) {
+			return this.errorReply(`You cannot make an alias of an alias. Use /addalias ${alias}, ${baseTopic} instead.`);
 		}
-		roomFaqs[room.roomid][alias] = `>${topic}`;
+		roomAliases.set(alias, topic);
 		saveRoomFaqs();
 		this.privateModAction(`${user.name} added an alias for '${topic}': ${alias}`);
 		this.modlog('ROOMFAQ', null, `alias for '${topic}' - ${alias}`);
@@ -102,25 +202,24 @@ export const commands: ChatCommands = {
 	rfaq: 'roomfaq',
 	roomfaq(target, room, user, connection, cmd) {
 		if (!room) return this.requiresRoom();
-		if (!roomFaqs[room.roomid]) return this.errorReply("This room has no FAQ topics.");
-		let topic: string = toID(target);
+		const faqs = roomFaqs.get(room.roomid);
+		if (!faqs) return this.errorReply("This room has no FAQ topics.");
+		const topic: string = toID(target);
 		if (topic === 'constructor') return false;
 		if (!topic) {
-			return this.sendReplyBox(`List of topics in this room: ${Object.keys(roomFaqs[room.roomid]).filter(val => !getAlias(room.roomid, val)).sort((a, b) => a.localeCompare(b)).map(rfaq => `<button class="button" name="send" value="/viewfaq ${rfaq}">${rfaq}</button>`).join(', ')}`);
+			return this.sendReplyBox(`List of topics in this room: ${[...faqs.keys()].sort((a, b) => a.localeCompare(b)).map(rfaq => `<button class="button" name="send" value="/viewfaq ${rfaq}">${rfaq}</button>`).join(', ')}`);
 		}
-		if (!roomFaqs[room.roomid][topic]) return this.errorReply("Invalid topic.");
-		topic = getAlias(room.roomid, topic) || topic;
+		const faq = getFaq(room.roomid, topic);
+		if (!faq) return this.errorReply("Invalid topic.");
 
 		if (!this.runBroadcast()) return;
-		this.sendReplyBox(Chat.formatText(roomFaqs[room.roomid][topic], true));
+		this.sendReplyBox(Chat.formatText(faq.content, true));
 		// /viewfaq doesn't show source
 		if (!this.broadcasting && user.can('ban', null, room) && cmd !== 'viewfaq') {
-			const src = Utils.escapeHTML(roomFaqs[room.roomid][topic]).replace(/\n/g, `<br />`);
+			const src = Utils.escapeHTML(faq.content).replace(/\n/g, `<br />`);
 			let extra = `<code>/addfaq ${topic}, ${src}</code>`;
-			const aliases = Object.keys(roomFaqs[room.roomid]).filter(val => getAlias(room.roomid, val) === topic);
-			if (aliases.length) {
-				extra += `<br /><br />Aliases: ${aliases.join(', ')}`;
-			}
+			const aliases: string[] = getFaqAliases(room.roomid, topic);
+			if (aliases.length > 0) extra += `<br /><br />Aliases: ${aliases.join(', ')}`;
 			this.sendReplyBox(extra);
 		}
 	},

@@ -9,7 +9,7 @@
 import {FS} from '../../lib/fs';
 import {Utils} from '../../lib/utils';
 import {LogViewer} from './chatlog';
-import {roomFaqs} from './room-faqs';
+import {getFaq, getRoomFaqs, getAliasesByRoom} from './room-faqs';
 
 const PATH = 'config/chat-plugins/help.json';
 // 4: filters out conveniently short aliases
@@ -108,11 +108,9 @@ export class HelpResponder {
 	find(question: string, user?: User) {
 		const room = this.getRoom();
 		if (!room) return;
-		const helpFaqs = roomFaqs[room.roomid];
-		const faqs = Object.keys((helpFaqs || '{}'))
-			.filter(item => item.length >= MINIMUM_LENGTH && !helpFaqs[item].startsWith('>'));
+		const helpFaqs = getRoomFaqs(room.roomid);
 		if (COMMON_TERMS.some(t => t.test(question))) return null;
-		for (const faq of faqs) {
+		for (const faq of helpFaqs.keys()) {
 			const match = this.match(question, faq);
 			if (match) {
 				if (user) {
@@ -120,7 +118,7 @@ export class HelpResponder {
 					const log = `${timestamp} |c| ${user.name}|${question}`;
 					this.log(log, faq, match.regex);
 				}
-				return helpFaqs[match.faq];
+				return getFaq(room.roomid, faq)!.content ;
 			}
 		}
 		return null;
@@ -144,12 +142,12 @@ export class HelpResponder {
 		if (!faq) return;
 		const room = this.getRoom();
 		if (!room) return;
-		const entry: string = roomFaqs[room.roomid][faq];
+		const helpFaqs = getRoomFaqs(room.roomid);
+		const entry = getFaq(room.roomid, faq);
 		if (!entry) return;
 		// ignore short aliases, they cause too many false positives
-		if (faq.length <= MINIMUM_LENGTH || entry.startsWith('>') && entry.slice(1).length <= MINIMUM_LENGTH) return;
-		if (entry.charAt(0) !== '>') return faq; // not an alias
-		return entry.replace('>', '');
+		if (faq.length <= MINIMUM_LENGTH) return;
+		return entry.content;
 	}
 	/**
 	 * Checks if the FAQ exists. If not, deletes all references to it.
@@ -159,7 +157,9 @@ export class HelpResponder {
 		if (Config.nofswriting) return true;
 		const room = this.getRoom();
 		if (!room) return;
-		if (roomFaqs[room.roomid][faq]) return true;
+		const helpFaqs = getRoomFaqs(room.roomid);
+		const helpAliases = getAliasesByRoom(room.roomid);
+		if (helpFaqs.get(faq) || helpAliases.get(faq)) return true;
 		if (this.data.pairs[faq]) delete this.data.pairs[faq];
 		for (const item of this.queue) {
 			const [, targetFaq] = item.regexString.split('=>');
