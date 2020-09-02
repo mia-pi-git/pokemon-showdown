@@ -1,4 +1,5 @@
 import {FS} from '../../lib/fs';
+import * as Sqlite from 'better-sqlite3';
 import {Utils} from '../../lib/utils';
 
 type FilterWord = [RegExp, string, string, string | null, number];
@@ -21,7 +22,6 @@ interface Monitor {
 }
 
 const MONITOR_FILE = 'config/chat-plugins/chat-monitor.tsv';
-const WRITE_THROTTLE_TIME = 5 * 60 * 1000;
 
 // Substitution dictionary adapted from https://github.com/ThreeLetters/NoSwearingPlease/blob/master/index.js
 // Licensed under MIT.
@@ -71,6 +71,7 @@ for (const letter in EVASION_DETECTION_SUBSTITUTIONS) {
 }
 
 const filterWords: {[k: string]: FilterWord[]} = Chat.filterWords;
+const filterDatabase = new Sqlite(`${__dirname}/../../databases/chat-plugins.db`);
 
 function constructEvasionRegex(str: string) {
 	const buf = "\\b" +
@@ -79,20 +80,21 @@ function constructEvasionRegex(str: string) {
 	return new RegExp(buf, 'i');
 }
 
-function renderEntry(location: string, word: FilterWord, punishment: string) {
-	return `${location}\t${word[1]}\t${punishment}\t${word[2]}\t${word[4]}${word[3] ? `\t${word[3]}` : ''}\r\n`;
+function deleteEntry(word: string, list: string) {
+	filterDatabase.prepare(`DELETE FROM chat_filters WHERE word = ? AND list = ?`).run(word, list);
 }
 
-function saveFilters(force = false) {
-	FS(MONITOR_FILE).writeUpdate(() => {
-		let buf = 'Location\tWord\tPunishment\tReason\tTimes\r\n';
-		for (const key in Chat.monitors) {
-			buf += filterWords[key].map(
-				word => renderEntry(Chat.monitors[key].location, word, Chat.monitors[key].punishment)
-			).join('');
+export function saveFilters() {
+	for (const list in Chat.filterWords) {
+		const words = Chat.filterWords[list];
+		const statement = filterDatabase.prepare(
+			`REPLACE INTO chat_filters (location, list, word, reason, count, filterTo, punishment) VALUES(?, ?, ?, ?, ?, ?, ?)`
+		);
+		for (const entry of words) {
+			const [, word, reason, filterTo, times] = entry;
+			statement.run(Chat.monitors[list].location, list, word, reason, times, filterTo, Chat.monitors[list].punishment);
 		}
-		return buf;
-	}, {throttle: force ? 0 : WRITE_THROTTLE_TIME});
+	}
 }
 
 // Register the chat monitors used
@@ -157,7 +159,6 @@ Chat.registerMonitor('evasion', {
 	label: 'Filter Evasion Detection',
 	monitor(line, room, user, message, lcMessage, isStaff) {
 		const [regex, word, reason] = line;
-
 		// Many codepoints used in filter evasion detection can be decomposed
 		// into multiple codepoints that are canonically equivalent to the
 		// original. Perform a canonical composition on the message to detect
@@ -266,31 +267,63 @@ Chat.registerMonitor('shorteners', {
  * Location: EVERYWHERE, PUBLIC, NAMES, BATTLES
  * Punishment: AUTOLOCK, WARN, FILTERTO, SHORTENER, MUTE, EVASION
  */
-void FS(MONITOR_FILE).readIfExists().then(data => {
-	const lines = data.split('\n');
-	loop: for (const line of lines) {
-		if (!line || line === '\r') continue;
-		const [location, word, punishment, reason, times, ...rest] = line.split('\t').map(param => param.trim());
+export function loadFilterWords() {
+	if (FS(MONITOR_FILE).existsSync()) {
+		convertTSV();
+		return saveFilters();
+	}
+	const rawData = filterDatabase.prepare(`SELECT * FROM chat_filters`).all();
+	loop: for (const entry of rawData) {
+		const {location, punishment, word, reason, filterTo, count} = entry;
 		if (location === 'Location') continue;
 		if (!(location && word && punishment)) continue;
-
 		for (const key in Chat.monitors) {
 			if (Chat.monitors[key].location === location && Chat.monitors[key].punishment === punishment) {
-				const filterTo = rest[0];
 				let regex: RegExp;
 				if (punishment === 'EVASION') {
 					regex = constructEvasionRegex(word);
 				} else {
 					regex = new RegExp(punishment === 'SHORTENER' ? `\\b${word}` : word, filterTo ? 'ig' : 'i');
 				}
-				filterWords[key].push([regex, word, reason, filterTo, parseInt(times) || 0]);
-
+				filterWords[key].push([regex, word, reason, filterTo, parseInt(count) || 0]);
 				continue loop;
 			}
 		}
-		throw new Error(`Unrecognized [location, punishment] pair for filter word entry: ${[location, word, punishment, reason, times]}`);
+		throw new Error(`Unrecognized [location, punishment] pair for filter word entry: ${[location, word, punishment, reason, count]}`);
 	}
-});
+	return filterWords;
+}
+
+function convertTSV() {
+	void FS(MONITOR_FILE).readIfExists().then(data => {
+		const lines = data.split('\n');
+		loop: for (const line of lines) {
+			if (!line || line === '\r') continue;
+			const [location, word, punishment, reason, times, ...rest] = line.split('\t').map(param => param.trim());
+			if (location === 'Location') continue;
+			if (!(location && word && punishment)) continue;
+
+			for (const key in Chat.monitors) {
+				if (Chat.monitors[key].location === location && Chat.monitors[key].punishment === punishment) {
+					const filterTo = rest[0];
+					let regex: RegExp;
+					if (punishment === 'EVASION') {
+						regex = constructEvasionRegex(word);
+					} else {
+						regex = new RegExp(punishment === 'SHORTENER' ? `\\b${word}` : word, filterTo ? 'ig' : 'i');
+					}
+					filterWords[key].push([regex, word, reason, filterTo, parseInt(times) || 0]);
+
+					continue loop;
+				}
+			}
+			throw new Error(`Unrecognized [location, punishment] pair for filter word entry: ${[location, word, punishment, reason, times]}`);
+		}
+	});
+	FS(MONITOR_FILE).unlinkIfExistsSync();
+}
+
+loadFilterWords();
 
 /* The sucrase transformation of optional chaining is too expensive to be used in a hot function like this. */
 /* eslint-disable @typescript-eslint/prefer-optional-chain */
@@ -575,7 +608,7 @@ export const commands: ChatCommands = {
 			} else {
 				this.globalModlog(`ADDFILTER`, null, `'${word}' to ${list} list by ${user.name}${reason ? ` (${reason})` : ''}`);
 			}
-			saveFilters(true);
+			saveFilters();
 			const output = `'${word}' was added to the ${list} list.`;
 			Rooms.get('upperstaff')?.add(output).update();
 			if (room?.roomid !== 'upperstaff') this.sendReply(output);
@@ -597,9 +630,12 @@ export const commands: ChatCommands = {
 				return this.errorReply(`${notFound.join(', ')} ${Chat.plural(notFound, "are", "is")} not on the ${list} list.`);
 			}
 			filterWords[list] = filterWords[list].filter(entry => !words.includes(entry[1]));
+			for (const word of words) {
+				deleteEntry(word, list);
+			}
 
 			this.globalModlog(`REMOVEFILTER`, null, `'${words.join(', ')}' from ${list} list by ${user.name}`);
-			saveFilters(true);
+			saveFilters();
 			const output = `'${words.join(', ')}' ${Chat.plural(words, "were", "was")} removed from the ${list} list.`;
 			Rooms.get('upperstaff')?.add(output).update();
 			if (room?.roomid !== 'upperstaff') this.sendReply(output);
