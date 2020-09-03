@@ -112,7 +112,7 @@ function sucrase(src, out, opts) {
 if (sucrase('./config', './.config-dist')) {
 	replace('.config-dist', [
 		{regex: /(require\(.*?)(lib|sim)/g, replace: `$1.$2-dist`},
-	]);	
+	]);
 }
 
 if (sucrase('./data', './.data-dist')) {
@@ -140,6 +140,13 @@ if (sucrase('./tools/set-import', './tools/set-import', '--exclude-dirs=sets')) 
 		{regex: /(require\(.*?)(lib|sim)/g, replace: `$1.$2-dist`},
 	]);
 }
+
+if (sucrase('./tools/roomlogs', './tools/roomlogs')) {
+	replace('./tools/roomlogs/converter.js', [
+		{regex: /(require\(.*?)(lib|server)/g, replace: `$1.$2-dist`},
+	]);
+}
+
 
 if (!fs.existsSync('./.data-dist/README.md')) {
 	const text = '**NOTE**: This folder contains the compiled output of the `data/` directory.\n' +
