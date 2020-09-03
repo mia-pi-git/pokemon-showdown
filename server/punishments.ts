@@ -39,7 +39,7 @@ const AUTOWEEKLOCK_DAYS_TO_SEARCH = 60;
 /**
  * A punishment is an array: [punishType, userid | #punishmenttype, expireTime, reason]
  */
-type Punishment = [string, ID | PunishType, number, string];
+export type Punishment = [string, ID | PunishType, number, string];
 interface PunishmentEntry {
 	ips: string[];
 	userids: ID[];

@@ -1,9 +1,16 @@
 import {FS} from '../../lib/fs';
 import {Utils} from '../../lib/utils';
+import * as Sqlite from 'better-sqlite3';
+import type {Punishment} from '../punishments';
 
 const TICKET_FILE = 'config/tickets.json';
 const TICKET_CACHE_TIME = 24 * 60 * 60 * 1000; // 24 hours
 const TICKET_BAN_DURATION = 48 * 60 * 60 * 1000; // 48 hours
+
+Punishments.roomPunishmentTypes.set('TICKETBAN', 'Banned from creating Help tickets');
+
+const ticketDatabase = new Sqlite(`${__dirname}/../../databases/chat-plugins.db`);
+
 
 interface TicketState {
 	creator: string;
@@ -14,70 +21,102 @@ interface TicketState {
 	created: number;
 	claimed: string | null;
 	ip: string;
-	escalator?: string;
 }
-interface BannedTicketState {
-	banned: string;
-	creator?: string;
-	userid: string;
-	open?: boolean;
-	type?: string;
-	created: number;
-	claimed?: string;
-	ip: string;
-	escalator?: string;
-	name: string;
-	by: string;
-	reason: string;
-	expires: number;
+
+interface StatEntry {
+	ticketType: string;
+	totalTime: number;
+	timeToFirstClaim: number;
+	inactiveTime: number;
+	resolution: 'unknown' | 'dead' | 'unresolved' | 'resolved';
+	result: TicketResult | null;
+	/** Userids separated with commas */
+	staff: string;
 }
+
 type TicketResult = 'approved' | 'valid' | 'assisted' | 'denied' | 'invalid' | 'unassisted' | 'ticketban' | 'deleted';
 
-const tickets: {[k: string]: TicketState} = {};
-const ticketBans: {[k: string]: BannedTicketState} = {};
+const tickets: {[k: string]: TicketState} = loadTickets();
 
-try {
-	const ticketData = JSON.parse(FS(TICKET_FILE).readSync());
-	for (const t in ticketData) {
-		const ticket = ticketData[t];
-		if (ticket.banned) {
-			if (ticket.expires && ticket.expires <= Date.now()) continue;
-			ticketBans[t] = ticket;
-		} else {
-			if (ticket.created + TICKET_CACHE_TIME <= Date.now()) {
-				// Tickets that have been open for 24+ hours will be automatically closed.
-				const ticketRoom = Rooms.get(`help-${ticket.userid}`) as ChatRoom | null;
-				if (ticketRoom) {
-					const ticketGame = ticketRoom.game as HelpTicket;
-					ticketGame.writeStats(false);
-					ticketRoom.expire();
-				}
-				continue;
-			}
-			// Close open tickets after a restart
-			// (i.e. if the server has been running for less than a minute)
-			if (ticket.open && process.uptime() <= 60) ticket.open = false;
-			tickets[t] = ticket;
-		}
+export function loadTickets() {
+	let rawTicketData = [];
+	const JSONPath = FS(TICKET_FILE);
+	if (JSONPath.existsSync()) {
+		const JSONData = JSON.parse(JSONPath.readSync());
+		rawTicketData = [...Object.values(JSONData)] as TicketState[];
+		JSONPath.unlinkIfExistsSync();
+	} else {
+		rawTicketData = ticketDatabase.prepare(`SELECT * FROM tickets`).all().map(ticket => {
+			// transform booleans (these disables are needed since booleans crash SQLite)
+			// eslint-disable-next-line no-unneeded-ternary
+			ticket.open = ticket.open > 0 ? true : false;
+			// eslint-disable-next-line no-unneeded-ternary
+			ticket.active = ticket.active > 0 ? true : false;
+			return ticket;
+		});
 	}
-} catch (e) {
-	if (e.code !== 'ENOENT') throw e;
+	const ticketData: {[k: string]: TicketState} = {};
+	for (const ticket of rawTicketData) {
+		if (ticket.created + TICKET_CACHE_TIME <= Date.now()) {
+			// Tickets that have been open for 24+ hours will be automatically closed.
+			const ticketRoom = Rooms.get(`help-${ticket.userid}`) as ChatRoom | null;
+			if (ticketRoom) {
+				const ticketGame = ticketRoom.game as HelpTicket;
+				ticketGame.writeStats(false);
+				ticketRoom.expire();
+			}
+			continue;
+		}
+		// Close open tickets after a restart
+		// (i.e. if the server has been running for less than a minute)
+		if (ticket.open && process.uptime() <= 60) ticket.open = false;
+		ticketData[ticket.userid] = ticket;
+	}
+	return ticketData;
+}
+
+function sanitize(item: boolean) {
+	return item ? 1 : 0;
 }
 
 function writeTickets() {
-	FS(TICKET_FILE).writeUpdate(() => (
-		JSON.stringify(Object.assign({}, tickets, ticketBans))
-	));
+	for (const ticket in tickets) {
+		const {creator, userid, open, active, type, claimed, ip} = tickets[ticket];
+		ticketDatabase.prepare(
+			`REPLACE INTO tickets (creator, userid, open, active, type, claimed, ip)
+			VALUES (?, ?, ?, ?, ?, ?, ?)`
+		).run(creator, userid, sanitize(open), sanitize(active), type, claimed || '', ip);
+	}
 }
 
-function writeStats(line: string) {
-	// ticketType\ttotalTime\ttimeToFirstClaim\tinactiveTime\tresolution\tresult\tstaff,userids,seperated,with,commas
-	const date = new Date();
-	const month = Chat.toTimestamp(date).split(' ')[0].split('-', 2).join('-');
-	try {
-		FS(`logs/tickets/${month}.tsv`).appendSync(line + '\n');
-	} catch (e) {
-		if (e.code !== 'ENOENT') throw e;
+function writeStats(entry: StatEntry, date?: string) {
+	const month = date ? date : Chat.toTimestamp(new Date()).split(' ')[0].split('-', 2).join('-');
+	const {ticketType, totalTime, timeToFirstClaim, inactiveTime, resolution, result, staff} = entry;
+	ticketDatabase.prepare(
+		`INSERT INTO ticket_stats (ticketType, totalTime, timeToFirstClaim, inactiveTime, resolution, result, staff, month)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+	).run(ticketType, totalTime, timeToFirstClaim, inactiveTime, resolution, result, staff, month);
+}
+
+export function tryConvertStats() {
+	const LOG_PATH = `logs/tickets`;
+	if (!FS(LOG_PATH).existsSync()) return;
+	const files = FS(LOG_PATH).readdirSync().filter(item => item.endsWith('.tsv'));
+	for (const monthFile of files) {
+		const raw = FS(`${LOG_PATH}/${monthFile}`).readSync().split('\n').filter(Boolean);
+		const month = monthFile.slice(0, -4);
+		for (const line of raw) {
+			const [ticketType, totalTime, timeToFirstClaim, inactiveTime, resolution, result, staff] = line.split('\t');
+			writeStats({
+				ticketType,
+				totalTime: parseInt(totalTime),
+				timeToFirstClaim: parseInt(timeToFirstClaim),
+				inactiveTime: parseInt(inactiveTime),
+				resolution, result, staff,
+			} as StatEntry, month);
+		}
+		// remove the TSV after writing to SQLite database
+		FS(`${LOG_PATH}/${monthFile}`).unlinkIfExistsSync();
 	}
 }
 
@@ -176,7 +215,7 @@ export class HelpTicket extends Rooms.RoomGame {
 	}
 
 	onLogMessage(message: string, user: User) {
-		if (!this.ticket.open) return;
+		if (!this.ticket || !this.ticket.open) return;
 		if (user.isStaff && this.ticket.userid !== user.id) this.involvedStaff.add(user.id);
 		if (this.ticket.active) return;
 		const blockedMessages = [
@@ -295,10 +334,16 @@ export class HelpTicket extends Rooms.RoomGame {
 			firstClaimWait = (this.firstClaimTime ? this.firstClaimTime : this.closeTime) - this.activationTime;
 			involvedStaff = Array.from(this.involvedStaff.entries()).map(s => s[0]).join(',');
 		}
-		// Write to TSV
-		// ticketType\ttotalTime\ttimeToFirstClaim\tinactiveTime\tresolution\tresult\tstaff,userids,seperated,with,commas
-		const line = `${this.ticket.type}\t${(this.closeTime - this.createTime)}\t${firstClaimWait}\t${this.unclaimedTime}\t${this.resolution}\t${this.result}\t${involvedStaff}`;
-		writeStats(line);
+		// Write to storage
+		writeStats({
+			ticketType: this.ticket.type,
+			totalTime: this.closeTime - this.createTime,
+			timeToFirstClaim: firstClaimWait,
+			inactiveTime: this.unclaimedTime,
+			resolution: this.resolution,
+			result: this.result,
+			staff: involvedStaff,
+		});
 	}
 
 	deleteTicket(staff: User) {
@@ -332,6 +377,34 @@ export class HelpTicket extends Rooms.RoomGame {
 		this.players = null;
 		// @ts-ignore
 		this.playerTable = null;
+	}
+	static ban(user: ID, reason = '') {
+		user = toID(user);
+		const punishment: Punishment = ['TICKETBAN', user, Date.now() + TICKET_BAN_DURATION, reason];
+		return Punishments.roomPunish('staff', user, punishment);
+	}
+	static unban(user: ID) {
+		user = toID(user);
+		return Punishments.roomUnpunish('staff', user, 'TICKETBAN');
+	}
+	static checkBanned(user: User) {
+		const staffRoom = Rooms.get('staff');
+		if (!staffRoom) return;
+		const punishment = Punishments.getRoomPunishType(staffRoom, user.id);
+		if (punishment === 'TICKETBAN') {
+			return `You are banned from creating tickets.`;
+		}
+		for (const ip in user.ips) {
+			const curPunishment = Punishments.roomIps.get('staff')?.get(ip);
+			if (curPunishment && curPunishment[0] === 'TICKETBAN') {
+				const [, userid,, reason] = curPunishment;
+				return (
+					`You are banned from creating help tickets` +
+					`${userid !== user.id ? `, because you have the same IP as ${userid}` : ''}. ${reason ? `Reason: ${reason}` : ''}`
+				);
+			}
+		}
+		return false;
 	}
 }
 
@@ -445,15 +518,17 @@ function notifyStaff() {
 	} else {
 		buf = `|tempnotifyoff|helptickets`;
 	}
-	if (room.userCount) Sockets.roomBroadcast(room.roomid, `>view-help-tickets\n${buf}`);
+	if (room.userCount) {
+		for (const user of Object.values(room.users)) {
+			if (user.can('lock') && !user.settings.ignoreTickets) user.sendTo(room, buf);
+		}
+	}
 	if (hasUnclaimed) {
 		// only notify for people highlighting
 		buf = `${buf}|${hasAssistRequest ? 'Public Room Staff need help' : 'There are unclaimed Help tickets'}`;
 	}
-	for (const i in room.users) {
-		// FIXME: TypeScript bug: I have no clue why TypeScript can't figure out this type
-		const user: User = room.users[i];
-		if (user.can('mute', null, room) && !user.settings.ignoreTickets) user.sendTo(room, buf);
+	for (const user of Object.values(room.users)) {
+		if (user.can('lock') && !user.settings.ignoreTickets) user.sendTo(room, buf);
 	}
 	pokeUnclaimedTicketTimer(hasUnclaimed, hasAssistRequest);
 }
@@ -465,44 +540,6 @@ function checkIp(ip: string) {
 		}
 	}
 	return false;
-}
-
-function checkTicketBanned(user: User) {
-	let ticket = ticketBans[user.id];
-	if (ticket) {
-		if (ticket.expires > Date.now()) {
-			return `You are banned from creating tickets${toID(ticket.banned) !== user.id ? `, because you have the same IP as ${ticket.banned}.` : `.`}${ticket.reason ? ` Reason: ${ticket.reason}` : ``}`;
-		} else {
-			delete ticketBans[ticket.userid];
-			writeTickets();
-			return false;
-		}
-	} else {
-		let bannedTicket: BannedTicketState | null = null;
-		// Skip the IP based check if the user is autoconfirmed and on a shared IP.
-		if (Punishments.sharedIps.has(user.latestIp) && user.autoconfirmed) return false;
-
-		for (const t in ticketBans) {
-			if (ticketBans[t].ip === user.latestIp) {
-				bannedTicket = ticketBans[t];
-				// A match was found, if its not expired, ticket ban them. Otherwise remove the expired entry and keep searching.
-				if (bannedTicket.expires > Date.now()) {
-					ticket = Object.assign({}, bannedTicket);
-					ticket.name = user.name;
-					ticket.userid = user.id;
-					ticket.by = bannedTicket.by + ' (IP)';
-					ticketBans[user.id] = ticket;
-					writeTickets();
-					return `You are banned from creating tickets${toID(ticket.banned) !== user.id ? `, because you have the same IP as ${ticket.banned}.` : `.`}${ticket.reason ? ` Reason: ${ticket.reason}` : ``}`;
-				} else {
-					delete ticketBans[bannedTicket.userid];
-					writeTickets();
-				}
-			}
-		}
-		// No un-expired IP matches found.
-		return false;
-	}
 }
 
 // Prevent a desynchronization issue when hotpatching
@@ -570,7 +607,7 @@ export const pages: PageTable = {
 			this.title = this.tr`Request Help`;
 			let buf = `<div class="pad"><h2>${this.tr`Request help from global staff`}</h2>`;
 
-			const banMsg = checkTicketBanned(user);
+			const banMsg = HelpTicket.checkBanned(user);
 			if (banMsg) return connection.popup(banMsg);
 			let ticket = tickets[user.id];
 			const ipTicket = checkIp(user.latestIp);
@@ -812,41 +849,19 @@ export const pages: PageTable = {
 				buf += '</td></tr>';
 				count++;
 			}
-
-			const banKeys = Object.keys(ticketBans).sort((aKey, bKey) => {
-				const a = ticketBans[aKey];
-				const b = ticketBans[bKey];
-				return b.created - a.created;
-			});
-			let hasBanHeader = false;
-			count = 0;
-			for (const key of banKeys) {
-				const ticket = ticketBans[key];
-				if (ticket.expires <= Date.now()) continue;
-				if (!hasBanHeader) {
-					buf += `<tr><th>${this.tr`Status`}</th><th>${this.tr`Username`}</th><th>${this.tr`Banned by`}</th><th>${this.tr`Expires`}</th><th>${this.tr`Logs`}</th></tr>`;
-					hasBanHeader = true;
-				}
-				if (count >= 100 && query[0] !== 'all') {
-					buf += `<tr><td colspan="5">${this.tr`And ${banKeys.length - count} more ticket bans.`} <a class="button" href="/view-help-tickets-all" target="replace">${this.tr`View all tickets`}</a></td></tr>`;
-					break;
-				}
-				buf += `<tr><td><span style="color:gray"><i class="fa fa-ban"></i> ${this.tr`Banned`}</td>`;
-				buf += Utils.html`<td>${ticket.name}</td>`;
-				buf += Utils.html`<td>${ticket.by}</td>`;
-				buf += `<td>${Chat.toDurationString(ticket.expires - Date.now(), {precision: 1})}</td>`;
-				buf += `<td>`;
-				const roomid = 'help-' + ticket.userid;
-				let logUrl = '';
-				if (Config.modloglink) {
-					const modlogDate = new Date(ticket.created || (ticket.banned ? ticket.expires - TICKET_BAN_DURATION : 0));
-					logUrl = Config.modloglink(modlogDate, roomid);
-				}
-				if (logUrl) {
-					buf += `<a href="${logUrl}"><button class="button">${this.tr`Log`}</button></a>`;
-				}
-				buf += '</td></tr>';
-				count++;
+			buf += `</table><br /><br /><table style="margin-left: auto; margin-right: auto"><tbody><tr>`;
+			buf += `<th colspan="5"><h2 style="margin: 5px auto">${this.tr`Ticket Bans`} <i class="fa fa-ban"></i></h1></th></tr>`
+			buf += `<tr><th>Userids</th><th>IPs</th><th>Expires</th><th>Reason</th></tr>`;
+			const ticketBans = Array.from(Punishments.getPunishments('staff'))
+				.sort((a, b) => a[1].expireTime - b[1].expireTime)
+				.filter(item => item[1].punishType === 'TICKETBAN');
+			for (const [userid, entry] of ticketBans) {
+				let ids = [userid];
+				if (entry.userids) ids = ids.concat(entry.userids);
+				buf += `<tr><td>${ids.map(Utils.escapeHTML).join(', ')}</td>`;
+				buf += `<td>${entry.ips.join(', ')}</td>`;
+				buf += `<td>${Chat.toDurationString(entry.expireTime - Date.now(), {precision: 1})}</td>`;
+				buf += `<td>${entry.reason || ''}</td></tr>`;
 			}
 
 			buf += `</tbody></table></div>`;
@@ -871,7 +886,7 @@ export const pages: PageTable = {
 			}
 			const dateUrl = Chat.toTimestamp(date).split(' ')[0].split('-', 2).join('-');
 
-			const rawTicketStats = FS(`logs/tickets/${dateUrl}.tsv`).readIfExistsSync();
+			const rawTicketStats = ticketDatabase.prepare(`SELECT * FROM ticket_stats WHERE month = '${dateUrl}'`).all();
 			if (!rawTicketStats) return `<div class="pad"><br />${this.tr`No ticket stats found.`}</div>`;
 
 			// Calculate next/previous month for stats and validate stats exist for the month
@@ -897,13 +912,15 @@ export const pages: PageTable = {
 			const nextString = Chat.toTimestamp(nextDate).split(' ')[0].split('-', 2).join('-');
 
 			let buttonBar = '';
-			if (FS(`logs/tickets/${prevString}.tsv`).readIfExistsSync()) {
+			const prevMonthResults = ticketDatabase.prepare(`SELECT * FROM ticket_stats WHERE month = '${prevString}'`).all();
+			if (prevMonthResults) {
 				buttonBar += `<a class="button" href="/view-help-stats-${table}-${prevString}" target="replace" style="float: left">&lt; ${this.tr`Previous Month`}</a>`;
 			} else {
 				buttonBar += `<a class="button disabled" style="float: left">&lt; ${this.tr`Previous Month`}Month</a>`;
 			}
 			buttonBar += `<a class="button${table === 'tickets' ? ' disabled"' : `" href="/view-help-stats-tickets-${dateUrl}" target="replace"`}>${this.tr`Ticket Stats`}</a> <a class="button ${table === 'staff' ? ' disabled"' : `" href="/view-help-stats-staff-${dateUrl}" target="replace"`}>${this.tr`Staff Stats`}</a>`;
-			if (FS(`logs/tickets/${nextString}.tsv`).readIfExistsSync()) {
+			const nextMonthResults = ticketDatabase.prepare(`SELECT * FROM ticket_stats WHERE month = '${nextString}'`).all();
+			if (nextMonthResults) {
 				buttonBar += `<a class="button" href="/view-help-stats-${table}-${nextString}" target="replace" style="float: right">${this.tr`Next Month`} &gt;</a>`;
 			} else {
 				buttonBar += `<a class="button disabled" style="float: right">${this.tr`Next Month`} &gt;</a>`;
@@ -919,27 +936,11 @@ export const pages: PageTable = {
 				buf += `<tr><th><Button>staff</Button></th><th><Button>num</Button></th><th><Button>time</Button></th></tr>`;
 			}
 
-			const ticketStats: {[k: string]: string}[] = rawTicketStats.split('\n').filter(
-				(line: string) => line
-			).map(
-				(line: string) => {
-					const splitLine = line.split('\t');
-					return {
-						type: splitLine[0],
-						total: splitLine[1],
-						initwait: splitLine[2],
-						wait: splitLine[3],
-						resolution: splitLine[4],
-						result: splitLine[5],
-						staff: splitLine[6],
-					};
-				}
-			);
 			if (table === 'tickets') {
 				const typeStats: {[key: string]: {[key: string]: number}} = {};
-				for (const stats of ticketStats) {
-					if (!typeStats[stats.type]) {
-						typeStats[stats.type] = {
+				for (const stats of rawTicketStats) {
+					if (!typeStats[stats.ticketType]) {
+						typeStats[stats.ticketType] = {
 							total: 0,
 							initwait: 0,
 							wait: 0,
@@ -950,11 +951,11 @@ export const pages: PageTable = {
 							totaltickets: 0,
 						};
 					}
-					const type = typeStats[stats.type];
+					const type = typeStats[stats.ticketType];
 					type.totaltickets++;
-					type.total += parseInt(stats.total);
-					type.initwait += parseInt(stats.initwait);
-					type.wait += parseInt(stats.wait);
+					type.total += isNaN(parseInt(stats.totalTime)) ? 0 : parseInt(stats.totalTime);
+					type.initwait += isNaN(parseInt(stats.timeToFirstClaim)) ? 0 : parseInt(stats.timeToFirstClaim);
+					type.wait += isNaN(parseInt(stats.inactiveTime)) ? 0 : parseInt(stats.inactiveTime);
 					if (['approved', 'valid', 'assisted'].includes(stats.result.toString())) type.result++;
 					if (['dead', 'unresolved', 'resolved'].includes(stats.resolution.toString())) {
 						type[stats.resolution.toString()]++;
@@ -990,13 +991,15 @@ export const pages: PageTable = {
 				}
 			} else {
 				const staffStats: {[key: string]: {[key: string]: number}} = {};
-				for (const stats of ticketStats) {
+				for (const stats of rawTicketStats) {
 					const staffArray = (typeof stats.staff === 'string' ? stats.staff.split(',') : []);
 					for (const staff of staffArray) {
 						if (!staff) continue;
 						if (!staffStats[staff]) staffStats[staff] = {num: 0, time: 0};
 						staffStats[staff].num++;
-						staffStats[staff].time += (parseInt(stats.total) - parseInt(stats.initwait));
+						const total = parseInt(stats.total);
+						const initWait = parseInt(stats.initwait);
+						staffStats[staff].time += (total - initWait);
 					}
 				}
 				for (const staff in staffStats) {
@@ -1082,7 +1085,7 @@ export const commands: ChatCommands = {
 				return this.popupReply(this.tr`Global staff can't make tickets. They can only use the form for reference.`);
 			}
 			if (!user.named) return this.popupReply(this.tr`You need to choose a username before doing this.`);
-			const banMsg = checkTicketBanned(user);
+			const banMsg = HelpTicket.checkBanned(user);
 			if (banMsg) return this.popupReply(banMsg);
 			let ticket = tickets[user.id];
 			const ipTicket = checkIp(user.latestIp);
@@ -1263,9 +1266,8 @@ export const commands: ChatCommands = {
 			const targetUser = this.targetUser;
 			if (!this.can('lock', targetUser)) return;
 
-			const ticket = tickets[toID(this.inputUsername)];
-			const ticketBan = ticketBans[toID(this.inputUsername)];
-			if (!targetUser && !Punishments.search(toID(this.targetUsername)).length && !ticket && !ticketBan) {
+			const punishment = Punishments.roomUserids.nestedGet('staff', toID(this.targetUsername));
+			if (!targetUser && !Punishments.search(toID(this.targetUsername)).length) {
 				return this.errorReply(this.tr`User '${this.targetUsername}' not found.`);
 			}
 			if (target.length > 300) {
@@ -1278,7 +1280,7 @@ export const commands: ChatCommands = {
 			if (targetUser) {
 				username = targetUser.getLastName();
 				userid = targetUser.getLastId();
-				if (ticketBan && ticketBan.expires > Date.now()) {
+				if (punishment) {
 					return this.privateModAction(`${username} would be ticket banned by ${user.name} but was already ticket banned.`);
 				}
 				if (targetUser.trusted) {
@@ -1287,7 +1289,7 @@ export const commands: ChatCommands = {
 			} else {
 				username = this.targetUsername;
 				userid = toID(this.targetUsername);
-				if (ticketBan && ticketBan.expires > Date.now()) {
+				if (punishment) {
 					return this.privateModAction(`${username} would be ticket banned by ${user.name} but was already ticket banned.`);
 				}
 			}
@@ -1296,38 +1298,8 @@ export const commands: ChatCommands = {
 				targetUser.popup(`|modal|${user.name} has banned you from creating help tickets.${(target ? `\n\nReason: ${target}` : ``)}\n\nYour ban will expire in a few days.`);
 			}
 
+			const affected = HelpTicket.ban(userid as ID, target);
 			this.addModAction(`${username} was ticket banned by ${user.name}.${target ? ` (${target})` : ``}`);
-
-			let affected: any[] = [];
-			const punishment: BannedTicketState = {
-				banned: username,
-				name: username,
-				userid: toID(username),
-				by: user.name,
-				created: Date.now(),
-				expires: Date.now() + TICKET_BAN_DURATION,
-				reason: target,
-				ip: (targetUser ? targetUser.latestIp : ticket ? ticket.ip : ticketBan.ip),
-			};
-
-			if (targetUser) {
-				affected.push(targetUser);
-				affected = affected.concat(targetUser.getAltUsers(false, true));
-			} else {
-				const foundKeys = Punishments.search(userid).map(([key]) => key);
-				const userids = new Set([userid]);
-				const ips = new Set();
-				for (const key of foundKeys) {
-					if (key.includes('.')) {
-						ips.add(key);
-					} else {
-						userids.add(key);
-					}
-				}
-				affected = Users.findUsers([...userids] as ID[], [...ips] as string[], {includeTrusted: true, forPunishment: true});
-				affected.unshift(userid);
-			}
-
 			const acAccount = (targetUser && targetUser.autoconfirmed !== userid && targetUser.autoconfirmed);
 			let displayMessage = '';
 			if (affected.length > 1) {
@@ -1349,10 +1321,7 @@ export const commands: ChatCommands = {
 					ticketGame.writeStats('ticketban');
 					helpRoom.destroy();
 				}
-				ticketBans[userObjID] = punishment;
 			}
-			writeTickets();
-			notifyStaff();
 			notifyStaff();
 			return true;
 		},
@@ -1363,28 +1332,14 @@ export const commands: ChatCommands = {
 
 			if (!this.can('lock')) return;
 			const targetUser = Users.get(target, true);
-			const ticket = ticketBans[toID(target)];
-			if (!ticket || !ticket.banned) {
+			if (!targetUser) return this.errorReply(`User not found.`);
+			const banned = HelpTicket.checkBanned(targetUser);
+			if (!banned) {
 				return this.errorReply(this.tr`${targetUser ? targetUser.name : target} is not ticket banned.`);
 			}
-			if (ticket.expires <= Date.now()) {
-				delete tickets[ticket.userid];
-				writeTickets();
-				return this.errorReply(this.tr`${targetUser ? targetUser.name : target}'s ticket ban is already expired.`);
-			}
 
-			const affected = [];
-			for (const t in ticketBans) {
-				if (toID(ticketBans[t].banned) === toID(ticket.banned) && ticketBans[t].userid !== ticket.userid) {
-					affected.push(ticketBans[t].name);
-					delete ticketBans[t];
-				}
-			}
-			affected.unshift(ticket.name);
-			delete ticketBans[ticket.userid];
-			writeTickets();
-
-			this.addModAction(`${affected.join(', ')} ${Chat.plural(affected.length, "were", "was")} ticket unbanned by ${user.name}.`);
+			const affected = HelpTicket.unban(target as ID);
+			this.addModAction(`${affected} was ticket unbanned by ${user.name}.`);
 			this.globalModlog("UNTICKETBAN", toID(target), ` by ${user.id}`);
 			if (targetUser) targetUser.popup(`${user.name} has ticket unbanned you.`);
 		},
