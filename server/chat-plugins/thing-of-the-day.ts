@@ -1,5 +1,6 @@
 import {FS, FSPath} from '../../lib/fs';
 import {Utils} from '../../lib/utils';
+import * as Sqlite from 'better-sqlite3';
 
 const MINUTE = 60 * 1000;
 const PRENOM_BUMP_TIME = 2 * 60 * MINUTE;
@@ -8,11 +9,13 @@ const ROOMIDS = ['thestudio', 'jubilifetvfilms', 'youtube', 'thelibrary',
 
 const rooms: {[k: string]: ChatRoom} = {};
 
-const otds: Map<string, OtdHandler> = new Map();
+export const otds: Map<string, OtdHandler> = new Map();
 
 for (const roomid of ROOMIDS) {
 	rooms[roomid] = Rooms.get(roomid) as ChatRoom;
 }
+
+const PRENOMS_FILE = 'config/chat-plugins/otd-prenoms.json';
 
 const AOTDS_FILE = 'config/chat-plugins/thestudio.tsv';
 const FOTDS_FILE = 'config/chat-plugins/tvbf-films.tsv';
@@ -23,7 +26,6 @@ const MOTWS_FILE = 'config/chat-plugins/prowrestling-matches.tsv';
 const ANOTDS_FILE = 'config/chat-plugins/animeandmanga-shows.tsv';
 const ATHOTDS_FILE = 'config/chat-plugins/sports-athletes.tsv';
 const VGOTDS_FILE = 'config/chat-plugins/videogames-games.tsv';
-const PRENOMS_FILE = 'config/chat-plugins/otd-prenoms.json';
 
 let prenoms: {[k: string]: [string, AnyObject][]} = {};
 try {
@@ -41,7 +43,70 @@ function toNominationId(nomination: string) {
 	return nomination.toLowerCase().replace(/\s/g, '').replace(/\b&\b/g, '');
 }
 
-class OtdHandler {
+export class OtdWriter {
+	keys: string[];
+	name: string;
+	database: Sqlite.Database;
+	handler: OtdHandler;
+	/** Should be removed later, here for conversions. */
+	filename: string;
+	constructor(name: string, keys: string[], handler: OtdHandler, filename: string) {
+		this.name = name;
+		this.keys = keys;
+		this.handler = handler;
+		this.database = new Sqlite(`${__dirname}/../../databases/chat-plugins.db`);
+		this.filename = filename;
+
+		this.initializeTable();
+	}
+	private initializeTable() {
+		let statement = `CREATE TABLE IF NOT EXISTS ${toID(this.name)}_winners (\n`;
+		statement += this.keys.map(key => {
+			return `${key} TEXT NOT NULL,`;
+		}).join('\n').slice(0, -1);
+		statement += `)`;
+		this.database.exec(statement);
+	}
+	writeLine(values: string[]) {
+		let statement = `INSERT INTO ${toID(this.name)}_winners (${this.keys.join(', ')})`;
+		statement += ` VALUES(${[...'?'.repeat(values.length)].join(', ')})`;
+		this.database.prepare(statement).run(...values);
+	}
+	loadWinners() {
+		// if the old data exists, convert it to SQLite and remove it
+		if (FS(this.filename).existsSync()) return this.runConvert(this.filename);
+		const rawResults = this.database.prepare(`SELECT * FROM ${toID(this.name)}_winners`).all();
+		for (const rawEntry of rawResults) {
+			const entry: AnyObject = {};
+			for (const key of this.keys) {
+				entry[key] = rawEntry[key];
+			}
+			this.handler.winners.push(entry);
+		}
+	}
+	runConvert(filename: string) {
+		const path = FS(filename);
+		const content = path.readIfExistsSync();
+		if (!content) return;
+		const data = ('' + content).split("\n");
+		for (const arg of data) {
+			if (!arg || arg === '\r') continue;
+			if (arg.startsWith(`${this.handler.keyLabels[0]}\t`)) continue;
+			const entry: AnyObject = {};
+			const vals = arg.trim().split("\t");
+			for (let i = 0; i < vals.length; i++) {
+				entry[this.keys[i]] = vals[i];
+			}
+			entry.time = entry.time ? Number(entry.time) : 0;
+			this.handler.winners.push(entry);
+		}
+		this.handler.convertNominations();
+		this.handler.saveWinners();
+		path.unlinkIfExistsSync();
+	}
+}
+
+export class OtdHandler {
 	id: string;
 	name: string;
 	room: ChatRoom;
@@ -49,7 +114,7 @@ class OtdHandler {
 	removedNominations: Map<string, AnyObject>;
 	voting: boolean;
 	timer: NodeJS.Timeout | null;
-	file: FSPath;
+	database: OtdWriter;
 	keys: string[];
 	keyLabels: string[];
 	timeLabel: string;
@@ -68,34 +133,17 @@ class OtdHandler {
 		this.voting = false;
 		this.timer = null;
 
-		this.file = FS(filename);
-
 		this.keys = keys;
 		this.keyLabels = keyLabels;
+
 		this.timeLabel = week ? 'Week' : 'Day';
 
 		this.lastPrenom = 0;
 
 		this.winners = [];
 
-		this.file.read().then(content => {
-			const data = ('' + content).split("\n");
-			for (const arg of data) {
-				if (!arg || arg === '\r') continue;
-				if (arg.startsWith(`${this.keyLabels[0]}\t`)) continue;
-				const entry: AnyObject = {};
-				const vals = arg.trim().split("\t");
-				for (let i = 0; i < vals.length; i++) {
-					entry[this.keys[i]] = vals[i];
-				}
-				entry.time = Number(entry.time) || 0;
-				this.winners.push(entry);
-			}
-			this.convertNominations();
-		}).catch((error: string & {code: string}) => {
-			if (error.code !== 'ENOENT') throw new Error(error);
-			return;
-		});
+		this.database = new OtdWriter(name, keys, this, filename);
+		this.database.loadWinners();
 	}
 
 	/**
@@ -312,18 +360,14 @@ class OtdHandler {
 	}
 
 	saveWinners() {
-		let buf = `${this.keyLabels.join('\t')}\n`;
 		for (const winner of this.winners) {
 			const strings = [];
 
 			for (const key of this.keys) {
 				strings.push(winner[key] || '');
 			}
-
-			buf += `${strings.join('\t')}\n`;
+			this.database.writeLine(strings);
 		}
-
-		return this.file.write(buf);
 	}
 
 	async generateWinnerDisplay() {
@@ -401,7 +445,7 @@ class OtdHandler {
 				if (!val) return '';
 				switch (col) {
 				case 'time':
-					const date = new Date(this.winners[i].time);
+					const date = new Date(Number(this.winners[i].time));
 
 					const pad = (num: number) => num < 10 ? '0' + num : num;
 
