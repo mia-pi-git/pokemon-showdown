@@ -107,6 +107,7 @@ const TRANSLATION_DIRECTORY = 'translations/';
 import {FS} from '../lib/fs';
 import {Utils} from '../lib/utils';
 import {formatText, linkRegex, stripFormatting} from './chat-formatter';
+import {PrivateMessages} from './private-messages';
 
 // @ts-ignore no typedef available
 import ProbeModule = require('probe-image-size');
@@ -370,7 +371,9 @@ export class CommandContext extends MessageContext {
 	constructor(
 		options:
 		{message: string, user: User, connection: Connection} &
-		Partial<{room: Room | null, pmTarget: User | null, cmd: string, cmdToken: string, target: string, fullCmd: string}>
+		Partial<{
+			room: Room | null, pmTarget: User | null, cmd: string, cmdToken: string, target: string, fullCmd: string, targetUsername: string
+		}>
 	) {
 		super(
 			options.user, options.room && options.room.settings.language ?
@@ -399,7 +402,7 @@ export class CommandContext extends MessageContext {
 
 		// target user
 		this.targetUser = null;
-		this.targetUsername = "";
+		this.targetUsername = options.targetUsername || "";
 		this.inputUsername = "";
 	}
 
@@ -505,8 +508,16 @@ export class CommandContext extends MessageContext {
 	}
 
 	sendChatMessage(message: string) {
+		console.log(this);
 		if (this.pmTarget) {
-			Chat.sendPM(message, this.user, this.pmTarget);
+			Chat.PrivateMessages.send(message, this.user, this.pmTarget);
+		} else if (toID(this.targetUsername)) {
+			Chat.PrivateMessages.sendOffline(message, this.user, toID(this.targetUsername));
+			const prefix = `|pm|${this.user.getIdentity()}| ${this.targetUsername}|`;
+			this.connection.send(`${prefix}/text Offline PM sent to ${this.targetUsername}!`);
+			this.connection.send(
+				`${prefix}/raw <button class="button" name="send" value="/undoofflinepm ${this.targetUsername}">Undo</button></div>`
+			);
 		} else if (this.room) {
 			this.room.add(`|c|${this.user.getIdentity(this.room.roomid)}|${message}`);
 			if (this.room.game && this.room.game.onLogMessage) {
@@ -1636,15 +1647,8 @@ export const Chat = new class {
 
 		return context.parse();
 	}
-	sendPM(message: string, user: User, pmTarget: User, onlyRecipient: User | null = null) {
-		const buf = `|pm|${user.getIdentity()}|${pmTarget.getIdentity()}|${message}`;
-		if (onlyRecipient) return onlyRecipient.send(buf);
-		user.send(buf);
-		if (pmTarget !== user) pmTarget.send(buf);
-		pmTarget.lastPM = user.id;
-		user.lastPM = pmTarget.id;
-	}
 
+	PrivateMessages = PrivateMessages;
 	packageData: AnyObject = {};
 
 	loadPlugin(file: string) {
@@ -2116,6 +2120,7 @@ export const Chat = new class {
 (Chat as any).escapeHTML = Utils.escapeHTML;
 (Chat as any).html = Utils.html;
 (Chat as any).splitFirst = Utils.splitFirst;
+(Chat as any).sendPM = Chat.PrivateMessages.send;
 
 /**
  * Used by ChatMonitor.
