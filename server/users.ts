@@ -45,6 +45,7 @@ const DEFAULT_TRAINER_SPRITES = [1, 2, 101, 102, 169, 170, 265, 266];
 
 import {FS} from '../lib/fs';
 import {Auth, GlobalAuth, PLAYER_SYMBOL, HOST_SYMBOL, RoomPermission, GlobalPermission} from './user-groups';
+import {Friends} from './chat-plugins/friends';
 
 const MINUTES = 60 * 1000;
 const IDLE_TIMER = 60 * MINUTES;
@@ -356,6 +357,8 @@ export class User extends Chat.MessageContext {
 	lastDisconnected: number;
 	lastConnected: number;
 	foodfight?: {generatedTeam: string[], dish: string, ingredients: string[], timestamp: number};
+	friends: Set<string>;
+	friendRequests: {sent: Set<string>, received: Set<string>};
 
 	chatQueue: ChatQueueEntry[] | null;
 	chatQueueTimeout: NodeJS.Timeout | null;
@@ -441,6 +444,12 @@ export class User extends Chat.MessageContext {
 		this.isStaff = false;
 		this.lastDisconnected = 0;
 		this.lastConnected = connection.connectedAt;
+		this.friends = new Set();
+		this.friendRequests = {
+			sent: new Set(),
+			received: new Set()
+		};
+
 
 		// chat queue
 		this.chatQueue = null;
@@ -793,6 +802,7 @@ export class User extends Chat.MessageContext {
 			Rooms.global.checkAutojoin(user);
 			Chat.loginfilter(user, this, userType);
 			Chat.PrivateMessages.sendSaved(user);
+			Friends.getFriends(user);
 			return true;
 		}
 
@@ -806,6 +816,7 @@ export class User extends Chat.MessageContext {
 		Rooms.global.checkAutojoin(this);
 		Chat.loginfilter(this, null, userType);
 		Chat.PrivateMessages.sendSaved(this);
+		Friends.getFriends(this);
 		return true;
 	}
 	forceRename(name: string, registered: boolean, isForceRenamed = false) {
