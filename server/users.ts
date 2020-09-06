@@ -792,6 +792,7 @@ export class User extends Chat.MessageContext {
 
 			Rooms.global.checkAutojoin(user);
 			Chat.loginfilter(user, this, userType);
+			Chat.PrivateMessages.sendSaved(user);
 			return true;
 		}
 
@@ -804,6 +805,7 @@ export class User extends Chat.MessageContext {
 		}
 		Rooms.global.checkAutojoin(this);
 		Chat.loginfilter(this, null, userType);
+		Chat.PrivateMessages.sendSaved(this);
 		return true;
 	}
 	forceRename(name: string, registered: boolean, isForceRenamed = false) {

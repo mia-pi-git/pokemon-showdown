@@ -496,7 +496,7 @@ export const commands: ChatCommands = {
 	pm: 'msg',
 	whisper: 'msg',
 	w: 'msg',
-	msg(target, room, user, connection) {
+	msg(target, room, user, connection, cmd) {
 		if (!target) return this.parse('/help msg');
 		if (!target.includes(',')) {
 			this.errorReply("You forgot the comma.");
@@ -507,23 +507,33 @@ export const commands: ChatCommands = {
 		if (this.targetUsername === '~') {
 			this.pmTarget = null;
 			this.room = null;
-		} else if (!targetUser) {
-			let error = `User ${this.targetUsername} not found. Did you misspell their name?`;
-			error = `|pm|${this.user.getIdentity()}| ${this.targetUsername}|/error ${error}`;
-			connection.send(error);
-			return;
+		} else if (!this.targetUser && this.targetUsername) {
+			this.pmTarget = null;
+			this.room = null;
 		} else {
 			this.pmTarget = targetUser;
 			this.room = null;
 		}
 
-		if (targetUser && !targetUser.connected) {
-			return this.errorReply(`User ${this.targetUsername} is offline.`);
-		}
-
 		this.parse(target);
 	},
 	msghelp: [`/msg OR /whisper OR /w [username], [message] - Send a private message.`],
+
+	undoofflinepm(target, room, user, connection) {
+		target = this.splitTarget(target).trim();
+		this.targetUsername = toID(this.targetUsername);
+		const num = parseInt(target);
+		if (isNaN(num)) return this.errorReply(`Invalid number of PMs to delete.`);
+		if (num < 1) return this.errorReply(`Specify a number higher than 0.`)
+		if (this.targetUser) {
+			return this.errorReply(`The user '${this.targetUser?.name}' is online - your PMs have already been sent.`);
+		}
+		Chat.PrivateMessages.undoPM(user.id, this.targetUsername, num);
+		return connection.send(
+			`|pm|${user.getIdentity()}| ${this.targetUsername}|/text ` +
+			`Returned ${num ? `${num} of your offline PMs` : 'your last offline PM'} to '${this.targetUsername}'!`
+		);
+	},
 
 	inv: 'invite',
 	invite(target, room, user) {
