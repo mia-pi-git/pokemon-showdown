@@ -1700,7 +1700,15 @@ export const commands: ChatCommands = {
 			// If the help command is a function, parse it instead
 			this.run(currentBestHelp.help);
 		} else if (Array.isArray(currentBestHelp.help)) {
-			this.sendReply(currentBestHelp.help.map(line => this.tr(line)).join('\n'));
+			const commandRegex = /(\/|!)(.*) /;
+			this.sendReply(currentBestHelp.help.map(item => {
+				const command = commandRegex.exec(item)?.pop();
+				if (command) {
+					const requiresMessage = this.getRequiresMessage(command);
+					return `${item} ${requiresMessage}`;
+				}
+				return item;
+			}).join('\n'));
 		}
 	},
 	helphelp: [

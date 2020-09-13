@@ -47,6 +47,8 @@ export type AnnotatedChatHandler = ChatHandler & {
 	cmd: string,
 	fullCmd: string,
 	isPrivate: boolean,
+	permission: string | null,
+	rank: GroupSymbol | null,
 };
 export interface ChatCommands {
 	[k: string]: ChatHandler | string | string[] | ChatCommands;
@@ -1326,7 +1328,23 @@ export class CommandContext extends MessageContext {
 		this.splitTarget(target, exactName);
 		return this.targetUser;
 	}
-
+	/**
+	 * Auto-generates the `requires: (ranks)` message for command help.
+	 */
+	getRequiresMessage(command: string) {
+		const entry = this.parseCommand(`/${command}`);
+		if (!entry) throw new ErrorMessage(`Command not found.`);
+		const {handler} = entry;
+		if (!handler) throw new Error(`Attempting to get a 'requires' message for a command that does not exist.`);
+		if (!handler.permission && !handler.rank) return;
+		let buffer = `Requires: `;
+		buffer += Config.groupsranking.filter(item => {
+			if (handler.rank) return Users.Auth.atLeast(item, handler.rank);
+			if (handler.permission) return handler.permission in Config.groups[item];
+			return false;
+		}).join(' ');
+		return buffer;
+	}
 	/**
 	 * Given a message in the form "USERNAME" or "USERNAME, MORE", splits
 	 * it apart:
@@ -1664,6 +1682,8 @@ export const Chat = new class {
 			entry.hasRoomPermissions = /\bthis\.(checkCan|can)\([^,)\n]*, [^,)\n]*,/.test(handlerCode);
 			entry.broadcastable = /\bthis\.(?:(check|can|run)Broadcast)\(/.test(handlerCode);
 			entry.isPrivate = /\bthis\.(?:privately(Check)?Can|commandDoesNotExist)\(/.test(handlerCode);
+			entry.permission = /(user|this)\.(privatelyCheckCan|checkCan|can)\((?:'|"|`)(.*?)(?:'|"|`)/.exec(handlerCode)?.pop();
+			entry.rank = /atLeast\((.*), (?:'|"|`)(.*)(?:'|"|`)/.exec(handlerCode)?.pop();
 
 			// assign properties from the base command if the current command uses CommandContext.run.
 			const runsCommand = /this.run\((?:'|"|`)(.*?)(?:'|"|`)\)/.exec(handlerCode);
