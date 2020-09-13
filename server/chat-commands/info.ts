@@ -10,6 +10,7 @@
  */
 import * as net from 'net';
 import {YoutubeInterface} from '../chat-plugins/youtube';
+import {LogViewer} from '../chat-plugins/chatlog';
 import {Utils} from '../../lib/utils';
 
 export const commands: ChatCommands = {
@@ -2595,9 +2596,29 @@ export const commands: ChatCommands = {
 		return this.parse(`/join view-quotes-${targetRoom.roomid}`);
 	},
 
+	namecolor(target, room, user) {
+		this.runBroadcast();
+		if (!toID(target)) target = user.name;
+		if (toID(target).length > 18) {
+			return this.errorReply(`The provided name is too long.`);
+		}
+		if (this.filter(target) !== target) {
+			return this.errorReply(`Invalid name.`);
+		}
+		const color = LogViewer.usernameColor(target);
+		target = Utils.escapeHTML(target);
+		let buffer = `${target}'s username color:<br /><strong style="color:${color}">${target}</strong> (${color})`;
+		const inherited = LogViewer.colorCache.custom[toID(target)];
+		if (inherited) {
+			buffer += `<br /> (Inherited from '${inherited}')`;
+		}
+		return this.sendReplyBox(buffer);
+	},
+	namecolorhelp: [`/namecolor [username] - Displays the namecolor of [username].`],
+
 	approvallog(target, room, user) {
 		room = this.requireRoom();
-		return this.parse(`/sl approved showing media from, ${room.roomid}`);
+		return this.parse(`/sl approved showing media from, room:${room.roomid}`);
 	},
 
 	viewapprovals(target, room, user) {
