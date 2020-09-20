@@ -50,7 +50,7 @@ describe('Team Validator', function () {
 	it('should validate Gen 2 IVs', function () {
 		let team = Dex.fastUnpackTeam('|raikou|||hiddenpowerwater||||14,28,26,,,|||');
 		let illegal = TeamValidator.get('gen2ou').validateTeam(team);
-		assert.equal(illegal, null);
+		assert.strictEqual(illegal, null);
 
 		team = Dex.fastUnpackTeam('|raikou|||hiddenpowerfire||||14,28,26,,,|||');
 		illegal = TeamValidator.get('gen2ou').validateTeam(team);
@@ -68,7 +68,7 @@ describe('Team Validator', function () {
 	it('should validate Gen 2 EVs', function () {
 		let team = Dex.fastUnpackTeam('|gengar|||thunderbolt||,,,200,200,|||||');
 		let illegal = TeamValidator.get('gen2ou').validateTeam(team);
-		assert.equal(illegal, null);
+		assert.strictEqual(illegal, null);
 
 		team = Dex.fastUnpackTeam('|gengar|||thunderbolt||,,,248,252,|||||');
 		illegal = TeamValidator.get('gen2ou').validateTeam(team);
@@ -86,7 +86,7 @@ describe('Team Validator', function () {
 			{species: 'latiasmega', ability: 'levitate', item: 'latiasite', moves: ['hiddenpowerfighting'], evs: {hp: 1}},
 		];
 		illegal = TeamValidator.get('gen7ubers').validateTeam(team);
-		assert.equal(illegal, null);
+		assert.strictEqual(illegal, null);
 	});
 
 	it('should reject non-existent natures', function () {
@@ -110,13 +110,13 @@ describe('Team Validator', function () {
 			{species: 'pikachu', ability: 'static', moves: ['agility', 'protect', 'thunder', 'thunderbolt'], evs: {hp: 1}},
 		];
 		let illegal = TeamValidator.get('gen7anythinggoes').validateTeam(team);
-		assert.equal(illegal, null);
+		assert.strictEqual(illegal, null);
 
 		team = [
 			{species: 'meowstic', ability: 'prankster', moves: ['trick', 'magiccoat'], evs: {hp: 1}},
 		];
 		illegal = TeamValidator.get('gen7anythinggoes').validateTeam(team);
-		assert.equal(illegal, null);
+		assert.strictEqual(illegal, null);
 	});
 
 	it('should reject illegal movesets', function () {
@@ -151,7 +151,7 @@ describe('Team Validator', function () {
 			{species: 'torkoal', ability: 'drought', moves: ['bodyslam'], evs: {hp: 1}},
 		];
 		illegal = TeamValidator.get('gen7ou@@@-drought,+drought').validateTeam(team);
-		assert.equal(illegal, null);
+		assert.strictEqual(illegal, null);
 		illegal = TeamValidator.get('gen7ou@@@-drought,+drought,-drought').validateTeam(team);
 		assert(illegal);
 	});
@@ -162,7 +162,7 @@ describe('Team Validator', function () {
 			{species: 'necrozmadawnwings', ability: 'prismarmor', shiny: true, moves: ['moongeistbeam', 'metalclaw'], evs: {hp: 1}},
 		];
 		let illegal = TeamValidator.get('gen7anythinggoes').validateTeam(team);
-		assert.equal(illegal, null);
+		assert.strictEqual(illegal, null);
 
 		// Shedinja should be able to take one level-up move from ninjask in gen 3-4
 
@@ -170,13 +170,13 @@ describe('Team Validator', function () {
 			{species: 'shedinja', ability: 'wonderguard', moves: ['silverwind', 'swordsdance'], evs: {hp: 1}},
 		];
 		illegal = TeamValidator.get('gen4ou').validateTeam(team);
-		assert.equal(illegal, null);
+		assert.strictEqual(illegal, null);
 
 		team = [
 			{species: 'shedinja', ability: 'wonderguard', moves: ['silverwind', 'batonpass'], evs: {hp: 1}},
 		];
 		illegal = TeamValidator.get('gen3ou').validateTeam(team);
-		assert.equal(illegal, null);
+		assert.strictEqual(illegal, null);
 
 		team = [
 			{species: 'shedinja', ability: 'wonderguard', moves: ['silverwind', 'swordsdance', 'batonpass'], evs: {hp: 1}},
@@ -205,7 +205,7 @@ describe('Team Validator', function () {
 		illegal = TeamValidator.get('gen5ou').validateTeam(team);
 		assert(illegal);
 		illegal = TeamValidator.get('gen7ou').validateTeam(team);
-		assert.equal(illegal, null);
+		assert.strictEqual(illegal, null);
 
 		// Slam comes from Azurill, Future Sight comes from a variety of Marill-only egg moves
 
@@ -248,14 +248,14 @@ describe('Team Validator', function () {
 			{species: 'weezing', ability: 'levitate', moves: ['painsplit', 'willowisp'], evs: {hp: 1}},
 		];
 		illegal = TeamValidator.get('gen3ou').validateTeam(team);
-		assert.equal(illegal, null);
+		assert.strictEqual(illegal, null);
 
 		// chainbreed smeargle to snubbull to chansey
 		team = [
 			{species: 'blissey', moves: ['present', 'healbell']},
 		];
 		illegal = TeamValidator.get('gen2ou').validateTeam(team);
-		assert.equal(illegal, null);
+		assert.strictEqual(illegal, null);
 
 		// the weirdest chainbreed I've ever seen:
 		// breed male Curse Snorlax in Gen 3, transfer to XD, teach Self-destruct
@@ -264,16 +264,16 @@ describe('Team Validator', function () {
 			{species: 'snorlax', ability: 'gluttony', moves: ['curse', 'selfdestruct'], evs: {hp: 1}},
 		];
 		illegal = TeamValidator.get('gen5ou').validateTeam(team);
-		assert.equal(illegal, null);
+		assert.strictEqual(illegal, null);
 
 		// tradeback: egg moves Swords Dance, Rock Slide; trade back to gen 1, and learn Body Slam
 		team = [
 			{species: 'marowak', moves: ['swordsdance', 'rockslide', 'bodyslam']},
 		];
 		illegal = TeamValidator.get('gen2ou').validateTeam(team);
-		assert.equal(illegal, null);
+		assert.strictEqual(illegal, null);
 		illegal = TeamValidator.get('gen1outradeback').validateTeam(team);
-		assert.equal(illegal, null);
+		assert.strictEqual(illegal, null);
 		illegal = TeamValidator.get('gen1ou').validateTeam(team);
 		assert(illegal);
 
@@ -290,7 +290,7 @@ describe('Team Validator', function () {
 			{species: 'clefairy', moves: ['dizzypunch', 'bodyslam']},
 		];
 		illegal = TeamValidator.get('gen2ou').validateTeam(team);
-		assert.equal(illegal, null);
+		assert.strictEqual(illegal, null);
 
 		// can't tradeback: gen 2 egg move
 		team = [
@@ -317,14 +317,14 @@ describe('Team Validator', function () {
 			{species: 'staraptor', ability: 'reckless', moves: ['pursuit'], evs: {hp: 1}},
 		];
 		illegal = TeamValidator.get('gen5ou').validateTeam(team);
-		assert.equal(illegal, null);
+		assert.strictEqual(illegal, null);
 
 		// Nidoqueen can't breed but can still get egg moves from prevos
 		team = [
 			{species: 'nidoqueen', ability: 'poisonpoint', moves: ['charm'], evs: {hp: 1}},
 		];
 		illegal = TeamValidator.get('gen6ou').validateTeam(team);
-		assert.equal(illegal, null);
+		assert.strictEqual(illegal, null);
 
 		team = [
 			{species: 'armaldo', ability: 'battlearmor', moves: ['knockoff', 'rapidspin'], evs: {hp: 1}},
@@ -336,27 +336,27 @@ describe('Team Validator', function () {
 			{species: 'hitmontop', ability: 'intimidate', moves: ["highjumpkick", 'machpunch'], evs: {hp: 1}},
 		];
 		illegal = TeamValidator.get('gen3ou').validateTeam(team);
-		assert.equal(illegal, null);
+		assert.strictEqual(illegal, null);
 
 		team = [
 			{species: 'snorlax', ability: 'immunity', moves: ['curse', 'pursuit'], evs: {hp: 1}},
 		];
 		illegal = TeamValidator.get('gen4ou').validateTeam(team);
-		assert.equal(illegal, null);
+		assert.strictEqual(illegal, null);
 
 		team = [
 			{species: 'charizard', ability: 'blaze', moves: ['dragondance'], evs: {hp: 1}},
 		];
 		illegal = TeamValidator.get('gen4ou').validateTeam(team);
-		assert.equal(illegal, null);
+		assert.strictEqual(illegal, null);
 		illegal = TeamValidator.get('gen5ou').validateTeam(team);
-		assert.equal(illegal, null);
+		assert.strictEqual(illegal, null);
 
 		team = [
 			{species: 'dragonite', ability: 'multiscale', moves: ['extremespeed'], evs: {hp: 1}},
 		];
 		illegal = TeamValidator.get('gen5ou').validateTeam(team);
-		assert.equal(illegal, null);
+		assert.strictEqual(illegal, null);
 
 		team = [
 			{species: 'dragonite', ability: 'multiscale', moves: ['extremespeed', 'aquajet'], evs: {hp: 1}},
@@ -378,18 +378,18 @@ describe('Team Validator', function () {
 			{species: 'machamp', ability: 'steadfast', moves: ['fissure'], evs: {hp: 1}},
 		];
 		let illegal = TeamValidator.get('gen7anythinggoes').validateTeam(team);
-		assert.equal(illegal, null);
+		assert.strictEqual(illegal, null);
 		team = [
 			{species: 'tauros', ability: 'sheerforce', moves: ['bodyslam'], evs: {hp: 1}},
 		];
 		illegal = TeamValidator.get('gen7anythinggoes').validateTeam(team);
-		assert.equal(illegal, null);
+		assert.strictEqual(illegal, null);
 		team = [
 			{species: 'tauros', ability: 'intimidate', ivs: {hp: 31, atk: 31, def: 30, spa: 30, spd: 30, spe: 30}, moves: ['bodyslam'], evs: {hp: 1}},
 			{species: 'suicune', ability: 'innerfocus', moves: ['scald'], evs: {hp: 1}},
 		];
 		illegal = TeamValidator.get('gen7anythinggoes').validateTeam(team);
-		assert.equal(illegal, null);
+		assert.strictEqual(illegal, null);
 
 		team = [
 			{species: 'machamp', ability: 'noguard', moves: ['fissure'], evs: {hp: 1}},
@@ -408,7 +408,7 @@ describe('Team Validator', function () {
 			{species: 'rockruff', ability: 'owntempo', moves: ['happyhour'], evs: {hp: 1}},
 		];
 		let illegal = TeamValidator.get('gen7anythinggoes').validateTeam(team);
-		assert.equal(illegal, null);
+		assert.strictEqual(illegal, null);
 		team = [
 			{species: 'rockruff', level: 9, ability: 'owntempo', moves: ['happyhour'], evs: {hp: 1}},
 		];
@@ -418,7 +418,7 @@ describe('Team Validator', function () {
 			{species: 'rockruff', level: 9, ability: 'owntempo', moves: ['tackle'], evs: {hp: 1}},
 		];
 		illegal = TeamValidator.get('gen7anythinggoes').validateTeam(team);
-		assert.equal(illegal, null);
+		assert.strictEqual(illegal, null);
 		team = [
 			{species: 'rockruff', level: 9, ability: 'steadfast', moves: ['happyhour'], evs: {hp: 1}},
 		];
@@ -429,7 +429,7 @@ describe('Team Validator', function () {
 			{species: 'lycanrocdusk', ability: 'toughclaws', moves: ['happyhour'], evs: {hp: 1}},
 		];
 		illegal = TeamValidator.get('gen7anythinggoes').validateTeam(team);
-		assert.equal(illegal, null);
+		assert.strictEqual(illegal, null);
 		team = [
 			{species: 'lycanroc', ability: 'steadfast', moves: ['happyhour'], evs: {hp: 1}},
 		];
@@ -445,7 +445,7 @@ describe('Team Validator', function () {
 			{species: 'rayquazamega', item: 'leftovers', ability: 'airlock', moves: ['dragonascent'], evs: {hp: 1}},
 		];
 		let illegal = TeamValidator.get('gen7anythinggoes').validateTeam(team);
-		assert.equal(illegal, null);
+		assert.strictEqual(illegal, null);
 
 		// mega forme ability
 		team = [
@@ -454,7 +454,7 @@ describe('Team Validator', function () {
 			{species: 'rayquazamega', item: 'leftovers', ability: 'deltastream', moves: ['dragonascent'], evs: {hp: 1}},
 		];
 		illegal = TeamValidator.get('gen7anythinggoes').validateTeam(team);
-		assert.equal(illegal, null);
+		assert.strictEqual(illegal, null);
 	});
 
 	it('should reject Ultra Necrozma where ambiguous', function () {
@@ -470,7 +470,7 @@ describe('Team Validator', function () {
 			{species: 'garchomp', ability: 'roughskin', moves: ['endure'], evs: {hp: 1}},
 		];
 		const illegal = TeamValidator.get('gen5ou').validateTeam(team);
-		assert.equal(illegal, null);
+		assert.strictEqual(illegal, null);
 	});
 
 	it('should reject newer Pokemon in older gens', function () {
@@ -538,7 +538,7 @@ describe('Team Validator', function () {
 		let illegal = TeamValidator.get('gen7anythinggoes').validateTeam(team);
 		assert(illegal);
 		illegal = TeamValidator.get('gen7anythinggoes@@@+cap').validateTeam(team);
-		assert.equal(illegal, null);
+		assert.strictEqual(illegal, null);
 
 		team = [
 			{species: 'pikachu', ability: 'airlock', moves: ['thunderbolt'], evs: {hp: 1}},
@@ -546,7 +546,7 @@ describe('Team Validator', function () {
 		illegal = TeamValidator.get('gen7anythinggoes').validateTeam(team);
 		assert(illegal);
 		illegal = TeamValidator.get('gen7ou@@@!obtainableabilities').validateTeam(team);
-		assert.equal(illegal, null);
+		assert.strictEqual(illegal, null);
 
 		team = [
 			{species: 'pikachu', ability: 'airlock', moves: ['dragondance'], evs: {hp: 1}},
@@ -572,7 +572,7 @@ describe('Team Validator', function () {
 			{species: 'greninja', ability: 'battlebond', moves: ['surf'], evs: {hp: 1}},
 		];
 		illegal = TeamValidator.get('gen7anythinggoes@@@!Obtainable Formes,-Greninja-Ash').validateTeam(team);
-		assert.equal(illegal, null);
+		assert.strictEqual(illegal, null);
 	});
 
 	it('should allow Pokemon to be unbanned', function () {
@@ -580,7 +580,7 @@ describe('Team Validator', function () {
 			{species: 'blaziken', ability: 'blaze', moves: ['skyuppercut'], evs: {hp: 1}},
 		];
 		const illegal = TeamValidator.get('gen7ou@@@+Blaziken').validateTeam(team);
-		assert.equal(illegal, null);
+		assert.strictEqual(illegal, null);
 	});
 
 	it('should allow Pokemon to be whitelisted', function () {
@@ -588,7 +588,7 @@ describe('Team Validator', function () {
 			{species: 'giratina', ability: 'pressure', moves: ['protect'], evs: {hp: 1}},
 		];
 		let illegal = TeamValidator.get('gen7ubers@@@-allpokemon,+giratinaaltered').validateTeam(team);
-		assert.equal(illegal, null);
+		assert.strictEqual(illegal, null);
 
 		team = [
 			{species: 'giratinaorigin', ability: 'levitate', moves: ['protect'], evs: {hp: 1}},
@@ -616,7 +616,7 @@ describe('Team Validator', function () {
 			{species: 'absol', ability: 'pressure', moves: ['batonpass'], evs: {hp: 1}},
 		];
 		const illegal = TeamValidator.get('gen7ou@@@+Baton Pass').validateTeam(team);
-		assert.equal(illegal, null);
+		assert.strictEqual(illegal, null);
 	});
 
 	it('should allow items to be banned', function () {
@@ -632,7 +632,7 @@ describe('Team Validator', function () {
 			{species: 'eevee', ability: 'runaway', moves: ['tackle'], item: 'eeviumz', evs: {hp: 1}},
 		];
 		const illegal = TeamValidator.get('gen7lc@@@+Eevium Z').validateTeam(team);
-		assert.equal(illegal, null);
+		assert.strictEqual(illegal, null);
 	});
 
 	it('should allow abilities to be banned', function () {
@@ -648,7 +648,7 @@ describe('Team Validator', function () {
 			{species: 'wobbuffet', ability: 'shadowtag', moves: ['counter'], evs: {hp: 1}},
 		];
 		const illegal = TeamValidator.get('gen7ou@@@+Shadow Tag').validateTeam(team);
-		assert.equal(illegal, null);
+		assert.strictEqual(illegal, null);
 	});
 
 	it('should allow complex bans to be added', function () {
@@ -672,7 +672,7 @@ describe('Team Validator', function () {
 			{species: 'abomasnow', ability: 'snowwarning', moves: ['grasswhistle'], evs: {hp: 1}},
 		];
 		let illegal = TeamValidator.get('gen7doublesou@@@-Gravity ++ Grass Whistle > 2').validateTeam(team);
-		assert.equal(illegal, null);
+		assert.strictEqual(illegal, null);
 
 		team = [
 			{species: 'smeargle', ability: 'owntempo', moves: ['gravity'], evs: {hp: 1}},
@@ -689,7 +689,7 @@ describe('Team Validator', function () {
 			{species: 'abomasnow', ability: 'snowwarning', moves: ['grasswhistle'], evs: {hp: 1}},
 		];
 		const illegal = TeamValidator.get('gen7doublesou@@@+Gravity ++ Grass Whistle').validateTeam(team);
-		assert.equal(illegal, null);
+		assert.strictEqual(illegal, null);
 	});
 
 	it('should allow rule bundles to be removed', function () {
@@ -698,7 +698,7 @@ describe('Team Validator', function () {
 			{species: 'azumarill', ability: 'hugepower', moves: ['waterfall'], evs: {hp: 1}},
 		];
 		const illegal = TeamValidator.get('gen7ou@@@!Standard').validateTeam(team);
-		assert.equal(illegal, null);
+		assert.strictEqual(illegal, null);
 	});
 
 	it('should allow rule bundles to be overridden', function () {
@@ -706,6 +706,6 @@ describe('Team Validator', function () {
 			{species: 'charizard-mega-y', ability: 'drought', item: 'charizarditey', moves: ['wingattack'], evs: {hp: 1}},
 		];
 		const illegal = TeamValidator.get('gen8customgame@@@Standard NatDex').validateTeam(team);
-		assert.equal(illegal, null);
+		assert.strictEqual(illegal, null);
 	});
 });

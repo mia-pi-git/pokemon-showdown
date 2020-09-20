@@ -16,8 +16,8 @@ describe('Symbiosis', function () {
 			[{species: 'Smeargle', moves: ['snarl']}, {species: 'Smeargle', moves: ['snarl']}],
 		]);
 		battle.makeChoices('move snarl, move snarl', 'move snarl, move snarl');
-		assert.equal(battle.p1.active[0].item, '');
-		assert.equal(battle.p1.active[1].item, '');
+		assert.strictEqual(battle.p1.active[0].item, '');
+		assert.strictEqual(battle.p1.active[1].item, '');
 	});
 
 	it('should not share an item required to change forme', function () {
@@ -26,8 +26,8 @@ describe('Symbiosis', function () {
 			[{species: 'Smeargle', moves: ['snarl']}, {species: 'Smeargle', moves: ['snarl']}],
 		]);
 		battle.makeChoices('move snarl, move snarl', 'move snarl, move snarl');
-		assert.equal(battle.p1.active[0].item, 'latiasite');
-		assert.equal(battle.p1.active[1].item, '');
+		assert.strictEqual(battle.p1.active[0].item, 'latiasite');
+		assert.strictEqual(battle.p1.active[1].item, '');
 	});
 
 	it.skip('should not trigger on an ally losing their Eject Button in Generation 7 or later', function () {
@@ -41,8 +41,8 @@ describe('Symbiosis', function () {
 		]]);
 		battle.makeChoices('auto', 'move tackle 2, move sleeptalk');
 
-		assert.equal(battle.p1.active[0].item, 'leftovers');
-		assert.equal(battle.p1.active[1].item, '');
+		assert.strictEqual(battle.p1.active[0].item, 'leftovers');
+		assert.strictEqual(battle.p1.active[1].item, '');
 	});
 
 	// See Marty's research for many more examples: https://www.smogon.com/forums/threads/battle-mechanics-research.3489239/post-6401506
@@ -58,15 +58,15 @@ describe('Symbiosis', function () {
 			]]);
 
 			battle.makeChoices('auto', 'move closecombat 2, move sleeptalk');
-			assert.equal(battle.p1.active[0].item, '');
-			assert.equal(battle.p1.active[1].item, 'leftovers');
+			assert.strictEqual(battle.p1.active[0].item, '');
+			assert.strictEqual(battle.p1.active[1].item, 'leftovers');
 			battle.makeChoices('switch 3');
 			battle.makeChoices('move sleeptalk, switch 3', 'auto');
 
 			// Close Combat brought Roggenrola down to Sturdy = 1 HP
 			const roggenrola = battle.p1.active[1];
 			const targetHP = 1 + (Math.floor(roggenrola.maxhp / 16) * 4);
-			assert.equal(targetHP, roggenrola.hp);
+			assert.strictEqual(targetHP, roggenrola.hp);
 		});
 
 		it('should cause Choice items to apply 2 times', function () {

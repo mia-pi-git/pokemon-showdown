@@ -10,7 +10,7 @@ describe('Users features', function () {
 	describe('Users', function () {
 		describe('get', function () {
 			it('should be a function', function () {
-				assert.equal(typeof Users.get, 'function');
+				assert.strictEqual(typeof Users.get, 'function');
 			});
 		});
 		describe('connections', function () {
@@ -32,16 +32,16 @@ describe('Users features', function () {
 				it('should remove the connection from Users.connections', function () {
 					const connectionid = this.connection.id;
 					this.connection.destroy();
-					assert.equal(Users.connections.has(connectionid), false);
+					assert.strictEqual(Users.connections.has(connectionid), false);
 				});
 
 				it('should destroy any user on the connection as well', function () {
 					const user = new User(this.connection);
 					const userid = user.id;
-					assert.equal(Users.users.has(userid), true, 'before disconnecting');
+					assert.strictEqual(Users.users.has(userid), true, 'before disconnecting');
 					user.disconnectAll();
 					user.destroy();
-					assert.equal(Users.users.has(userid), false, 'after disconnecting');
+					assert.strictEqual(Users.users.has(userid), false, 'after disconnecting');
 				});
 			});
 
@@ -94,8 +94,8 @@ describe('Users features', function () {
 						while (--iterations) user.mergeConnection(new Connection());
 
 						user.disconnectAll();
-						assert.equal(user.connections.length, 0);
-						assert.equal(user.connected, false);
+						assert.strictEqual(user.connections.length, 0);
+						assert.strictEqual(user.connected, false);
 					});
 
 					it('should unref all ' + totalConnections + ' connection(s)', function () {
@@ -119,7 +119,7 @@ describe('Users features', function () {
 
 						user.disconnectAll();
 						for (let i = 0; i < totalConnections; i++) {
-							assert.equal(connections[i].user, null);
+							assert.strictEqual(connections[i].user, null);
 						}
 					});
 				}
@@ -135,14 +135,14 @@ describe('Users features', function () {
 					Punishments.sharedIps = new Map();
 					const users = ['127.0.0.1', '127.0.0.1'].map(ip => new User(new Connection(ip)));
 					await Punishments.ban(users[0]);
-					assert.equal(users[0].connected, false);
-					assert.equal(users[1].connected, false);
+					assert.strictEqual(users[0].connected, false);
+					assert.strictEqual(users[1].connected, false);
 				});
 
 				it('should not disconnect users at other IPs', async function () {
 					const users = ['127.0.0.1', '127.0.0.2'].map(ip => new User(new Connection(ip)));
 					await Punishments.ban(users[0]);
-					assert.equal(users[1].connected, true);
+					assert.strictEqual(users[1].connected, true);
 				});
 			});
 
@@ -160,15 +160,15 @@ describe('Users features', function () {
 				it(`should allow 'u' permissions on lower ranked users`, function () {
 					const user = new User();
 					user.tempGroup = '@';
-					assert.equal(user.can('globalban', user), false, 'targeting self');
+					assert.strictEqual(user.can('globalban', user), false, 'targeting self');
 
 					const target = new User();
 					target.tempGroup = ' ';
-					assert.equal(user.can('globalban', target), true, 'targeting lower rank');
+					assert.strictEqual(user.can('globalban', target), true, 'targeting lower rank');
 					target.tempGroup = '@';
-					assert.equal(user.can('globalban', target), false, 'targeting same rank');
+					assert.strictEqual(user.can('globalban', target), false, 'targeting same rank');
 					target.tempGroup = '&';
-					assert.equal(user.can('globalban', target), false, 'targeting higher rank');
+					assert.strictEqual(user.can('globalban', target), false, 'targeting higher rank');
 				});
 				it(`should not allow users to demote themselves`, function () {
 					room = Rooms.createChatRoom("test");
@@ -177,9 +177,9 @@ describe('Users features', function () {
 					user.joinRoom(room);
 					for (const group of [' ', '+', '@']) {
 						room.auth.set(user.id, group);
-						assert.equal(room.auth.get(user.id), group, 'before demotion attempt');
+						assert.strictEqual(room.auth.get(user.id), group, 'before demotion attempt');
 						Chat.parse("/roomdeauth User", room, user, user.connections[0]);
-						assert.equal(room.auth.get(user.id), group, 'after demotion attempt');
+						assert.strictEqual(room.auth.get(user.id), group, 'after demotion attempt');
 					}
 				});
 			});

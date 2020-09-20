@@ -54,7 +54,7 @@ describe(`Pursuit`, function () {
 		const clefable = battle.p2.pokemon[0];
 		const hpBeforeSwitch = clefable.hp;
 		battle.makeChoices('switch 2', 'switch 2');
-		assert.equal(hpBeforeSwitch, clefable.hp);
+		assert.strictEqual(hpBeforeSwitch, clefable.hp);
 	});
 
 	it(`should not double in power or activate before a switch if targeting an ally`, function () {
@@ -68,6 +68,6 @@ describe(`Pursuit`, function () {
 		]]);
 		const furret = battle.p1.pokemon[2];
 		battle.makeChoices('move Pursuit mega -2, switch 3', 'auto');
-		assert.equal(furret.maxhp - furret.hp, 66);
+		assert.strictEqual(furret.maxhp - furret.hp, 66);
 	});
 });

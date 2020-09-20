@@ -20,7 +20,7 @@ describe('Eject Pack', function () {
 			{species: 'Mew', ability: 'noability', moves: ['protect']},
 		]});
 		battle.makeChoices();
-		assert.equal(battle.requestState, 'switch');
+		assert.strictEqual(battle.requestState, 'switch');
 	});
 
 	it("should switch out the holder when its stats are lowered", function () {
@@ -33,7 +33,7 @@ describe('Eject Pack', function () {
 			{species: 'Mew', moves: ['splash']},
 		]});
 		battle.makeChoices();
-		assert.equal(battle.p2.requestState, 'switch');
+		assert.strictEqual(battle.p2.requestState, 'switch');
 	});
 
 	it.skip("should not trigger until after all entrance abilities have resolved during simultaneous switches", function () {
@@ -49,7 +49,7 @@ describe('Eject Pack', function () {
 		battle.makeChoices();
 		assert(battle.field.isWeather('sunnyday'));
 		assert(battle.field.isTerrain('electricterrain'));
-		assert.equal(battle.p2.requestState, 'switch');
+		assert.strictEqual(battle.p2.requestState, 'switch');
 	});
 
 	it.skip("should only trigger the fastest Eject Pack when multiple targets with Eject Pack have stats lowered", function () {
@@ -64,8 +64,8 @@ describe('Eject Pack', function () {
 		]]);
 		battle.makeChoices('move leer, move sleeptalk', 'move sleeptalk, move sleeptalk');
 		battle.makeChoices();
-		assert.equal(battle.p2.active[0].species, "Morelull");
-		assert.equal(battle.p2.active[1].species, "Wynaut");
+		assert.strictEqual(battle.p2.active[0].species, "Morelull");
+		assert.strictEqual(battle.p2.active[1].species, "Wynaut");
 	});
 
 	it("should cause Pokemon to switch out during the semi-invulernable state", function () {
@@ -78,6 +78,6 @@ describe('Eject Pack', function () {
 		]]);
 		battle.makeChoices('move phantomforce', 'move sleeptalk');
 		battle.makeChoices('move phantomforce', 'switch 2');
-		assert.equal(battle.p1.requestState, 'switch');
+		assert.strictEqual(battle.p1.requestState, 'switch');
 	});
 });

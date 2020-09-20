@@ -14,7 +14,7 @@ describe('Imposter', function () {
 		battle = common.createBattle();
 		battle.setPlayer('p1', {team: [{species: "Ditto", ability: 'imposter', moves: ['sleeptalk']}]});
 		battle.setPlayer('p2', {team: [{species: "Hoopa-Unbound", ability: 'magician', moves: ['rest']}]});
-		assert.equal(battle.p1.active[0].species, battle.p2.active[0].species);
+		assert.strictEqual(battle.p1.active[0].species, battle.p2.active[0].species);
 	});
 
 	it('should be blocked by substitutes', function () {

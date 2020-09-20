@@ -20,7 +20,7 @@ describe('Multiscale', function () {
 		const curhp = pokemon.hp;
 		battle.resetRNG();
 		battle.makeChoices('move splash', 'move incinerate');
-		assert.equal(damage, battle.modify(curhp - pokemon.hp, 0.5));
+		assert.strictEqual(damage, battle.modify(curhp - pokemon.hp, 0.5));
 	});
 
 	it('should be suppressed by Mold Breaker', function () {
@@ -33,6 +33,6 @@ describe('Multiscale', function () {
 		const curhp = pokemon.hp;
 		battle.resetRNG();
 		battle.makeChoices('move splash', 'move incinerate');
-		assert.equal(curhp - pokemon.hp, damage);
+		assert.strictEqual(curhp - pokemon.hp, damage);
 	});
 });

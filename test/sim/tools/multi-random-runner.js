@@ -8,6 +8,6 @@ describe('MultiRandomRunner (slow)', async function () {
 	it('should run successfully', async function () {
 		this.timeout(0);
 		const opts = {totalGames: 100, prng: [1, 2, 3, 4]};
-		assert.equal(await (new MultiRandomRunner(opts).run()), 0);
+		assert.strictEqual(await (new MultiRandomRunner(opts).run()), 0);
 	});
 });

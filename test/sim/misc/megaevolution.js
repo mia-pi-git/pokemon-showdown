@@ -20,7 +20,7 @@ describe('Mega Evolution', function () {
 		]});
 		const megaMon = battle.p1.active[0];
 		battle.makeChoices('move metalclaw mega', 'move uturn');
-		assert.equal(megaMon.ability, 'toughclaws');
+		assert.strictEqual(megaMon.ability, 'toughclaws');
 	});
 
 	it('[Hackmons] should be able to override different formes but not same forme', function () {
@@ -29,12 +29,12 @@ describe('Mega Evolution', function () {
 		], [
 			{species: "Kangaskhan-Mega", item: 'kangaskhanite', moves: ['protect']},
 		]]);
-		assert.equal(battle.p1.active[0].species.name, 'Charizard-Mega-Y');
+		assert.strictEqual(battle.p1.active[0].species.name, 'Charizard-Mega-Y');
 		assert.throws(() => {
 			battle.makeChoices('move protect mega', 'move protect mega');
 		});
 		battle.makeChoices('move protect mega', 'move protect');
-		assert.equal(battle.p1.active[0].species.name, 'Charizard-Mega-X');
+		assert.strictEqual(battle.p1.active[0].species.name, 'Charizard-Mega-X');
 	});
 
 	it('should modify speed/priority in gen 7+', function () {
@@ -47,7 +47,7 @@ describe('Mega Evolution', function () {
 		]});
 		battle.makeChoices('move taunt mega', 'auto');
 		let megaMon = battle.p1.active[0];
-		assert.equal(megaMon.status, 'par');
+		assert.strictEqual(megaMon.status, 'par');
 
 		battle = common.createBattle();
 		battle.setPlayer('p1', {team: [
@@ -58,7 +58,7 @@ describe('Mega Evolution', function () {
 		]});
 		battle.makeChoices('move taunt mega', 'auto');
 		megaMon = battle.p1.active[0];
-		assert.equal(megaMon.status, 'par');
+		assert.strictEqual(megaMon.status, 'par');
 
 		battle = common.createBattle();
 		battle.setPlayer('p1', {team: [
@@ -69,7 +69,7 @@ describe('Mega Evolution', function () {
 		]});
 		battle.makeChoices('move taunt mega', 'auto');
 		megaMon = battle.p1.active[0];
-		assert.equal(megaMon.status, '');
+		assert.strictEqual(megaMon.status, '');
 
 		battle = common.gen(7).createBattle();
 		battle.setPlayer('p1', {team: [
@@ -80,7 +80,7 @@ describe('Mega Evolution', function () {
 		]});
 		battle.makeChoices('move taunt mega', 'auto');
 		megaMon = battle.p1.active[0];
-		assert.equal(megaMon.status, 'par');
+		assert.strictEqual(megaMon.status, 'par');
 
 		battle = common.gen(6).createBattle();
 		battle.setPlayer('p1', {team: [
@@ -91,7 +91,7 @@ describe('Mega Evolution', function () {
 		]});
 		battle.makeChoices('move taunt mega', 'auto');
 		megaMon = battle.p1.active[0];
-		assert.equal(megaMon.status, '');
+		assert.strictEqual(megaMon.status, '');
 
 		battle = common.gen(6).createBattle();
 		battle.setPlayer('p1', {team: [
@@ -102,7 +102,7 @@ describe('Mega Evolution', function () {
 		]});
 		battle.makeChoices('move taunt mega', 'auto');
 		megaMon = battle.p1.active[0];
-		assert.equal(megaMon.status, '');
+		assert.strictEqual(megaMon.status, '');
 	});
 
 	it('should not break priority', function () {
@@ -115,6 +115,6 @@ describe('Mega Evolution', function () {
 		]});
 		const megaMon = battle.p1.active[0];
 		battle.makeChoices('move protect mega', 'auto');
-		assert.equal(megaMon.status, '');
+		assert.strictEqual(megaMon.status, '');
 	});
 });

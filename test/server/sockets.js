@@ -32,25 +32,25 @@ describe('Sockets', function () {
 	describe('master', function () {
 		it('should be able to spawn workers', function () {
 			Sockets.spawnWorker();
-			assert.equal(Sockets.workers.size, 1);
+			assert.strictEqual(Sockets.workers.size, 1);
 		});
 
 		it('should be able to spawn workers on listen', function () {
 			Sockets.listen(0, '127.0.0.1', 1);
-			assert.equal(Sockets.workers.size, 1);
+			assert.strictEqual(Sockets.workers.size, 1);
 		});
 
 		it('should be able to kill workers', function () {
 			return spawnWorker().then(worker => {
 				Sockets.killWorker(worker);
-				assert.equal(Sockets.workers.size, 0);
+				assert.strictEqual(Sockets.workers.size, 0);
 			});
 		});
 
 		it('should be able to kill workers by PID', function () {
 			return spawnWorker().then(worker => {
 				Sockets.killPid(worker.process.pid);
-				assert.equal(Sockets.workers.size, 0);
+				assert.strictEqual(Sockets.workers.size, 0);
 			});
 		});
 	});
@@ -80,10 +80,10 @@ describe('Sockets', function () {
 			return spawnSocket(worker => data => {
 				const cmd = data.charAt(0);
 				const [sid, ip, protocol] = data.substr(1).split('\n');
-				assert.equal(cmd, '*');
-				assert.equal(sid, '1');
-				assert.equal(ip, '127.0.0.1');
-				assert.equal(protocol, 'websocket');
+				assert.strictEqual(cmd, '*');
+				assert.strictEqual(sid, '1');
+				assert.strictEqual(ip, '127.0.0.1');
+				assert.strictEqual(protocol, 'websocket');
 			});
 		});
 
@@ -107,7 +107,7 @@ describe('Sockets', function () {
 				const sid = data.substr(1, data.indexOf('\n'));
 				socketSend = `>${sid}\n${msg}`;
 			}).then(chain(worker => data => {
-				assert.equal(data, msg);
+				assert.strictEqual(data, msg);
 			}, socketSend));
 		});
 
@@ -124,9 +124,9 @@ describe('Sockets', function () {
 			}).then(chain(worker => data => {
 				const cmd = data.charAt(0);
 				const params = data.substr(1).split('\n');
-				assert.equal(cmd, '<');
-				assert.equal(sid, params[0]);
-				assert.equal(msg, params[1]);
+				assert.strictEqual(cmd, '<');
+				assert.strictEqual(sid, params[0]);
+				assert.strictEqual(msg, params[1]);
 			}, mockReceive));
 		});
 
@@ -166,7 +166,7 @@ describe('Sockets', function () {
 				const sid = data.substr(1, data.indexOf('\n'));
 				Sockets.roomAdd(worker, cid, sid);
 			}).then(chain(worker => data => {
-				assert.equal(data, msg);
+				assert.strictEqual(data, msg);
 			}, roomSend));
 		});
 
@@ -210,7 +210,7 @@ describe('Sockets', function () {
 				const scid = '1';
 				Sockets.channelMove(worker, cid, scid, sid);
 			}).then(chain(worker => data => {
-				assert.equal(data, msg);
+				assert.strictEqual(data, msg);
 			}, buf));
 		});
 	});

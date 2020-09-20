@@ -17,7 +17,7 @@ describe('Fake Out', function () {
 			{species: 'Venusaur', ability: 'overgrow', moves: ['swift']},
 		]]);
 		battle.makeChoices('move fakeout', 'move swift');
-		assert.equal(battle.p1.active[0].hp, battle.p1.active[0].maxhp);
+		assert.strictEqual(battle.p1.active[0].hp, battle.p1.active[0].maxhp);
 	});
 
 	it('should not flinch on the second turn out', function () {
@@ -27,7 +27,7 @@ describe('Fake Out', function () {
 			{species: 'Venusaur', ability: 'overgrow', moves: ['swift']},
 		]]);
 		battle.makeChoices('move fakeout', 'move swift');
-		assert.equal(battle.p1.active[0].hp, battle.p1.active[0].maxhp);
+		assert.strictEqual(battle.p1.active[0].hp, battle.p1.active[0].maxhp);
 		battle.makeChoices('move fakeout', 'move swift');
 		assert.notStrictEqual(battle.p1.active[0].hp, battle.p1.active[0].maxhp);
 	});
@@ -43,7 +43,7 @@ describe('Fake Out', function () {
 		battle.makeChoices('switch 2', 'move sleeptalk');
 		battle.makeChoices('switch 2', 'move sleeptalk');
 		battle.makeChoices('move fakeout', 'move swift');
-		assert.equal(battle.p1.active[0].hp, battle.p1.active[0].maxhp);
+		assert.strictEqual(battle.p1.active[0].hp, battle.p1.active[0].maxhp);
 	});
 
 	it('should not flinch if the user has already used a Dancer move first', function () {

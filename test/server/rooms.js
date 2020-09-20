@@ -8,7 +8,7 @@ describe('Rooms features', function () {
 	describe('Rooms', function () {
 		describe('Rooms.get', function () {
 			it('should be a function', function () {
-				assert.equal(typeof Rooms.get, 'function');
+				assert.strictEqual(typeof Rooms.get, 'function');
 			});
 		});
 		describe('Rooms.rooms', function () {
@@ -26,8 +26,8 @@ describe('Rooms features', function () {
 				const room = Rooms.createChatRoom('r/relationshipadvice');
 				const game = new Hangman(room, new User(), 'There\'s a lot of red flags here');
 				room.game = game;
-				assert.equal(room.getGame(Hangman), game);
-				assert.equal(room.getGame(UNO), null);
+				assert.strictEqual(room.getGame(Hangman), game);
+				assert.strictEqual(room.getGame(UNO), null);
 			});
 		});
 	});
@@ -79,7 +79,7 @@ describe('Rooms features', function () {
 				},
 			};
 			room = Rooms.createBattle('customgame', options);
-			assert.equal(room.auth.get(new User().id), '%');
+			assert.strictEqual(room.auth.get(new User().id), '%');
 		});
 
 		it('should prevent overriding tournament room auth by a tournament player', function () {
@@ -107,11 +107,11 @@ describe('Rooms features', function () {
 			room = Rooms.createBattle('customgame', options);
 			roomStaff.joinRoom(room);
 			administrator.joinRoom(room);
-			assert.equal(room.auth.get(roomStaff), '%', 'before promotion attempt');
+			assert.strictEqual(room.auth.get(roomStaff), '%', 'before promotion attempt');
 			Chat.parse("/roomvoice Room auth", room, p1, p1.connections[0]);
-			assert.equal(room.auth.get(roomStaff), '%', 'after promotion attempt');
+			assert.strictEqual(room.auth.get(roomStaff), '%', 'after promotion attempt');
 			Chat.parse("/roomvoice Room auth", room, administrator, administrator.connections[0]);
-			assert.equal(room.auth.get(roomStaff), '%', 'after being promoted by an administrator');
+			assert.strictEqual(room.auth.get(roomStaff), '%', 'after being promoted by an administrator');
 		});
 	});
 

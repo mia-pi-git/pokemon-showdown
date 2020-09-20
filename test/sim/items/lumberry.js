@@ -15,7 +15,7 @@ describe('Lum Berry', function () {
 		battle.setPlayer('p1', {team: [{species: 'Rapidash', moves: ['inferno']}]});
 		battle.setPlayer('p2', {team: [{species: 'Machamp', ability: 'noguard', item: 'lumberry', moves: ['sleeptalk']}]});
 		battle.makeChoices('move inferno', 'move sleeptalk');
-		assert.equal(battle.p2.active[0].status, '');
+		assert.strictEqual(battle.p2.active[0].status, '');
 	});
 
 	it('should cure confusion', function () {
@@ -35,7 +35,7 @@ describe('Lum Berry', function () {
 		attacker.volatiles['lockedmove'].duration = 2;
 		battle.makeChoices('move outrage', 'move recover');
 		battle.makeChoices('move outrage', 'move banefulbunker');
-		assert.equal(attacker.status, '');
+		assert.strictEqual(attacker.status, '');
 		assert.ok(attacker.volatiles['confusion']);
 	});
 });

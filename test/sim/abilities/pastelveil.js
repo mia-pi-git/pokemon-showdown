@@ -19,8 +19,8 @@ describe('Pastel Veil', function () {
 			{species: 'wynaut', ability: 'compoundeyes', moves: ['poisongas']},
 		]]);
 		battle.makeChoices();
-		assert.equal(battle.p1.pokemon[0].status, '');
-		assert.equal(battle.p1.pokemon[1].status, '');
+		assert.strictEqual(battle.p1.pokemon[0].status, '');
+		assert.strictEqual(battle.p1.pokemon[1].status, '');
 	});
 
 	it('should remove poison on itself and allies when switched in', function () {
@@ -35,8 +35,8 @@ describe('Pastel Veil', function () {
 		battle.makeChoices('auto', 'move skillswap 1, move poisongas');
 		battle.makeChoices('switch 3, move sleeptalk', 'auto');
 		battle.makeChoices('switch 3, move sleeptalk', 'auto');
-		assert.equal(battle.p1.pokemon[0].status, '');
-		assert.equal(battle.p1.pokemon[1].status, '');
+		assert.strictEqual(battle.p1.pokemon[0].status, '');
+		assert.strictEqual(battle.p1.pokemon[1].status, '');
 	});
 
 	it('should remove poison on itself and allies when the ability is acquired via Skill Swap', function () {
@@ -49,8 +49,8 @@ describe('Pastel Veil', function () {
 		]]);
 		battle.makeChoices('auto', 'move skillswap 1, move poisongas');
 		battle.makeChoices('auto', 'move skillswap 2, move poisongas');
-		assert.equal(battle.p1.pokemon[0].status, '');
-		assert.equal(battle.p1.pokemon[1].status, '');
+		assert.strictEqual(battle.p1.pokemon[0].status, '');
+		assert.strictEqual(battle.p1.pokemon[1].status, '');
 	});
 
 	it('should prevent a poison originating from an ally', function () {
@@ -62,8 +62,8 @@ describe('Pastel Veil', function () {
 			{species: 'wynaut', moves: ['sleeptalk']},
 		]]);
 		battle.makeChoices('move toxic -2, move toxic -1', 'auto');
-		assert.equal(battle.p1.pokemon[0].status, '');
-		assert.equal(battle.p1.pokemon[1].status, '');
+		assert.strictEqual(battle.p1.pokemon[0].status, '');
+		assert.strictEqual(battle.p1.pokemon[1].status, '');
 	});
 
 	it('should be bypassed by Mold Breaker and cured afterwards, but not for the ally', function () {
@@ -76,8 +76,8 @@ describe('Pastel Veil', function () {
 		]]);
 		battle.makeChoices('auto', 'move toxic 1, move sleeptalk');
 		battle.makeChoices('auto', 'move toxic 2, move sleeptalk');
-		assert.equal(battle.p1.pokemon[0].status, '');
-		assert.equal(battle.p1.pokemon[1].status, 'tox');
+		assert.strictEqual(battle.p1.pokemon[0].status, '');
+		assert.strictEqual(battle.p1.pokemon[1].status, 'tox');
 	});
 
 	it('should only check for Pastel Veil cures after Lum/Pecha Berry', function () {
@@ -89,7 +89,7 @@ describe('Pastel Veil', function () {
 			{species: 'wynaut', moves: ['sleeptalk']},
 		]]);
 		battle.makeChoices('auto', 'move toxic 1, move sleeptalk');
-		assert.equal(battle.p1.pokemon[0].status, '');
-		assert.equal(battle.p1.pokemon[0].item, '');
+		assert.strictEqual(battle.p1.pokemon[0].status, '');
+		assert.strictEqual(battle.p1.pokemon[0].item, '');
 	});
 });

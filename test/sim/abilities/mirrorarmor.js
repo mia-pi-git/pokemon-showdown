@@ -42,6 +42,6 @@ describe("Mirror Armor", function () {
 		assert.statStage(corv, 'spa', 0);
 		assert.statStage(drapion, 'atk', -1);
 		assert.statStage(drapion, 'spa', -1);
-		assert.equal(battle.requestState, 'switch');
+		assert.strictEqual(battle.requestState, 'switch');
 	});
 });

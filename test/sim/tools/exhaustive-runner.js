@@ -10,7 +10,7 @@ describe('ExhaustiveRunner (slow)', async function () {
 		const opts = {prng: [1, 2, 3, 4]};
 		for (const format of ExhaustiveRunner.FORMATS) {
 			opts.format = format;
-			assert.equal(await (new ExhaustiveRunner(opts).run()), 0);
+			assert.strictEqual(await (new ExhaustiveRunner(opts).run()), 0);
 		}
 	});
 });

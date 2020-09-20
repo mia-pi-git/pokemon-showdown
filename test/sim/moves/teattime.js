@@ -19,10 +19,10 @@ describe('Teatime', function () {
 			{species: 'wynaut', item: 'sitrusberry', moves: ['teatime']},
 		]]);
 		battle.makeChoices();
-		assert.equal(battle.p1.pokemon[0].item, '');
-		assert.equal(battle.p1.pokemon[1].item, '');
-		assert.equal(battle.p2.pokemon[0].item, '');
-		assert.equal(battle.p2.pokemon[1].item, '');
+		assert.strictEqual(battle.p1.pokemon[0].item, '');
+		assert.strictEqual(battle.p1.pokemon[1].item, '');
+		assert.strictEqual(battle.p2.pokemon[0].item, '');
+		assert.strictEqual(battle.p2.pokemon[1].item, '');
 	});
 
 	it('should force Pokemon to eat Berries while affected by Unnerve', function () {
@@ -32,7 +32,7 @@ describe('Teatime', function () {
 			{species: 'wynaut', ability: 'unnerve', moves: ['teatime']},
 		]]);
 		battle.makeChoices();
-		assert.equal(battle.p1.pokemon[0].item, '');
+		assert.strictEqual(battle.p1.pokemon[0].item, '');
 	});
 
 	it('should force Pokemon to eat Berries while Magic Room is active', function () {
@@ -42,7 +42,7 @@ describe('Teatime', function () {
 			{species: 'wynaut', moves: ['teatime']},
 		]]);
 		battle.makeChoices();
-		assert.equal(battle.p1.pokemon[0].item, '');
+		assert.strictEqual(battle.p1.pokemon[0].item, '');
 	});
 
 	it('should force Pokemon with Klutz to eat Berries', function () {
@@ -52,7 +52,7 @@ describe('Teatime', function () {
 			{species: 'wynaut', moves: ['teatime']},
 		]]);
 		battle.makeChoices();
-		assert.equal(battle.p1.pokemon[0].item, '');
+		assert.strictEqual(battle.p1.pokemon[0].item, '');
 	});
 
 	it('should force Pokemon with Substitute to eat Berries', function () {
@@ -62,7 +62,7 @@ describe('Teatime', function () {
 			{species: 'wynaut', moves: ['teatime']},
 		]]);
 		battle.makeChoices();
-		assert.equal(battle.p1.pokemon[0].item, '');
+		assert.strictEqual(battle.p1.pokemon[0].item, '');
 	});
 
 	it('should not cause Pokemon in the semi-invulernable state to eat their Berries', function () {
@@ -72,7 +72,7 @@ describe('Teatime', function () {
 			{species: 'wynaut', moves: ['teatime']},
 		]]);
 		battle.makeChoices();
-		assert.equal(battle.p1.pokemon[0].item, 'sitrusberry');
+		assert.strictEqual(battle.p1.pokemon[0].item, 'sitrusberry');
 	});
 
 	it('should not cause Recycle to fail to restore the Berry', function () {
@@ -82,6 +82,6 @@ describe('Teatime', function () {
 			{species: 'wynaut', evs: {spe: 252}, moves: ['teatime']},
 		]]);
 		battle.makeChoices();
-		assert.equal(battle.p1.pokemon[0].item, 'sitrusberry');
+		assert.strictEqual(battle.p1.pokemon[0].item, 'sitrusberry');
 	});
 });

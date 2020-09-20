@@ -7,9 +7,9 @@ describe('Dex data', function () {
 		const Pokedex = Dex.data.Pokedex;
 		for (const pokemonid in Pokedex) {
 			const entry = Pokedex[pokemonid];
-			assert.equal(toID(entry.name), pokemonid, `Mismatched Pokemon key "${pokemonid}" of ${entry.name}`);
+			assert.strictEqual(toID(entry.name), pokemonid, `Mismatched Pokemon key "${pokemonid}" of ${entry.name}`);
 			assert(!entry.name.startsWith("-") && !entry.name.endsWith("-"), `Pokemon name "${entry.name}" should not start or end with a hyphen`);
-			assert.equal(entry.name, entry.name.trim(), `Pokemon name "${entry.name}" should not start or end with whitespace`);
+			assert.strictEqual(entry.name, entry.name.trim(), `Pokemon name "${entry.name}" should not start or end with whitespace`);
 
 			assert(entry.color, `Pokemon ${entry.name} must have a color.`);
 			assert(entry.heightm, `Pokemon ${entry.name} must have a heightm.`);
@@ -37,17 +37,17 @@ describe('Dex data', function () {
 			if (entry.evos) {
 				for (const evo of entry.evos) {
 					const evoEntry = Pokedex[toID(evo)] || {};
-					assert.equal(evo, evoEntry.name, `Misspelled/nonexistent evo "${evo}" of ${entry.name}`);
+					assert.strictEqual(evo, evoEntry.name, `Misspelled/nonexistent evo "${evo}" of ${entry.name}`);
 					assert.notEqual(entry.num, evoEntry.num, `Evo ${evo} of ${entry.name} should have a different dex number`);
-					assert.equal(evoEntry.prevo, entry.name, `Evo ${evo} should have ${entry.name} listed as a prevo`);
+					assert.strictEqual(evoEntry.prevo, entry.name, `Evo ${evo} should have ${entry.name} listed as a prevo`);
 				}
 			}
 			if (entry.otherFormes) {
 				for (const forme of entry.otherFormes) {
 					const formeEntry = Pokedex[toID(forme)] || {};
-					assert.equal(forme, formeEntry.name, `Misspelled/nonexistent forme "${forme}" of ${entry.name}`);
-					assert.equal(entry.num, formeEntry.num, `Forme ${formeEntry.name} of ${entry.name} should have the same dex number`);
-					assert.equal(formeEntry.baseSpecies, entry.name, `Forme ${forme} of ${entry.name} should have it as a baseSpecies`);
+					assert.strictEqual(forme, formeEntry.name, `Misspelled/nonexistent forme "${forme}" of ${entry.name}`);
+					assert.strictEqual(entry.num, formeEntry.num, `Forme ${formeEntry.name} of ${entry.name} should have the same dex number`);
+					assert.strictEqual(formeEntry.baseSpecies, entry.name, `Forme ${forme} of ${entry.name} should have it as a baseSpecies`);
 					if (!forme.startsWith('Pokestar')) {
 						assert(entry.formeOrder !== undefined, `${entry.name} has an otherForme "${forme}" but no formeOrder field`);
 						assert(entry.formeOrder.includes(forme), `Forme "${forme}" of ${entry.name} is not included in its formeOrder`);
@@ -58,15 +58,15 @@ describe('Dex data', function () {
 				const battleOnly = Array.isArray(entry.battleOnly) ? entry.battleOnly : [entry.battleOnly];
 				for (const battleForme of battleOnly) {
 					const battleEntry = Pokedex[toID(battleForme)] || {};
-					assert.equal(battleForme, battleEntry.name, `Misspelled/nonexistent battle-only forme "${battleForme}" of ${entry.name}`);
-					assert.equal(battleEntry.baseSpecies || battleEntry.name, entry.baseSpecies, `Battle-only forme ${entry.name} of ${battleEntry.name} should have the same baseSpecies`);
+					assert.strictEqual(battleForme, battleEntry.name, `Misspelled/nonexistent battle-only forme "${battleForme}" of ${entry.name}`);
+					assert.strictEqual(battleEntry.baseSpecies || battleEntry.name, entry.baseSpecies, `Battle-only forme ${entry.name} of ${battleEntry.name} should have the same baseSpecies`);
 					assert(!battleEntry.battleOnly, `Out-of-battle forme ${battleEntry.name} of ${entry.name} should not be battle-only`);
 				}
 			}
 			if (entry.changesFrom) {
 				const formeEntry = Pokedex[toID(entry.changesFrom)] || {};
-				assert.equal(entry.changesFrom, formeEntry.name, `Misspelled/nonexistent changesFrom value "${entry.changesFrom}" of ${entry.name}`);
-				assert.equal(formeEntry.baseSpecies || formeEntry.name, entry.baseSpecies, `Original forme ${formeEntry.name} of ${entry.name} should have the same baseSpecies`);
+				assert.strictEqual(entry.changesFrom, formeEntry.name, `Misspelled/nonexistent changesFrom value "${entry.changesFrom}" of ${entry.name}`);
+				assert.strictEqual(formeEntry.baseSpecies || formeEntry.name, entry.baseSpecies, `Original forme ${formeEntry.name} of ${entry.name} should have the same baseSpecies`);
 				assert(!formeEntry.changesFrom, `Original forme ${formeEntry.name} of ${entry.name} should not also have chagesFrom`);
 				assert(!formeEntry.battleOnly, `Original forme ${formeEntry.name} of ${entry.name} should not also have battleOnly`);
 			}
@@ -74,7 +74,7 @@ describe('Dex data', function () {
 				for (const forme of entry.cosmeticFormes) {
 					assert(forme.startsWith(`${entry.name}-`), `Misspelled/nonexistent beginning of cosmetic forme name "${forme}" of ${entry.name}`);
 					assert(!forme.endsWith("-"), `Cosmetic forme name "${forme}" of ${entry.name} should not end with a hyphen`);
-					assert.equal(forme, forme.trim(), `Cosmetic forme name "${forme}" of ${entry.name} should not start or end with whitespace`);
+					assert.strictEqual(forme, forme.trim(), `Cosmetic forme name "${forme}" of ${entry.name} should not start or end with whitespace`);
 					if (!forme.startsWith('Pokestar')) {
 						assert(entry.formeOrder !== undefined, `${entry.name} has a cosmetic forme "${forme}" but no formeOrder field`);
 						assert(entry.formeOrder.includes(forme), `Cosmetic forme name "${forme}" of ${entry.name} is not included in its formeOrder`);
@@ -86,7 +86,7 @@ describe('Dex data', function () {
 					if (toID(forme).includes('gmax')) continue;
 					 // formeOrder contains other formes and 'cosmetic' formes which do not have entries in Pokedex but should have aliases
 					const formeEntry = Dex.getSpecies(toID(forme));
-					assert.equal(forme, formeEntry.name, `Misspelled/nonexistent forme "${forme}" of ${entry.name}`);
+					assert.strictEqual(forme, formeEntry.name, `Misspelled/nonexistent forme "${forme}" of ${entry.name}`);
 					assert(entry.formeOrder.includes(formeEntry.baseSpecies), `${entry.name}'s formeOrder does not contain its base species ${formeEntry.baseSpecies}`);
 				}
 			}
@@ -108,8 +108,8 @@ describe('Dex data', function () {
 		const Items = Dex.data.Items;
 		for (const itemid in Items) {
 			const entry = Items[itemid];
-			assert.equal(toID(entry.name), itemid, `Mismatched Item key "${itemid}" of "${entry.name}"`);
-			assert.equal(typeof entry.num, 'number', `Item ${entry.name} should have a number`);
+			assert.strictEqual(toID(entry.name), itemid, `Mismatched Item key "${itemid}" of "${entry.name}"`);
+			assert.strictEqual(typeof entry.num, 'number', `Item ${entry.name} should have a number`);
 		}
 	});
 
@@ -117,8 +117,8 @@ describe('Dex data', function () {
 		const Moves = Dex.data.Moves;
 		for (const moveid in Moves) {
 			const entry = Moves[moveid];
-			assert.equal(toID(entry.name), moveid, `Mismatched Move key "${moveid}" of "${entry.name}"`);
-			assert.equal(typeof entry.num, 'number', `Move ${entry.name} should have a number`);
+			assert.strictEqual(toID(entry.name), moveid, `Mismatched Move key "${moveid}" of "${entry.name}"`);
+			assert.strictEqual(typeof entry.num, 'number', `Move ${entry.name} should have a number`);
 			assert.false(entry.infiltrates, `Move ${entry.name} should not have an 'infiltrates' property (no real move has it)`);
 		}
 	});
@@ -127,9 +127,9 @@ describe('Dex data', function () {
 		const Abilities = Dex.data.Abilities;
 		for (const abilityid in Abilities) {
 			const entry = Abilities[abilityid];
-			assert.equal(toID(entry.name), abilityid, `Mismatched Ability key "${abilityid}" of "${entry.name}"`);
-			assert.equal(typeof entry.num, 'number', `Ability ${entry.name} should have a number`);
-			assert.equal(typeof entry.rating, 'number', `Ability ${entry.name} should have a rating`);
+			assert.strictEqual(toID(entry.name), abilityid, `Mismatched Ability key "${abilityid}" of "${entry.name}"`);
+			assert.strictEqual(typeof entry.num, 'number', `Ability ${entry.name} should have a number`);
+			assert.strictEqual(typeof entry.rating, 'number', `Ability ${entry.name} should have a rating`);
 		}
 	});
 
@@ -137,7 +137,7 @@ describe('Dex data', function () {
 		const Formats = Dex.data.Formats;
 		for (const formatid in Formats) {
 			const entry = Formats[formatid];
-			assert.equal(toID(entry.name), formatid, `Mismatched Format/Ruleset key "${formatid}" of "${entry.name}"`);
+			assert.strictEqual(toID(entry.name), formatid, `Mismatched Format/Ruleset key "${formatid}" of "${entry.name}"`);
 		}
 	});
 
@@ -147,13 +147,13 @@ describe('Dex data', function () {
 		for (const Learnsets of learnsetsArray) {
 			for (const speciesid in Learnsets) {
 				const species = Dex.getSpecies(speciesid);
-				assert.equal(speciesid, species.id, `Key "${speciesid}" in Learnsets should be a Species ID`);
+				assert.strictEqual(speciesid, species.id, `Key "${speciesid}" in Learnsets should be a Species ID`);
 				assert(species.exists, `Key "${speciesid}" in Learnsets should be a pokemon`);
 				let entry = Learnsets[speciesid];
 				if (!entry.learnset) entry = Learnsets[toID(species.changesFrom || species.baseSpecies)];
 				for (const moveid in entry.learnset) {
 					const move = Dex.getMove(moveid);
-					assert.equal(moveid, move.id, `Move key "${moveid}" of Learnsets entry ${species.name} should be a Move ID`);
+					assert.strictEqual(moveid, move.id, `Move key "${moveid}" of Learnsets entry ${species.name} should be a Move ID`);
 					assert(move.exists && !move.realMove, `Move key "${moveid}" of Learnsets entry ${species.name} should be a real move`);
 
 					let prevLearnedGen = 10;

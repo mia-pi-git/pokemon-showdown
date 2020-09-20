@@ -23,7 +23,7 @@ describe('Shields Down', function () {
 		assert.false(battle.p1.active[0].status);
 		battle.makeChoices('auto', 'move superfang');
 		battle.makeChoices();
-		assert.equal(battle.p1.active[0].status, 'par');
+		assert.strictEqual(battle.p1.active[0].status, 'par');
 	});
 
 	it('should be immune to status until below 50% in all formes', function () {
@@ -39,6 +39,6 @@ describe('Shields Down', function () {
 		assert.false(battle.p1.active[0].status);
 		battle.makeChoices('auto', 'move superfang');
 		battle.makeChoices();
-		assert.equal(battle.p1.active[0].status, 'par');
+		assert.strictEqual(battle.p1.active[0].status, 'par');
 	});
 });

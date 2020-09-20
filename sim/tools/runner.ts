@@ -155,7 +155,7 @@ class DualStream {
 	get rawInputLog() {
 		const control = this.control.rawInputLog;
 		const test = this.test.rawInputLog;
-		assert.deepEqual(test, control);
+		assert.deepStrictEqual(test, control);
 		return control;
 	}
 
@@ -164,7 +164,7 @@ class DualStream {
 		const test = await this.test.read();
 		// In debug mode, wait to catch this as a difference in the inputLog
 		// and error there so we get the full battle state dumped instead.
-		if (!this.debug) assert.equal(State.normalizeLog(test), State.normalizeLog(control));
+		if (!this.debug) assert.strictEqual(State.normalizeLog(test), State.normalizeLog(control));
 		return control;
 	}
 
@@ -187,7 +187,7 @@ class DualStream {
 		const control = this.control.battle.toJSON();
 		const test = this.test.battle.toJSON();
 		try {
-			assert.deepEqual(State.normalize(test), State.normalize(control));
+			assert.deepStrictEqual(State.normalize(test), State.normalize(control));
 		} catch (err) {
 			if (this.debug) {
 				// NOTE: diffing these directly won't work because the key ordering isn't stable.

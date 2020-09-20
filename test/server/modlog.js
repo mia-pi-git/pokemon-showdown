@@ -102,11 +102,11 @@ describe.skip('Modlog (with FS writes)', () => {
 
 		const lines = await getLines('development');
 
-		assert.equal(
+		assert.strictEqual(
 			normalizeModlogEntry(lines.lastLine),
 			normalizeModlogEntry('[2020-07-29T23:29:49.797Z] (development) ROOMBAN: [kjnhvgcfg] [127.0.0.1] by annika')
 		);
-		assert.equal(
+		assert.strictEqual(
 			normalizeModlogEntry(lines.lines.pop()),
 			normalizeModlogEntry('[2020-07-29T23:29:49.797Z] (development) ROOMOWNER: [somecooluser] by someadmin')
 		);
@@ -153,12 +153,12 @@ describe.skip('Modlog (with FS writes)', () => {
 	 **************************************/
 	it('should read the entire modlog file when not limited', async () => {
 		const results = await modlog.runSearch(['readingtest'], '', false, 10000, false);
-		assert.equal(results.length, DATASET_A.length);
+		assert.strictEqual(results.length, DATASET_A.length);
 	});
 
 	it("should support searching multiple rooms' modlogs", async () => {
 		const results = await modlog.runSearch(['readingtest', 'readingtest2'], '', false, 10000, false);
-		assert.equal(results.length, DATASET_A.length + DATASET_B.length);
+		assert.strictEqual(results.length, DATASET_A.length + DATASET_B.length);
 	});
 
 	it('should be case-insensitive', async () => {
@@ -200,7 +200,7 @@ describe.skip('Modlog (with FS writes)', () => {
 		const unlimited = await modlog.runSearch(['readingtest'], '', false, 10000, false);
 		const limited = await modlog.runSearch(['readingtest'], '', false, 5, false);
 
-		assert.equal(limited.length, 5);
+		assert.strictEqual(limited.length, 5);
 		assert.ok(unlimited.length > limited.length);
 
 		assert.ok(limited[0].includes('LAST ENTRY'));

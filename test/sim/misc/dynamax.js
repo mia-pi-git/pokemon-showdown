@@ -19,7 +19,7 @@ describe("Dynamax", function () {
 			{species: 'Shedinja', ability: 'sturdy', item: 'ringtarget', moves: ['splash']},
 		]});
 		battle.makeChoices('move heatwave dynamax', 'auto');
-		assert.equal(battle.field.weather, 'sunnyday');
+		assert.strictEqual(battle.field.weather, 'sunnyday');
 		battle.makeChoices('move facade', 'auto');
 		assert.statStage(battle.p2.active[0], 'spe', -1);
 		battle.makeChoices('move superpower', 'auto');
@@ -46,7 +46,7 @@ describe("Dynamax", function () {
 			{species: 'Mew', moves: ['watergun']},
 		]]);
 		battle.makeChoices('move 1', 'move 1 dynamax');
-		assert.equal(battle.field.weather, 'raindance');
+		assert.strictEqual(battle.field.weather, 'raindance');
 	});
 
 	it('Max Move weather activates before Sand Spit', function () {
@@ -56,7 +56,7 @@ describe("Dynamax", function () {
 			{species: 'Mew', moves: ['watergun']},
 		]]);
 		battle.makeChoices('move 1', 'move 1 dynamax');
-		assert.equal(battle.field.weather, 'sandstorm');
+		assert.strictEqual(battle.field.weather, 'sandstorm');
 	});
 
 	it('makes Liquid Voice stop working', function () {
@@ -66,7 +66,7 @@ describe("Dynamax", function () {
 			{species: 'Rhyhorn', ability: 'wonderguard', moves: ['splash']},
 		]]);
 		battle.makeChoices('move 1 dynamax', 'move 1');
-		assert.equal(battle.p2.active[0].hp, battle.p2.active[0].maxhp);
+		assert.strictEqual(battle.p2.active[0].hp, battle.p2.active[0].maxhp);
 	});
 
 	it('G-Max Steelsurge hazard should deal 2x damage to Eiscue', function () {
@@ -82,7 +82,7 @@ describe("Dynamax", function () {
 		const pokemon = battle.p2.active[0];
 		const expectedPercent = Math.pow(0.5, 2);
 		const expectedDamage = Math.floor(pokemon.maxhp * expectedPercent);
-		assert.equal(pokemon.maxhp - pokemon.hp, expectedDamage, `${pokemon.name} should take ${expectedPercent * 100}%`);
+		assert.strictEqual(pokemon.maxhp - pokemon.hp, expectedDamage, `${pokemon.name} should take ${expectedPercent * 100}%`);
 	});
 
 	it.skip('should revert before the start of the 4th turn, not as an end-of-turn effect on the 3rd turn', function () {
@@ -96,8 +96,8 @@ describe("Dynamax", function () {
 		const dynamaxedHP = battle.p1.active[0].hp;
 		battle.makeChoices();
 		battle.makeChoices('move psychic');
-		assert.equal(battle.requestState, 'switch');
-		assert.equal(battle.p1.active[0].hp, dynamaxedHP);
+		assert.strictEqual(battle.requestState, 'switch');
+		assert.strictEqual(battle.p1.active[0].hp, dynamaxedHP);
 	});
 
 	it('should be impossible to Dynamax when all the base moves are disabled', function () {

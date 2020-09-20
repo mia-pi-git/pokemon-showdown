@@ -31,7 +31,7 @@ describe('Tar Shot', function () {
 		]]);
 		battle.makeChoices();
 		battle.makeChoices('move fusionflare', 'auto');
-		assert.equal(battle.p2.active[0].item, '');
+		assert.strictEqual(battle.p2.active[0].item, '');
 		assert.statStage(battle.p2.active[0], 'atk', 2);
 		assert.statStage(battle.p2.active[0], 'spa', 2);
 	});
@@ -56,7 +56,7 @@ describe('Tar Shot', function () {
 		battle.setPlayer('p2', {team: [{species: 'Snorlax', ability: 'thickfat', item: 'occaberry', moves: ['rest']}]});
 		battle.makeChoices('move tarshot', 'move rest');
 		battle.makeChoices('move flamecharge', 'move rest');
-		assert.equal(battle.p2.active[0].item, '');
+		assert.strictEqual(battle.p2.active[0].item, '');
 	});
 
 	it('should not make the target over 2x weaker to fire', function () {

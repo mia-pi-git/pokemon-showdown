@@ -16,6 +16,6 @@ describe('Mix and Mega', function () {
 		battle.setPlayer('p2', {team: [{species: "Wishiwashi", ability: 'schooling', item: 'blueorb', moves: ['uturn']}]});
 		battle.makeChoices('default', 'default'); // Switch in
 		battle.makeChoices('move shadowclaw mega', 'move uturn');
-		assert.equal(battle.p1.active[0].ability, 'toughclaws');
+		assert.strictEqual(battle.p1.active[0].ability, 'toughclaws');
 	});
 });

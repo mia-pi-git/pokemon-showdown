@@ -32,7 +32,7 @@ describe('State', function () {
 				control.makeChoices();
 				test.makeChoices();
 
-				assert.deepEqual(State.normalize(test.toJSON()), State.normalize(control.toJSON()));
+				assert.deepStrictEqual(State.normalize(test.toJSON()), State.normalize(control.toJSON()));
 
 				// Roundtrip the test battle to confirm it still works.
 				const send = test.send;

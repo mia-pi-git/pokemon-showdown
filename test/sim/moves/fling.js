@@ -17,7 +17,7 @@ describe('Fling', function () {
 			{species: 'cleffa', moves: ['sleeptalk']},
 		]]);
 		battle.makeChoices();
-		assert.equal(battle.p1.active[0].item, '');
+		assert.strictEqual(battle.p1.active[0].item, '');
 	});
 
 	it('should apply custom effects when certain items are flung', function () {
@@ -27,7 +27,7 @@ describe('Fling', function () {
 			{species: 'cleffa', moves: ['sleeptalk']},
 		]]);
 		battle.makeChoices();
-		assert.equal(battle.p2.active[0].status, 'brn');
+		assert.strictEqual(battle.p2.active[0].status, 'brn');
 	});
 
 	it('should not be usuable in Magic Room', function () {
@@ -37,7 +37,7 @@ describe('Fling', function () {
 			{species: 'cleffa', moves: ['magicroom']},
 		]]);
 		battle.makeChoices();
-		assert.equal(battle.p1.active[0].item, 'ironball');
+		assert.strictEqual(battle.p1.active[0].item, 'ironball');
 	});
 
 	it.skip('should use its item to be flung in damage calculations', function () {
