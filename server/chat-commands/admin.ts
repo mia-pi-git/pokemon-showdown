@@ -297,7 +297,7 @@ export const commands: ChatCommands = {
 			return this.errorReply("Wait for /updateserver to finish before hotpatching.");
 		}
 		const lock = Monitor.hotpatchLock;
-		const hotpatches = ['chat', 'formats', 'loginserver', 'punishments', 'dnsbl', 'modlog'];
+		const hotpatches = ['chat', 'formats', 'loginserver', 'punishments', 'dnsbl', 'modlog', 'roomprototypes', 'userprototypes'];
 		const version = await Monitor.version();
 		const requiresForce = (patch: string) =>
 			version && cmd !== 'forcehotpatch' &&
@@ -306,6 +306,15 @@ export const commands: ChatCommands = {
 				(global.__version && version === global.__version.tree));
 		const requiresForceMessage = `The git work tree has not changed since the last time ${target} was hotpatched (${version?.slice(0, 8)}), use /forcehotpatch ${target} if you wish to hotpatch anyway.`;
 
+		function updatePrototype(targetClass: any, newClass: any) {
+			for (const key of Object.getOwnPropertyNames(newClass.prototype)) {
+				Object.defineProperty(targetClass.prototype, key, {
+					 value: newClass.prototype[key],
+				});
+			}
+		}
+
+		target = toID(target);
 		let patch = target;
 		try {
 			Utils.clearRequireCache({exclude: ['/.lib-dist/process-manager']});
@@ -435,6 +444,23 @@ export const commands: ChatCommands = {
 				Rooms.Modlog.streams = streams;
 				Rooms.Modlog.sharedStreams = sharedStreams;
 				this.sendReply("Modlog streams have been re-initialized.");
+			} else if (target === 'usersp' || target === 'userprototypes') {
+				// eslint-disable-next-line @typescript-eslint/no-var-requires
+				const User = require('../users').User;
+				updatePrototype(Users.User, User);
+				this.sendReply(`User prototypes have been hot-patched.`);
+			} else if (target === 'roomsp' || target === 'roomprototypes') {
+				// eslint-disable-next-line @typescript-eslint/no-var-requires
+				const {BasicRoom, GameRoom, ChatRoom} = require('../rooms');
+				// update basic room constructor first
+				updatePrototype(Rooms.BasicRoom, BasicRoom);
+				this.sendReply(`The basic room prototype has been hot-patched.`);
+
+				// update game room and chat room class prototypes in case they have other changes
+				updatePrototype(Rooms.GameRoom, GameRoom);
+				this.sendReply(`The game room prototype has been hot-patched.`);
+				updatePrototype(Rooms.ChatRoom, ChatRoom);
+				this.sendReply(`The chat room prototype has been hot-patched.`);
 			} else if (target.startsWith('disable')) {
 				this.sendReply("Disabling hot-patch has been moved to its own command:");
 				return this.parse('/help nohotpatch');
@@ -466,6 +492,8 @@ export const commands: ChatCommands = {
 		`/hotpatch loginserver - reloads new loginserver code`,
 		`/hotpatch tournaments - reloads new tournaments code`,
 		`/hotpatch modlog - reloads new modlog code`,
+		`/hotpatch usersp OR /hotpatch userprototypes - reloads new user prototype code.`,
+		`/hotpatch roomsp OR /hotpatch roomprototypes - reloads new room prototype code.`,
 		`/hotpatch all - hot-patches chat, tournaments, formats, login server, punishments, modlog, and dnsbl`,
 		`/forcehotpatch [target] - as above, but performs the update regardless of whether the history has changed in git`,
 	],
