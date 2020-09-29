@@ -2506,8 +2506,7 @@ export const commands: ChatCommands = {
 			buf = Utils.html`<img src="${request.link}" width="${width}" height="${height}" />`;
 			if (resized) buf += Utils.html`<br /><a href="${request.link}" target="_blank">full-size image</a>`;
 		} else {
-			const YouTube = new YoutubeInterface();
-			buf = await YouTube.generateVideoDisplay(request.link);
+			buf = await YoutubeInterface.generateVideoDisplay(request.link);
 			if (!buf) return this.errorReply('Could not get YouTube video');
 		}
 		buf += Utils.html`<br /><div class="infobox"><small>(Requested by ${request.name})</small>`;
@@ -2558,8 +2557,7 @@ export const commands: ChatCommands = {
 
 		let buf;
 		if (/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)(\/|$)/i.test(link)) {
-			const YouTube = new YoutubeInterface();
-			buf = await YouTube.generateVideoDisplay(link);
+			buf = await YoutubeInterface.generateVideoDisplay(link);
 			if (!buf) return this.errorReply('Could not get YouTube video');
 		} else {
 			try {

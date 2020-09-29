@@ -27,7 +27,7 @@ export class YoutubeInterface {
 		if (!Config.youtubeKey) {
 			throw new Chat.ErrorMessage(`This server does not support YouTube commands. If you're the owner, you can enable them by setting up Config.youtubekey.`);
 		}
-		const id = this.getId(link);
+		const id = YoutubeInterface.getId(link);
 		if (!id) return null;
 		const raw = await Net(`${ROOT}channels`).get({
 			query: {part: 'snippet,statistics', id, key: Config.youtubeKey},
@@ -50,7 +50,7 @@ export class YoutubeInterface {
 		return cache;
 	}
 	async generateChannelDisplay(link: string) {
-		const id = this.getId(link);
+		const id = YoutubeInterface.getId(link);
 		if (!id) return;
 		// url isn't needed but it destructures wrong without it
 		// eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -99,7 +99,7 @@ export class YoutubeInterface {
 		}
 		return channel;
 	}
-	getId(link: string) {
+	static getId(link: string) {
 		let id = '';
 		if (!link) return null;
 		if (channelData[link]) return link;
@@ -118,11 +118,11 @@ export class YoutubeInterface {
 		if (id.includes('?')) id = id.split('?')[0];
 		return id;
 	}
-	async generateVideoDisplay(link: string) {
+	static async generateVideoDisplay(link: string) {
 		if (!Config.youtubeKey) {
 			throw new Chat.ErrorMessage(`This server does not support YouTube commands. If you're the owner, you can enable them by setting up Config.youtubekey.`);
 		}
-		const id = this.getId(link);
+		const id = YoutubeInterface.getId(link);
 		if (!id) return null;
 		const raw = await Net(`${ROOT}videos`).get({
 			query: {part: 'snippet,statistics', id, key: Config.youtubeKey},
@@ -143,18 +143,18 @@ export class YoutubeInterface {
 		};
 		let buf = `<table style="margin:0px;"><tr>`;
 		buf += `<td style="margin:5px;padding:5px;min-width:175px;max-width:160px;text-align:center;border-bottom:0px;">`;
-		buf += `<div style="padding:5px;background:#b0b0b0;border:1px solid black;margin:auto;max-width:100px;max-height:100px;">`;
+		buf += `<div style="padding:5px;border:1px solid black;margin:auto;max-width:100px;max-height:100px;">`;
 		buf += `<a href="${ROOT}channel/${id}"><img src="${info.thumbnail}" width=100px height=100px/></a>`;
 		buf += `</div><p style="margin:5px 0px 4px 0px;word-wrap:break-word;">`;
 		buf += `<a style="font-weight:bold;color:#c70000;font-size:12pt;" href="https://www.youtube.com/watch?v=${id}">${info.title}</a>`;
 		buf += `</p></td><td style="padding: 0px 25px;font-size:10pt;max-width:100px;background:`;
-		buf += `#white;width:100%;border-bottom:0px;vertical-align:top;">`;
-		buf += `<p style="background: #e22828; padding: 5px;border-radius:8px;color:white;font-weight:bold;text-align:center;">`;
-		buf += `${info.likes} likes | ${info.dislikes} dislikes | ${info.views} video views<br><br>`;
-		buf += `<small>Published on ${info.date} | ID: ${id}</small><br>Uploaded by: ${info.channel}</p>`;
-		buf += `<br><details><summary>Video Description</p></summary>`;
+		buf += `#white;width:100%;border-bottom:0px;vertical-align:top;color:white;">`;
+		buf += `<p style="background:#e22828; padding: 5px;border-radius:8px;color:white;font-weight:bold;text-align:center;">`;
+		buf += `${info.likes} likes | ${info.dislikes} dislikes | ${info.views} video views<br /><br />`;
+		buf += `<small>Published on ${info.date} | ID: ${id}</small><br />Uploaded by: ${info.channel}</p>`;
+		buf += `<br /><details><summary>Video Description</summary>`;
 		buf += `<p style="background: #e22828;max-width:500px;padding: 5px;border-radius:8px;color:white;font-weight:bold;text-align:center;">`;
-		buf += `<i>${info.description.slice(0, 400).replace(/\n/g, ' ')}${info.description.length > 400 ? '(...)' : ''}</p><i></details></td>`;
+		buf += `<i>${info.description.slice(0, 400).replace(/\n/g, ' ')}${info.description.length > 400 ? '...' : ''}</p></i></details></td></table>`;
 		return buf;
 	}
 	save() {
@@ -162,7 +162,7 @@ export class YoutubeInterface {
 	}
 }
 
-const YouTube = new YoutubeInterface(channelData);
+export const YouTube = new YoutubeInterface(channelData);
 
 export const commands: ChatCommands = {
 	async randchannel(target, room, user) {
@@ -230,21 +230,9 @@ export const commands: ChatCommands = {
 		channelhelp: [
 			'/youtube channel - View the data of a specified channel. Can be either channel ID or channel name.',
 		],
-		async video(target, room, user) {
-			room = this.requireRoom();
-			if (room.roomid !== 'youtube') return this.errorReply(`This command can only be used in the YouTube room.`);
-			if (!target) return this.errorReply(`Provide a valid youtube link.`);
-			const html = await YouTube.generateVideoDisplay(target);
-			if (!html) return this.errorReply(`This url is invalid. Please use a youtu.be link or a youtube.com link.`);
-			this.runBroadcast();
-			if (this.broadcasting) {
-				this.addBox(html);
-				return room.update();
-			} else {
-				return this.sendReplyBox(html);
-			}
+		video(target, room, user) {
+			return this.errorReply(`/youtube video has been deprecated - Use /show instead.`);
 		},
-		videohelp: [`/youtube video - View data of a specified video. Can be either channel ID or channel name`],
 
 		channels(target, room, user) {
 			let all;
