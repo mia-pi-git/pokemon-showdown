@@ -103,11 +103,11 @@ export class YoutubeInterface {
 		let id = '';
 		if (!link) return null;
 		if (channelData[link]) return link;
-		if (!link.includes('channel')) {
+		if (!link.includes('channel/')) {
 			if (link.includes('youtube')) {
 				id = link.split('v=')[1] || '';
 			} else if (link.includes('youtu.be')) {
-				id = link.split('/')[3] || '';
+				id = link.split('/')[3	] || '';
 			} else {
 				return null;
 			}
@@ -162,7 +162,7 @@ export class YoutubeInterface {
 	}
 }
 
-const YouTube = new YoutubeInterface(channelData);
+export const YouTube = new YoutubeInterface(channelData);
 
 export const commands: ChatCommands = {
 	async randchannel(target, room, user) {
@@ -182,8 +182,20 @@ export const commands: ChatCommands = {
 	},
 	randchannelhelp: [`/randchannel - View data of a random channel from the YouTube database.`],
 
+	audio(target, room, user) {
+		room = this.requireRoom();
+		this.checkCan('mute', null, room);
+		this.runBroadcast();
+		if (!Chat.linkRegex.test(target)) return this.errorReply(`Invalid link.`);
+		if (!/\.mp(3|4)/.test(target)) return this.errorReply(`Must be an mp3/4 link.`);
+		return this.sendReplyBox(
+			`<audio controls src="${target}"></audio>`
+		);
+	},
+
 	yt: 'youtube',
 	youtube: {
+
 		async addchannel(target, room, user) {
 			room = this.requireRoom();
 			if (room.roomid !== 'youtube') return this.errorReply(`This command can only be used in the YouTube room.`);
