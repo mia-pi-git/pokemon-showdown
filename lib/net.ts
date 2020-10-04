@@ -228,6 +228,15 @@ export class NetRequest {
 	}
 }
 
+export class NetServer {
+	server: https.Server;
+	listener: http.RequestListener;
+	constructor(listener: (request: http.IncomingMessage, response: http.ServerResponse) => any, options: AnyObject = {}) {
+		this.server = https.createServer(options, listener);
+		this.listener = listener;
+	}
+}
+
 export function Net(uri: string) {
 	return new NetRequest(uri);
 }
