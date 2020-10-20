@@ -10,6 +10,7 @@
 import {FS} from '../lib/fs';
 import {Utils} from '../lib/utils';
 import type {ModlogEntry} from './modlog';
+import * as Sqlite from 'better-sqlite3';
 
 interface RoomlogOptions {
 	isMultichannel?: boolean;
@@ -52,18 +53,16 @@ export class Roomlog {
 	 * Chat rooms include timestamps.
 	 */
 	readonly noLogTimes: boolean;
+	/** Database to write to. */
+	readonly database: Sqlite.Database;
+	/** Object of statements prepared on initalization. */
+	readonly statements: {[k: string]: Sqlite.Statement};
 	roomid: RoomID;
 	/**
 	 * Scrollback log
 	 */
 	log: string[];
 	broadcastBuffer: string[];
-	/**
-	 * undefined = uninitialized,
-	 * null = disabled
-	 */
-	roomlogStream?: Streams.WriteStream | null;
-	roomlogFilename: string;
 	constructor(room: BasicRoom, options: RoomlogOptions = {}) {
 		this.roomid = room.roomid;
 
@@ -74,11 +73,18 @@ export class Roomlog {
 		this.log = [];
 		this.broadcastBuffer = [];
 
-		this.roomlogStream = undefined;
-		this.roomlogFilename = '';
-
 		Rooms.Modlog.initialize(this.roomid);
-		void this.setupRoomlogStream(true);
+		try {
+			this.database = new Sqlite(`${__dirname}/../databases/roomlogs.db`, {fileMustExist: true});
+		} catch (e) {
+			this.database = new Sqlite(`${__dirname}/../databases/roomlogs.db`);
+			this.database.exec(FS(`databases/schemas/roomlogs.sql`).readIfExistsSync());
+		}
+		this.statements = {
+			insert: this.database.prepare(`INSERT INTO roomlogs (line, timestamp, room, user) VALUES(?, ?, ?, ?)`),
+			rename: this.database.prepare(`UPDATE roomlogs SET room = ? WHERE room = ?`),
+			roomlogExists: this.database.prepare(`SELECT room FROM roomlogs WHERE room = ?`),
+		}
 	}
 	getScrollback(channel = 0) {
 		let log = this.log;
@@ -101,44 +107,6 @@ export class Roomlog {
 		}
 		return log.join('\n') + '\n';
 	}
-	async setupRoomlogStream(sync = false) {
-		if (this.roomlogStream === null) return;
-		if (!Config.logchat) {
-			this.roomlogStream = null;
-			return;
-		}
-		if (this.roomid.startsWith('battle-')) {
-			this.roomlogStream = null;
-			return;
-		}
-		const date = new Date();
-		const dateString = Chat.toTimestamp(date).split(' ')[0];
-		const monthString = dateString.split('-', 2).join('-');
-		const basepath = `logs/chat/${this.roomid}/`;
-		const relpath = `${monthString}/${dateString}.txt`;
-
-		if (relpath === this.roomlogFilename) return;
-
-		if (sync) {
-			FS(basepath + monthString).mkdirpSync();
-		} else {
-			await FS(basepath + monthString).mkdirp();
-			if (this.roomlogStream === null) return;
-		}
-		this.roomlogFilename = relpath;
-		if (this.roomlogStream) void this.roomlogStream.writeEnd();
-		this.roomlogStream = FS(basepath + relpath).createAppendStream();
-		// Create a symlink to today's lobby log.
-		// These operations need to be synchronous, but it's okay
-		// because this code is only executed once every 24 hours.
-		const link0 = basepath + 'today.txt.0';
-		FS(link0).unlinkIfExistsSync();
-		try {
-			FS(link0).symlinkToSync(relpath); // intentionally a relative link
-			FS(link0).renameSync(basepath + 'today.txt');
-		} catch (e) {} // OS might not support symlinks or atomic rename
-		if (!Roomlogs.rollLogTimer) void Roomlogs.rollLogs();
-	}
 	add(message: string) {
 		this.roomlog(message);
 		message = this.withTimestamp(message);
@@ -146,7 +114,7 @@ export class Roomlog {
 		this.broadcastBuffer.push(message);
 		return this;
 	}
-	private withTimestamp(message: string) {
+	withTimestamp(message: string) {
 		if (!this.noLogTimes && message.startsWith('|c|')) {
 			return `|c:|${Math.trunc(Date.now() / 1000)}|${message.slice(3)}`;
 		} else {
@@ -210,7 +178,7 @@ export class Roomlog {
 		}
 		this.broadcastBuffer.push(fullMessage);
 	}
-	private parseChatLine(line: string) {
+	parseChatLine(line: string) {
 		const messageStart = !this.noLogTimes ? '|c:|' : '|c|';
 		const section = !this.noLogTimes ? 4 : 3; // ['', 'c' timestamp?, author, message]
 		if (line.startsWith(messageStart)) {
@@ -219,51 +187,22 @@ export class Roomlog {
 		}
 	}
 	roomlog(message: string, date = new Date()) {
-		if (!this.roomlogStream) return;
-		const timestamp = Chat.toTimestamp(date).split(' ')[1] + ' ';
 		message = message.replace(/<img[^>]* src="data:image\/png;base64,[^">]+"[^>]*>/g, '');
-		void this.roomlogStream.write(timestamp + message + '\n');
+		const parsed = this.parseChatLine(message);
+		this.statements.insert.run(message, Date.now(), this.roomid, parsed?.user);
+		return this;
 	}
 	modlog(entry: ModlogEntry, overrideID?: string) {
 		void Rooms.Modlog.write(this.roomid, entry, overrideID);
 	}
-	async rename(newID: RoomID): Promise<true> {
-		const roomlogPath = `logs/chat`;
-		const roomlogStreamExisted = this.roomlogStream !== null;
-		await this.destroy(false); // don't destroy modlog, since it's renamed later
-		await Promise.all([
-			FS(roomlogPath + `/${this.roomid}`).exists(),
-			FS(roomlogPath + `/${newID}`).exists(),
-		]).then(([roomlogExists, newRoomlogExists]) => {
-			return Promise.all([
-				roomlogExists && !newRoomlogExists ?
-					FS(roomlogPath + `/${this.roomid}`).rename(roomlogPath + `/${newID}`) :
-					undefined,
-			]);
-		});
-		await Rooms.Modlog.rename(this.roomid, newID);
+	rename(newID: RoomID) {
+		const result = this.statements.roomlogExists.run(newID);
+		if (result) return false;
+		this.statements.rename.run(newID, this.roomid);
+		roomlogs.delete(this.roomid);
 		this.roomid = newID;
-		Roomlogs.roomlogs.set(newID, this);
-		if (roomlogStreamExisted) {
-			this.roomlogStream = undefined;
-			this.roomlogFilename = "";
-			await this.setupRoomlogStream(true);
-		}
-		return true;
-	}
-	static async rollLogs() {
-		if (Roomlogs.rollLogTimer === true) return;
-		if (Roomlogs.rollLogTimer) {
-			clearTimeout(Roomlogs.rollLogTimer);
-		}
-		Roomlogs.rollLogTimer = true;
-		for (const log of Roomlogs.roomlogs.values()) {
-			await log.setupRoomlogStream();
-		}
-		const time = Date.now();
-		const nextMidnight = new Date(time + 24 * 60 * 60 * 1000);
-		nextMidnight.setHours(0, 0, 1);
-		Roomlogs.rollLogTimer = setTimeout(() => void Roomlog.rollLogs(), nextMidnight.getTime() - time);
+		roomlogs.set(newID, this);
+		return this;
 	}
 	truncate() {
 		if (this.noAutoTruncate) return;
@@ -274,10 +213,7 @@ export class Roomlog {
 
 	destroy(destroyModlog?: boolean) {
 		const promises = [];
-		if (this.roomlogStream) {
-			promises.push(this.roomlogStream.writeEnd());
-			this.roomlogStream = null;
-		}
+
 		if (destroyModlog) promises.push(Rooms.Modlog.destroy(this.roomid));
 		Roomlogs.roomlogs.delete(this.roomid);
 		return Promise.all(promises);
@@ -299,8 +235,4 @@ export const Roomlogs = {
 	create: createRoomlog,
 	Roomlog,
 	roomlogs,
-
-	rollLogs: Roomlog.rollLogs,
-
-	rollLogTimer: null as NodeJS.Timeout | true | null,
 };
