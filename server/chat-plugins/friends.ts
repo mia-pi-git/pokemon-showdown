@@ -7,14 +7,24 @@
 import * as Sqlite from 'better-sqlite3';
 import {Utils} from '../../lib/utils';
 import {FS} from '../../lib/fs';
+import {QueryProcessManager} from '../../lib/process-manager';
+import {Repl} from '../../lib/repl';
+import {Chat} from '../chat';
 
 /** Max friends per user */
 const MAX_FRIENDS = 100;
 /** Max friend requests. */
 const MAX_REQUESTS = 6;
 const REQUEST_EXPIRY_TIME = 30 * 24 * 60 * 60 * 1000;
+const MAX_PROCESSES = 1;
 /** `Map<transferTo, transferFrom>` */
 export const transferRequests: Map<string, string> = Chat.oldPlugins.friends?.transferRequests || new Map();
+
+interface DatabaseRequest {
+	statement: string;
+	type: 'all' | 'get' | 'run' | 'exec';
+	data: AnyObject | any[];
+}
 
 const STATUS_COLORS: {[k: string]: string} = {
 	idle: '#ff7000',
@@ -29,11 +39,30 @@ const STATUS_TITLES: {[k: string]: string} = {
 	offline: 'Offline',
 };
 
+const ACTIONS: {[k: string]: string} = {
+	add: (
+		`REPLACE INTO friends (userid, friend, last_login) VALUES($userid, $friend, $login) ON CONFLICT (userid, friend) ` +
+		`DO UPDATE SET userid = $userid, friend = $friend`
+	),
+	get: `SELECT * FROM friends WHERE userid = ? LIMIT ?`,
+	delete: `DELETE FROM friends WHERE userid = $userid OR friend = $userid`,
+	getSent: `SELECT receiver, sender FROM friend_requests WHERE sender = ?`,
+	getReceived: `SELECT receiver, sender FROM friend_requests WHERE receiver = ?`,
+	insertRequest: `INSERT INTO friend_requests(sender, receiver, sent_at) VALUES(?, ?, ?)`,
+	deleteRequest: `DELETE FROM friend_requests WHERE sender = ? AND receiver = ?`,
+	findFriendship: `SELECT * FROM friends WHERE (friend = $user1 AND userid = $user2) OR (userid = $user1 AND friend = $user2)`,
+	renameFriend: `UPDATE OR IGNORE friends SET friend = $newID WHERE friend = $oldID`,
+	renameUserid: `UPDATE OR IGNORE friends SET userid = $newID WHERE userid = $oldID`,
+	rename: `REPLACE INTO friend_renames (original_name, new_name, change_date) VALUES(?, ?, ?)`,
+	login: `UPDATE friends SET last_login = ? WHERE friend = ?`,
+	checkLastLogin: `SELECT last_login FROM friends WHERE friend = ?`,
+	deleteLogin: `UPDATE friends SET last_login = null WHERE friend = ?`,
+}
+
 export const Friends = new class {
 	/** `Map<oldID, newID> */
 	renames: Map<string, string>;
-	private readonly database: Sqlite.Database;
-	private readonly statements: {[k: string]: Sqlite.Statement};
+	readonly database: Sqlite.Database;
 	constructor() {
 		try {
 			this.database = new Sqlite(`${__dirname}/../../databases/friends.db`, {fileMustExist: true});
@@ -43,33 +72,6 @@ export const Friends = new class {
 		}
 		this.renames = this.getRenames();
 		// preparing these once is apparently faster
-		this.statements = {
-			add: this.database.prepare(
-				`REPLACE INTO friends (userid, friend, last_login) VALUES($userid, $friend, $login) ON CONFLICT (userid, friend) ` +
-				`DO UPDATE SET userid = $userid, friend = $friend`
-			),
-			get: this.database.prepare(`SELECT * FROM friends WHERE userid = ? LIMIT ?`),
-			delete: this.database.prepare(`DELETE FROM friends WHERE userid = $userid OR friend = $userid`),
-			getSent: this.database.prepare(`SELECT receiver, sender FROM friend_requests WHERE sender = ?`),
-			getReceived: this.database.prepare(`SELECT receiver, sender FROM friend_requests WHERE receiver = ?`),
-			insertRequest: this.database.prepare(`INSERT INTO friend_requests(sender, receiver, sent_at) VALUES(?, ?, ?)`),
-			deleteRequest: this.database.prepare(`DELETE FROM friend_requests WHERE sender = ? AND receiver = ?`),
-			findFriendship: this.database.prepare(
-				`SELECT * FROM friends WHERE (friend = $user1 AND userid = $user2) OR (userid = $user1 AND friend = $user2)`
-			),
-			renameFriend: this.database.prepare(
-				`UPDATE OR IGNORE friends SET friend = $newID WHERE friend = $oldID`
-			),
-			renameUserid: this.database.prepare(
-				`UPDATE OR IGNORE friends SET userid = $newID WHERE userid = $oldID`
-			),
-			rename: this.database.prepare(
-				`REPLACE INTO friend_renames (original_name, new_name, change_date) VALUES(?, ?, ?)`
-			),
-			login: this.database.prepare(`UPDATE friends SET last_login = ? WHERE friend = ?`),
-			checkLastLogin: this.database.prepare(`SELECT last_login FROM friends WHERE friend = ?`),
-			deleteLogin: this.database.prepare(`UPDATE friends SET last_login = null WHERE friend = ?`),
-		};
 		this.checkExpiringRequests();
 	}
 	checkExpiringRequests() {
@@ -87,23 +89,29 @@ export const Friends = new class {
 		}
 		return removed;
 	}
-	getFriends(user: User) {
+	async getFriends(user: User) {
 		if (user.friends) return; // only query once per user object
-		const results = this.statements.get.all(user.id, MAX_FRIENDS).map(item => item.friend);
-		const friends = new Set(results);
-		user.friends = friends;
+		const results = await PM.query({
+			statement: 'get', type: 'all', data: [user.id, MAX_FRIENDS],
+		})
+		const friends = new Set(results.map((item: AnyObject) => item.friend));
+		user.friends = friends as Set<string>;
 		return friends;
 	}
-	getRequests(user: User) {
+	async getRequests(user: User) {
 		const sent: Set<string> = new Set();
 		const received: Set<string> = new Set();
 		if (user.settings.blockFriendRequests) {
 			// delete any pending requests that may have been sent to them while offline and return
-			this.statements.deleteRequest.run(user.id);
+			await PM.query({
+				statement: 'deleteRequest', type: 'all', data: [user.id],
+			});
 			user.friendRequests = null;
 			return;
 		}
-		const sentResults = this.statements.getSent.all(user.id);
+		const sentResults = await PM.query({
+			statement: 'getSent', type: 'all', data: [user.id],
+		});
 		for (const request of sentResults) {
 			if ((Date.now() - request.sent_at) > (30 * 24 * 60 * 60 * 1000)) {
 				// expires after a month
@@ -112,7 +120,9 @@ export const Friends = new class {
 			}
 			sent.add(request.receiver);
 		}
-		const receivedResults = this.statements.getReceived.all(user.id);
+		const receivedResults = await PM.query({
+			statement: 'getReceived', data: [user.id], type: 'all',
+		});
 		for (const request of receivedResults) {
 			received.add(request.sender);
 		}
@@ -129,7 +139,7 @@ export const Friends = new class {
 		}
 		return renames;
 	}
-	request(user: User, receiverName: string) {
+	async request(user: User, receiverName: string) {
 		const receiverID = toID(receiverName);
 		if (!user.friends) user.friends = new Set();
 		if (user.friends.size >= MAX_FRIENDS) {
@@ -138,7 +148,7 @@ export const Friends = new class {
 		if (!receiverID) throw new Chat.ErrorMessage(`Invalid name.`);
 		if (receiverID === user.id) throw new Chat.ErrorMessage(`You cannot friend yourself.`);
 		const sentRequests = user.friendRequests?.sent;
-		if (this.hasFriendship(user.id, receiverID)) {
+		if (await this.hasFriendship(user.id, receiverID)) {
 			throw new Chat.ErrorMessage(`You are already friends with '${receiverID}'.`);
 		}
 		if (sentRequests?.has(receiverID)) {
@@ -188,10 +198,12 @@ export const Friends = new class {
 			`<i class="fa fa-undo"></i> Undo</button>`, user.id
 		);
 		this.sendPM(disclaimer, user.id);
-		this.statements.insertRequest.run(user.id, receiverID, Date.now());
+		await PM.query({
+			statement: 'insertRequest', data: [user.id, receiverID, Date.now()], type: 'run',
+		});
 		return sentRequests?.add(receiverID);
 	}
-	removeRequest(receiverName: string, senderName: string) {
+	async removeRequest(receiverName: string, senderName: string) {
 		const senderID = toID(senderName);
 		const receiverID = toID(receiverName);
 		if (!senderID) throw new Chat.ErrorMessage(`Invalid sender username.`);
@@ -208,17 +220,19 @@ export const Friends = new class {
 			const {received} = receiver.friendRequests;
 			received?.delete(senderID);
 		}
-		this.statements.deleteRequest.run(senderID, receiverID);
+		return PM.query({
+			statement: 'deleteRequest', data: [senderID, receiverID], type: 'run',
+		});
 	}
-	approveRequest(receiver: User, senderName: string) {
+	async approveRequest(receiver: User, senderName: string) {
 		const senderID = toID(senderName);
 		if (!receiver.friendRequests?.received?.has(senderID)) {
 			throw new Chat.ErrorMessage(`You have not received a friend request from '${senderID}'.`);
 		}
-		this.removeRequest(receiver.id, senderID);
-		this.addFriend(senderID, receiver.id);
+		await this.removeRequest(receiver.id, senderID);
+		await this.addFriend(senderID, receiver.id);
 	}
-	visualizeList(user: User) {
+	async visualizeList(user: User) {
 		if (!user.friends) {
 			return `<h3>Your friends:</h3> <h4>None.</h4>`;
 		}
@@ -256,14 +270,14 @@ export const Friends = new class {
 			buf += `<h4>${STATUS_TITLES[key]} (${friendArray.length})</h4>`;
 			for (const friend of friendArray) {
 				buf += `<div class="pad"><div>`;
-				buf += this.displayFriend(friend);
+				buf += await this.displayFriend(friend);
 				buf += `</div></div>`;
 			}
 		}
 
 		return buf;
 	}
-	displayFriend(userid: string) {
+	async displayFriend(userid: string) {
 		const user = Users.getExact(userid); // we want this to be exact
 		const connected = user?.connected;
 		const name = Utils.escapeHTML(user ? user.name : userid);
@@ -284,7 +298,7 @@ export const Friends = new class {
 		} else if (curUser?.id && curUser.id !== userid) {
 			buf += `<small>On an alternate account</small><br />`;
 		}
-		const lastLogin = this.getLastLogin(userid);
+		const lastLogin = await this.getLastLogin(userid);
 		if (lastLogin && !connected) {
 			// THIS IS A TERRIBLE HACK BUT IT WORKS OKAY
 			const time = Chat.toTimestamp(new Date(Number(lastLogin)), {human: true});
@@ -313,8 +327,10 @@ export const Friends = new class {
 			receiver.friends.add(senderID);
 		}
 
-		this.statements.add.run({userid: senderID, friend: receiverID, login: Date.now()});
-		this.statements.add.run({userid: receiverID, friend: senderID, login: Date.now()});
+		return Promise.all([
+			PM.query({statement: 'add', data: {userid: senderID, friend: receiverID, login: Date.now()}, type: 'run'}),
+			PM.query({statement: 'add', data: {userid: receiverID, friend: senderID, login: Date.now()}, type: 'run'}),
+		]);
 	}
 	removeFriend(userName: string, friendName: string) {
 		const userid = toID(userName);
@@ -332,8 +348,9 @@ export const Friends = new class {
 			if (!friend.friends) friend.friends = new Set();
 			friend.friends.delete(userid);
 		}
-
-		this.statements.delete.run({userid});
+		return PM.query({
+			statement: 'delete', type: 'run', data: {userid},
+		});
 	}
 	sendPM(message: string, to: string, from = '&') {
 		const id1 = toID(to);
@@ -370,7 +387,7 @@ export const Friends = new class {
 			}
 		}
 	}
-	hasFriendship(name1: string, name2: string) {
+	async hasFriendship(name1: string, name2: string) {
 		const userid1 = toID(name1);
 		const userid2 = toID(name2);
 		const user1 = Users.get(userid1);
@@ -378,7 +395,7 @@ export const Friends = new class {
 		if (user1 || user2) {
 			return user1?.friends?.has(userid2) || user2?.friends?.has(userid1);
 		} // they aren't online, check the DB
-		const results = this.statements.findFriendship.all({user1, user2});
+		const results = await PM.query({statement: 'findFriendship', data: {user1, user2}, type: 'all'});
 		return results.length > 0;
 	}
 	transfer(oldUser: User, newName: string) {
@@ -406,22 +423,27 @@ export const Friends = new class {
 		newUser.friends = oldUser.friends;
 		oldUser.friends?.clear();
 
-		this.statements.renameFriend.run({oldID, newID});
-		this.statements.renameUserid.run({oldID, newID});
-		this.statements.rename.run(oldID, newID, Date.now());
 		this.renames.set(oldID, newID);
-		return true;
+		return Promise.all([
+			PM.query({statement: 'renameFriend', data: {oldID, newID}, type: 'run'}),
+			PM.query({statement: 'renameUserid', data: {oldID, newID}, type: 'run'}),
+			PM.query({statement: 'rename', data: [oldID, newID, Date.now()], type: 'run'}),
+		]);
 	}
 	writeLogin(user: User) {
 		if (user.settings.hideLogins) return;
-		this.statements.login.run(Date.now(), user.id);
+		return PM.query({
+			statement: 'login', type: 'run', data: [Date.now(), user.id],
+		});
 	}
 	clearLoginData(user: User) {
-		this.statements.deleteLogin.run(user.id);
+		return PM.query({
+			statement: 'deleteLogin', type: 'run', data: [user.id],
+		});
 	}
-	getLastLogin(userid: string) {
+	async getLastLogin(userid: string) {
 		userid = toID(userid);
-		const result = this.statements.checkLastLogin.get(userid);
+		const result = await PM.query({statement: 'checkLastLogin', type: 'get', data: [userid]});
 		const num = Number(result?.['last_login']);
 		if (isNaN(num)) return;
 		return num;
@@ -487,7 +509,7 @@ export const commands: ChatCommands = {
 			return this.parse(`/friends list`);
 		},
 		request: 'add',
-		add(target, room, user) {
+		async add(target, room, user) {
 			Friends.checkCanUse(this);
 			target = toID(target);
 			if (target.length > 18) {
@@ -501,16 +523,16 @@ export const commands: ChatCommands = {
 			if (user.friends.has(toID(target))) {
 				return this.errorReply(`You are already friends with ${target}.`);
 			}
-			Friends.request(user, target);
+			await Friends.request(user, target);
 			this.parse(`/join view-friends-sent`);
 			return this.sendReply(this.tr`You sent a friend request to '${target}'.`);
 		},
 		unfriend: 'remove',
-		remove(target, room, user) {
+		async remove(target, room, user) {
 			Friends.checkCanUse(this);
 			target = toID(target);
 			if (!target) return this.parse('/help friends');
-			Friends.removeFriend(user.id, target);
+			await Friends.removeFriend(user.id, target);
 			return this.sendReply(this.tr`Removed friend '${target}'.`);
 		},
 		view(target) {
@@ -519,7 +541,7 @@ export const commands: ChatCommands = {
 		list() {
 			return this.parse(`/join view-friends`);
 		},
-		accept(target, room, user, connection) {
+		async accept(target, room, user, connection) {
 			Friends.checkCanUse(this);
 			target = toID(target);
 			if (!user.autoconfirmed) {
@@ -529,14 +551,14 @@ export const commands: ChatCommands = {
 				return this.errorReply(this.tr`You are currently blocking friend requests, and so cannot accept your own.`);
 			}
 			if (!target) return this.parse('/help friends');
-			Friends.approveRequest(user, target);
+			await Friends.approveRequest(user, target);
 			const targetUser = Users.get(target);
 			Friends.sendPM(`You accepted a friend request from "${target}".`, user.id);
 			this.parse(`/j view-friends-received`);
 			if (targetUser) Friends.sendPM(`/text ${user.name} accepted your friend request!`, targetUser.id);
 		},
 		deny: 'reject',
-		reject(target, room, user, connection) {
+		async reject(target, room, user, connection) {
 			Friends.checkCanUse(this);
 			target = toID(target);
 			if (!target) return this.parse('/help friends');
@@ -549,7 +571,7 @@ export const commands: ChatCommands = {
 			if (!user.friendRequests.received.has(target)) {
 				return this.errorReply(this.tr`You have not received a friend request from '${target}'.`);
 			}
-			Friends.removeRequest(user.id, target);
+			await Friends.removeRequest(user.id, target);
 			this.parse(`/join view-friends-received`);
 			return Friends.sendPM(this.tr`You denied a friend request from '${target}'.`, user.id);
 		},
@@ -609,7 +631,7 @@ export const commands: ChatCommands = {
 			);
 			return Friends.sendPM(this.tr`You sent a friend transfer request to '${targetUser.name}'.`, user.id);
 		},
-		approvetransfer(target, room, user, connection) {
+		async approvetransfer(target, room, user, connection) {
 			Friends.checkCanUse(this);
 			if (!user.autoconfirmed) {
 				return Friends.sendPM(`/error ${this.tr`You must be autoconfirmed to use the friends feature.`}`, user.id);
@@ -619,7 +641,7 @@ export const commands: ChatCommands = {
 			}
 			const targetUser = Users.getExact(toID(target));
 			if (!targetUser) return this.errorReply(this.tr`User '${target}' not found.`);
-			Friends.transfer(targetUser, user.id);
+			await Friends.transfer(targetUser, user.id);
 
 			Friends.sendPM(`/nonotify ${user.name} ${this.tr`transferred their friends to you.`}`, targetUser.id);
 			return Friends.sendPM(this.tr`You approved ${targetUser.name}'s friend transfer request!`, user.id);
@@ -634,7 +656,7 @@ export const commands: ChatCommands = {
 			transferRequests.delete(user.id);
 			return Friends.sendPM(`/error ${this.tr`Denied the friend transfer request from '${requester}'.`}`, user.id);
 		},
-		undorequest(target, room, user) {
+		async undorequest(target, room, user) {
 			Friends.checkCanUse(this);
 			target = toID(target);
 			const requests = user.friendRequests;
@@ -646,7 +668,7 @@ export const commands: ChatCommands = {
 			if (!requests.sent.has(target)) {
 				return Friends.sendPM(`/error ${this.tr`You have not sent a request to '${target}'.`}`, user.id);
 			}
-			Friends.removeRequest(target, user.id);
+			await Friends.removeRequest(target, user.id);
 			this.parse(`/join view-friends-sent`);
 			return Friends.sendPM(this.tr`You removed your friend request to '${target}'.`, user.id);
 		},
@@ -701,7 +723,7 @@ export const commands: ChatCommands = {
 };
 
 export const pages: PageTable = {
-	friends(args, user) {
+	async friends(args, user) {
 		if (!user.named) return Rooms.RETRY_AFTER_LOGIN;
 		const [type] = args;
 		let buf = '<div class="pad">';
@@ -795,22 +817,70 @@ export const pages: PageTable = {
 			this.title = `[Friends] All Friends`;
 			buf += headerButtons('all', user);
 			buf += `<hr />`;
-			buf += Friends.visualizeList(user);
+			buf += await Friends.visualizeList(user);
 		}
 		buf += `</div>`;
 		return toLink(buf);
 	},
 };
 
-export const loginfilter: LoginFilter = (user) => {
+export const loginfilter: LoginFilter = async user => {
 	// query their friends and attach to the user object
-	Friends.getFriends(user);
-	Friends.getRequests(user);
+	await Friends.getFriends(user);
+	await Friends.getRequests(user);
 	// notify users of pending requests
 	Friends.notifyPending(user);
 
 	// (quietly) notify their friends (that have opted in) that they are online
 	Friends.notifyConnection(user);
 	// write login time
-	Friends.writeLogin(user);
+	await Friends.writeLogin(user);
 };
+
+const statements: Map<string, Sqlite.Statement> = new Map();
+
+export const PM = new QueryProcessManager<DatabaseRequest, any>(module, query => {
+	const {type, statement, data} = query;
+	let result;
+	const cached = statements.get(statement);
+	if (!cached) return null;
+	try {
+		switch (type) {
+		case 'all':
+			result = cached.all(data);
+			break;
+		case 'get':
+			result = cached.get(data);
+			break;
+		case 'run':
+			result = cached.run(data);
+			break;
+		}
+	} catch (e) {
+		Monitor.crashlog(e, 'A friends database process', query);
+	}
+	return result;
+});
+
+if (!PM.isParentProcess) {
+	for (const k in ACTIONS) {
+		statements.set(k, Friends.database.prepare(ACTIONS[k]));
+	}
+	global.Monitor = {
+		crashlog(error: Error, source = 'A friends database process', details: AnyObject | null = null) {
+			const repr = JSON.stringify([error.name, error.message, source, details]);
+			// @ts-ignore please be silent
+			process.send(`THROW\n@!!@${repr}\n${error.stack}`);
+		},
+	};
+	global.Config = (require as any)('../config-loader').Config;
+	process.on('uncaughtException', err => {
+		if (Config.crashguard) {
+			Monitor.crashlog(err, 'A friends child process');
+		}
+	});
+	// eslint-disable-next-line no-eval
+	Repl.start('friends', cmd => eval(cmd));
+} else {
+	PM.spawn(MAX_PROCESSES);
+}
