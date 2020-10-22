@@ -581,6 +581,9 @@ export const commands: ChatCommands = {
 			user.settings.blockPMs = target;
 			target = this.tr(target);
 			this.sendReply(this.tr `You are now blocking private messages, except from staff and ${target} users.`);
+		} else if (toID(target) === 'friends') {
+			user.settings.blockPMs = 'friends';
+			this.sendReply(this.tr `You are now blocking private messages, except from staff and friended users.`);
 		} else {
 			user.settings.blockPMs = true;
 			this.sendReply(this.tr("You are now blocking private messages, except from staff."));

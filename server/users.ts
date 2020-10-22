@@ -303,10 +303,13 @@ type ChatQueueEntry = [string, RoomID, Connection];
 
 export interface UserSettings {
 	blockChallenges: boolean;
-	blockPMs: boolean | AuthLevel;
+	blockPMs: boolean | AuthLevel | 'friends';
 	ignoreTickets: boolean;
 	hideBattlesFromTrainerCard: boolean;
 	doNotDisturb: boolean;
+	blockFriendRequests: boolean;
+	allowFriendNotifications: boolean;
+	hideLogins: boolean;
 }
 
 // User
@@ -356,6 +359,9 @@ export class User extends Chat.MessageContext {
 	lastDisconnected: number;
 	lastConnected: number;
 	foodfight?: {generatedTeam: string[], dish: string, ingredients: string[], timestamp: number};
+	// We want this to be null on creation so that the database can be queried only once per user object.
+	friends: Set<string> | null;
+	friendRequests: {sent: Set<string>, received: Set<string> | null} | null;
 
 	chatQueue: ChatQueueEntry[] | null;
 	chatQueueTimeout: NodeJS.Timeout | null;
@@ -430,6 +436,9 @@ export class User extends Chat.MessageContext {
 			ignoreTickets: false,
 			hideBattlesFromTrainerCard: false,
 			doNotDisturb: false,
+			blockFriendRequests: false,
+			allowFriendNotifications: true,
+			hideLogins: false,
 		};
 		this.battleSettings = {
 			team: '',
@@ -470,6 +479,9 @@ export class User extends Chat.MessageContext {
 		this.statusType = 'online';
 		this.userMessage = '';
 		this.lastWarnedAt = 0;
+
+		this.friends = null;
+		this.friendRequests = null;
 
 		// initialize
 		Users.add(this);
