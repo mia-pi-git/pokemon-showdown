@@ -180,12 +180,7 @@ export class LastFMInterface {
 			buf += `</td><td>`;
 			const artistUrl = obj.url.split('_/')[0];
 			buf += `<strong><a href="${artistUrl}">${artistName}</a> - <a href="${obj.url}">${trackName}</a></strong><br />`;
-			let videoIDs: string[] | undefined;
-			try {
-				videoIDs = await YouTube.searchVideo(searchName, 1);
-			} catch (e) {
-				throw new Chat.ErrorMessage(`Error while fetching video data: ${e.message}`);
-			}
+			const videoIDs = await YouTube.searchVideo(searchName, 1);
 			if (!videoIDs?.length) {
 				buf += searchName;
 			} else {
@@ -313,12 +308,7 @@ class RecommendationsInterface {
 	}
 
 	async render(rec: Recommendation, suggested = false) {
-		let videoInfo = null;
-		try {
-			videoInfo = await YouTube.getVideoData(rec.url);
-		} catch (e) {
-			throw new Chat.ErrorMessage(`Error while fetching recommendation URL: ${e.message}`);
-		}
+		const videoInfo = await YouTube.getVideoData(rec.url);
 		let buf = ``;
 		buf += `<div style="color:#000;background:linear-gradient(rgba(210,210,210),rgba(225,225,225))">`;
 		buf += `<table style="margin:auto;background:rgba(255,255,255,0.25);padding:3px;"><tbody><tr>`;

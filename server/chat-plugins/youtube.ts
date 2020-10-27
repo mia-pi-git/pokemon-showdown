@@ -148,9 +148,14 @@ export class YoutubeInterface {
 		return Promise.resolve({...this.data.channels[id]});
 	}
 	async getVideoData(id: string): Promise<VideoData | null> {
-		const raw = await Net(`${ROOT}videos`).get({
-			query: {part: 'snippet,statistics', id, key: Config.youtubeKey},
-		});
+		let raw;
+		try {
+			raw = await Net(`${ROOT}videos`).get({
+				query: {part: 'snippet,statistics', id, key: Config.youtubeKey},
+			});
+		} catch (e) {
+			throw new Chat.ErrorMessage(`Error retrieving video data: ${e.message}.`);
+		}
 		const res = JSON.parse(raw);
 		if (!res || !res.items || res.items.length < 1) return null;
 		const video = res.items[0];
