@@ -25,6 +25,7 @@ To reload chat commands:
 
 import type {RoomPermission, GlobalPermission} from './user-groups';
 import type {Punishment} from './punishments';
+import type {PartialModlogEntry} from './modlog';
 
 export type PageHandler = (this: PageContext, query: string[], user: User, connection: Connection)
 => Promise<string | null | void> | string | null | void;
@@ -120,7 +121,6 @@ const BROADCAST_TOKEN = '!';
 import {FS} from '../lib/fs';
 import {Utils} from '../lib/utils';
 import {formatText, linkRegex, stripFormatting} from './chat-formatter';
-import {ModlogEntry} from './modlog';
 
 // @ts-ignore no typedef available
 import ProbeModule = require('probe-image-size');
@@ -773,7 +773,7 @@ export class CommandContext extends MessageContext {
 		this.add(`|html|<div class="infobox">${htmlContent}</div>`);
 	}
 	sendReplyBox(htmlContent: string) {
-		this.sendReply(`|c|${this.room ? this.user.getIdentity() : '~'}|/raw <div class="infobox">${htmlContent}</div>`);
+		this.sendReply(`|c|${this.room && this.broadcasting ? this.user.getIdentity() : '~'}|/raw <div class="infobox">${htmlContent}</div>`);
 	}
 	popupReply(message: string) {
 		this.connection.popup(message);
@@ -828,7 +828,12 @@ export class CommandContext extends MessageContext {
 		this.roomlog(`(${msg})`);
 	}
 	globalModlog(action: string, user: string | User | null, note?: string | null, ip?: string) {
-		const entry: ModlogEntry = {action, isGlobal: true, loggedBy: this.user.id, note: note?.replace(/\n/gm, ' ')};
+		const entry: PartialModlogEntry = {
+			action,
+			isGlobal: true,
+			loggedBy: this.user.id,
+			note: note?.replace(/\n/gm, ' ') || '',
+		};
 		if (user) {
 			if (typeof user === 'string') {
 				entry.userid = toID(user);
@@ -842,8 +847,11 @@ export class CommandContext extends MessageContext {
 			}
 		}
 		if (ip) entry.ip = ip;
-		this.room?.modlog(entry);
-		Rooms.global.modlog(entry, this.room?.roomid);
+		if (this.room) {
+			this.room.modlog(entry);
+		} else {
+			Rooms.global.modlog(entry);
+		}
 	}
 	modlog(
 		action: string,
@@ -851,7 +859,11 @@ export class CommandContext extends MessageContext {
 		note: string | null = null,
 		options: Partial<{noalts: any, noip: any}> = {}
 	) {
-		const entry: ModlogEntry = {action, loggedBy: this.user.id, note: note?.replace(/\n/gm, ' ')};
+		const entry: PartialModlogEntry = {
+			action,
+			loggedBy: this.user.id,
+			note: note?.replace(/\n/gm, ' ') || '',
+		};
 		if (user) {
 			if (typeof user === 'string') {
 				entry.userid = toID(user);
@@ -1212,7 +1224,7 @@ export class CommandContext extends MessageContext {
 		htmlContent = ('' + (htmlContent || '')).trim();
 		if (!htmlContent) return '';
 		if (/>here.?</i.test(htmlContent) || /click here/i.test(htmlContent)) {
-			throw new Chat.ErrorMessage('Do not use "click here"');
+			throw new Chat.ErrorMessage('Do not use "click here" – See [[Design standard #2 <https://github.com/smogon/pokemon-showdown/blob/master/CONTRIBUTING.md#design-standards>]]');
 		}
 
 		// check for mismatched tags
@@ -1353,6 +1365,19 @@ export class CommandContext extends MessageContext {
 			throw new Chat.ErrorMessage(`This command can only be used in the ${targetRoom.title} room.`);
 		}
 		return this.room;
+	}
+	// eslint-disable-next-line @typescript-eslint/type-annotation-spacing
+	requireGame<T extends RoomGame>(constructor: new (...args: any[]) => T) {
+		const room = this.requireRoom();
+		if (!room.game) {
+			throw new Chat.ErrorMessage(`This command requires a game of ${constructor.name} (this room has no game).`);
+		}
+		const game = room.getGame(constructor);
+		// must be a different game
+		if (!game) {
+			throw new Chat.ErrorMessage(`This command requires a game of ${constructor.name} (this game is ${room.game.title}).`);
+		}
+		return game;
 	}
 	commandDoesNotExist(): never {
 		if (this.cmdToken === '!') {
@@ -2175,10 +2200,10 @@ CommandContext.prototype.requiresRoom = CommandContext.prototype.requireRoom;
 export interface FilterWord {
 	regex: RegExp;
 	word: string;
-	reason: string;
+	hits: number;
+	reason?: string;
 	publicReason?: string;
 	replacement?: string;
-	hits: number;
 }
 
 export type MonitorHandler = (
