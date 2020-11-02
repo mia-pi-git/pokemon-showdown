@@ -97,16 +97,12 @@ export const Repl = new class ReplSingleton {
 			});
 
 			server.once('error', (err: NodeJS.ErrnoException) => {
-<<<<<<< HEAD
 				server.close();
-=======
->>>>>>> add github plugin
 				if (err.code === "EADDRINUSE") {
 					fs.unlink(pathname, _err => {
 						if (_err && _err.code !== "ENOENT") {
 							crashlogger(_err, `REPL: ${filename}`);
 						}
-<<<<<<< HEAD
 					});
 				} else if (err.code === "EACCES") {
 					if (process.platform !== 'win32') {
@@ -114,22 +110,11 @@ export const Repl = new class ReplSingleton {
 					}
 				} else {
 					crashlogger(err, `REPL: ${filename}`);
-=======
-						server.close();
-					});
-				} else {
-					crashlogger(err, `REPL: ${filename}`);
-					server.close();
->>>>>>> add github plugin
 				}
 			});
 
 			server.once('close', () => {
 				Repl.socketPathnames.delete(pathname);
-<<<<<<< HEAD
-=======
-				Repl.start(filename, evalFunction);
->>>>>>> add github plugin
 			});
 		} catch (err) {
 			console.error(`Could not start REPL server "${filename}": ${err}`);

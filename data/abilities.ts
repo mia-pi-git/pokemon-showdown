@@ -2816,15 +2816,7 @@ export const Abilities: {[abilityid: string]: AbilityData} = {
 			}
 		},
 		name: "Quick Draw",
-<<<<<<< HEAD
-		rating: 2.5,
-=======
-<<<<<<< HEAD
-		rating: 3,
-=======
 		rating: 2,
->>>>>>> add github plugin
->>>>>>> add github plugin
 		num: 259,
 	},
 	quickfeet: {

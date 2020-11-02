@@ -12706,11 +12706,7 @@ export const Moves: {[moveid: string]: MoveData} = {
 		priority: 0,
 		flags: {protect: 1, mirror: 1},
 		onTry(pokemon, target) {
-<<<<<<< HEAD
 			if (!target.item) {
-=======
-			if (!target.item || target.ignoringItem()) {
->>>>>>> add github plugin
 				this.attrLastMove('[still]');
 				this.add('-fail', pokemon);
 				return null;
@@ -14066,11 +14062,7 @@ export const Moves: {[moveid: string]: MoveData} = {
 		priority: 0,
 		flags: {protect: 1, mirror: 1},
 		onBasePower(basePower, pokemon, target) {
-<<<<<<< HEAD
 			if (this.field.isTerrain('electricterrain') && target.isGrounded()) {
-=======
-			if (this.field.isTerrain('electricterrain') && !target.runImmunity('Ground')) {
->>>>>>> add github plugin
 				this.debug('terrain buff');
 				return this.chainModify(2);
 			}

@@ -1,7 +1,8 @@
 /**
  * Plugin to notify given rooms / the Development room on Pokemon Showdown
  * of github updates.
- * Some html / design from xfix's github bot, plugin by mia-pi.
+ * Some html / design from xfix's github bot, plugin by Mia.
+ * @author mia-pi-git
  */
 // @ts-ignore old enough module it has no types
 import * as githubhook from 'githubhook';
@@ -14,6 +15,7 @@ const rooms: RoomID[] = Config.github?.rooms ? Config.github.rooms : ['staff', '
 export const github = githubhook({
 	port: (Config.github?.port || Config.port + 1),
 	secret: (Config.github?.secret || ''),
+	callback: '/server/chat-plugins/github.ts',
 });
 
 interface GithubData {
@@ -36,19 +38,15 @@ try {
 	gitData = JSON.parse(FS('config/chat-plugins/github.json').readIfExistsSync());
 } catch (e) {};
 
-github.on(
-	'push',
-	(repo: string, ref: string, result: AnyObject) => {
-		return GithubParser.push(repo, ref, result);
-	}
+github.on('push',
+	(repo: string, ref: string, result: AnyObject) => GithubParser.push(repo, ref, result)
 );
 
 github.on(
 	'pull_request',
-	(repo: string, ref: string, result: AnyObject) => {
-		return GithubParser.pull(repo, ref, result);
-	}
+	(repo: string, ref: string, result: AnyObject) => GithubParser.pull(repo, ref, result)
 );
+
 export const GithubParser = new class {
 	pushes: AnyObject;
 	constructor() {
@@ -121,9 +119,8 @@ export const commands: ChatCommands = {
 	gh: 'github',
 	github: {
 		ban(target, room, user) {
-			if (!room) return this.requiresRoom();
-			if (room.roomid !== 'development') return this.errorReply(`This command can only be used in the Development room.`);
-			if (!this.can('mute', null, room)) return false;
+			room = this.requireRoom('development');
+			this.checkCan('mute', null, room);
 			if (gitData.bans.includes(target)) return this.errorReply(`${target} is already gitbanned.`);
 			gitData.bans.push(target);
 			GithubParser.save();
@@ -131,9 +128,8 @@ export const commands: ChatCommands = {
 			return this.modlog('GITBAN', null, target);
 		},
 		unban(target, room, user) {
-			if (!room) return this.requiresRoom();
-			if (room.roomid !== 'development') return this.errorReply(`This command can only be used in the Development room.`);
-			if (!this.can('mute', null, room)) return false;
+			room = this.requireRoom('development');
+			this.checkCan('mute', null, room);
 			const index = gitData.bans.indexOf(target);
 			if (index < 0) return this.errorReply(`${target} is not gitbanned.`);
 			gitData.bans.splice(index, 1);
@@ -142,9 +138,8 @@ export const commands: ChatCommands = {
 			return this.modlog('UNGITBAN', null, target);
 		},
 		bans(target, room, user) {
-			if (!room) return this.requiresRoom();
-			if (room.roomid !== 'development') return this.errorReply(`This command can only be used in the Development room.`);
-			if (!this.can('mute', null, room)) return false;
+			room = this.requireRoom('development');
+			this.checkCan('mute', null, room);
 			let buf = `<strong>IDs banned from being reported by the Github Plugin</strong>:<hr/ >`;
 			for (const id of gitData.bans) {
 				buf += `- ${id}<br/ >`;
@@ -152,9 +147,8 @@ export const commands: ChatCommands = {
 			return this.sendReplyBox(buf);
 		},
 		setname(target, room, user) {
-			if (!room) return this.requiresRoom();
-			if (room.roomid !== 'development') return this.errorReply(`This command can only be used in the Development room.`);
-			if (!this.can('ban', null, room)) return false;
+			room = this.requireRoom('development');
+			this.checkCan('mute', null, room);
 			const [oldID, newName] = target.split(',');
 			if (!target || !oldID || !newName) return this.errorReply(`Specify a GitHub username and new name.`);
 			if (gitData.names[oldID] === newName) return this.errorReply("That Git ID is already set to that name.");
@@ -164,9 +158,8 @@ export const commands: ChatCommands = {
 			this.modlog(`GIT NAME`, null, `"${oldID}" to "${newName}"`);
 		},
 		resetname(target, room, user) {
-			if (!room) return this.requiresRoom();
-			if (room.roomid !== 'development') return this.errorReply(`This command can only be used in the Development room.`);
-			if (!this.can('ban', null, room)) return false;
+			room = this.requireRoom('development');
+			this.checkCan('mute', null, room);
 			if (!target) return this.errorReply(`Specify a name.`);
 			if (!gitData.names[target]) return this.errorReply("That Git ID does not have a name set.");
 			delete gitData.names[target];
@@ -175,10 +168,9 @@ export const commands: ChatCommands = {
 			return this.modlog(`GIT RESETNAME`, null, `${target}`);
 		},
 		reponame(target, room, user) {
-			if (!room) return this.requiresRoom();
-			if (room.roomid !== 'development') return this.errorReply(`This command can only be used in the Development room.`);
-			if (!this.can('ban', null, room)) return false;
-			const [oldRepo, newName] = target.split(',');
+			room = this.requireRoom('development');
+			this.checkCan('mute', null, room);
+			const [oldRepo, newName] = Utils.splitFirst(target, ',');
 			if (!oldRepo || !newName) return this.errorReply("Specify a repo name and a new name to display.");
 			gitData.repos[oldRepo] = newName;
 			GithubParser.save();
@@ -186,9 +178,8 @@ export const commands: ChatCommands = {
 			return this.modlog(`GIT REPONAME`, null, `${target}`);
 		},
 		resetreponame(target, room, user) {
-			if (!room) return this.requiresRoom();
-			if (room.roomid !== 'development') return this.errorReply(`This command can only be used in the Development room.`);
-			if (!this.can('ban', null, room)) return false;
+			room = this.requireRoom('development');
+			this.checkCan('mute', null, room);
 			if (!gitData.repos[target]) return this.errorReply(`${target} does not have a name in the Github Plugin.`);
 			delete gitData.repos[target];
 			GithubParser.save();

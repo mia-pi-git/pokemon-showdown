@@ -280,22 +280,12 @@ export const FormatsData: {[k: string]: SpeciesFormatsData} = {
 		doublesTier: "(DUU)",
 	},
 	sandslashalola: {
-<<<<<<< HEAD
 		randomBattleMoves: ["earthquake", "ironhead", "knockoff", "rapidspin", "swordsdance", "tripleaxel"],
-=======
-		randomBattleMoves: ["earthquake", "ironhead", "knockoff", "rapidspin", "stealthrock", "swordsdance", "tripleaxel"],
-<<<<<<< HEAD
->>>>>>> add github plugin
 		randomBattleLevel: 86,
 		randomDoubleBattleMoves: ["drillrun", "ironhead", "protect", "swordsdance", "tripleaxel"],
 		randomDoubleBattleLevel: 84,
 		tier: "NU",
 		doublesTier: "DUU",
-=======
-		randomBattleLevel: 88,
-		tier: "OU",
-		doublesTier: "DOU",
->>>>>>> add github plugin
 	},
 	nidoranf: {
 		tier: "LC",
@@ -551,26 +541,12 @@ export const FormatsData: {[k: string]: SpeciesFormatsData} = {
 		doublesTier: "NFE",
 	},
 	alakazam: {
-<<<<<<< HEAD
 		randomBattleMoves: ["counter", "focusblast", "nastyplot", "psychic", "shadowball"],
 		randomBattleLevel: 82,
 		randomDoubleBattleMoves: ["focusblast", "nastyplot", "protect", "psychic", "shadowball"],
 		randomDoubleBattleLevel: 80,
 		tier: "UU",
 		doublesTier: "(DUU)",
-=======
-<<<<<<< HEAD
-		randomBattleMoves: ["counter", "focusblast", "nastyplot", "psychic", "psyshock", "shadowball"],
-		randomBattleLevel: 80,
-		randomDoubleBattleMoves: ["focusblast", "nastyplot", "protect", "psychic", "shadowball"],
-		randomDoubleBattleLevel: 80,
-=======
-		randomBattleMoves: ["focusblast", "nastyplot", "psychic", "psyshock", "shadowball"],
-		randomBattleLevel: 80,
->>>>>>> add github plugin
-		tier: "OU",
-		doublesTier: "DOU",
->>>>>>> add github plugin
 	},
 	alakazammega: {
 		isNonstandard: "Past",
@@ -920,21 +896,11 @@ export const FormatsData: {[k: string]: SpeciesFormatsData} = {
 		doublesTier: "(DUU)",
 	},
 	hitmontop: {
-<<<<<<< HEAD
 		randomBattleMoves: ["closecombat", "earthquake", "rapidspin", "suckerpunch", "toxic", "tripleaxel"],
-=======
-		randomBattleMoves: ["closecombat", "machpunch", "rapidspin", "suckerpunch", "toxic", "tripleaxel"],
-<<<<<<< HEAD
->>>>>>> add github plugin
 		randomBattleLevel: 86,
 		randomDoubleBattleMoves: ["closecombat", "coaching", "fakeout", "helpinghand", "rapidspin", "suckerpunch", "tripleaxel"],
 		randomDoubleBattleLevel: 88,
 		tier: "NU",
-=======
-		randomBattleLevel: 88,
-		randomDoubleBattleMoves: ["closecombat", "fakeout", "feint", "helpinghand", "rapidspin", "suckerpunch", "wideguard"],
-		tier: "PU",
->>>>>>> add github plugin
 		doublesTier: "(DUU)",
 	},
 	lickitung: {
@@ -987,19 +953,9 @@ export const FormatsData: {[k: string]: SpeciesFormatsData} = {
 	},
 	chansey: {
 		randomBattleMoves: ["healbell", "seismictoss", "softboiled", "stealthrock", "toxic"],
-<<<<<<< HEAD
 		randomBattleLevel: 82,
 		tier: "UU",
 		doublesTier: "(DUU)",
-=======
-		randomBattleLevel: 80,
-<<<<<<< HEAD
-		tier: "OU",
-=======
-		tier: "UUBL",
->>>>>>> add github plugin
-		doublesTier: "NFE",
->>>>>>> add github plugin
 	},
 	blissey: {
 		randomBattleMoves: ["healbell", "protect", "seismictoss", "toxic", "wish"],
@@ -1097,20 +1053,11 @@ export const FormatsData: {[k: string]: SpeciesFormatsData} = {
 	},
 	scyther: {
 		randomBattleMoves: ["brickbreak", "dualwingbeat", "knockoff", "roost", "swordsdance", "uturn"],
-<<<<<<< HEAD
 		randomBattleLevel: 82,
 		randomDoubleBattleMoves: ["brickbreak", "bugbite", "dualwingbeat", "uturn"],
 		randomDoubleBattleLevel: 84,
 		tier: "UU",
-<<<<<<< HEAD
 		doublesTier: "LC Uber",
-=======
-		doublesTier: "DUU",
-=======
-		randomBattleLevel: 86,
-		tier: "PUBL",
->>>>>>> add github plugin
->>>>>>> add github plugin
 	},
 	scizor: {
 		randomBattleMoves: ["bulletpunch", "dualwingbeat", "knockoff", "roost", "superpower", "swordsdance", "uturn"],
@@ -1731,24 +1678,12 @@ export const FormatsData: {[k: string]: SpeciesFormatsData} = {
 		doublesTier: "(DUU)",
 	},
 	heracross: {
-<<<<<<< HEAD
 		randomBattleMoves: ["closecombat", "facade", "knockoff", "megahorn", "spikes", "stoneedge"],
 		randomBattleLevel: 84,
 		randomDoubleBattleMoves: ["closecombat", "facade", "knockoff", "megahorn", "protect", "swordsdance"],
 		randomDoubleBattleLevel: 84,
-<<<<<<< HEAD
 		tier: "RUBL",
 		doublesTier: "(DUU)",
-=======
-		tier: "UU",
-		doublesTier: "DUU",
-=======
-		randomBattleMoves: ["closecombat", "facade", "knockoff", "megahorn", "stoneedge", "substitute"],
-		randomBattleLevel: 84,
-		tier: "OU",
-		doublesTier: "DOU",
->>>>>>> add github plugin
->>>>>>> add github plugin
 	},
 	heracrossmega: {
 		isNonstandard: "Past",
@@ -2185,14 +2120,9 @@ export const FormatsData: {[k: string]: SpeciesFormatsData} = {
 	},
 	shedinja: {
 		randomBattleMoves: ["poltergeist", "shadowsneak", "swordsdance", "willowisp", "xscissor"],
-<<<<<<< HEAD
 		randomBattleLevel: 88,
 		randomDoubleBattleMoves: ["allyswitch", "poltergeist", "protect", "shadowsneak", "swordsdance", "willowisp", "xscissor"],
 		randomDoubleBattleLevel: 88,
-=======
-		randomBattleLevel: 100,
-		randomDoubleBattleMoves: ["allyswitch", "protect", "shadowsneak", "swordsdance", "willowisp", "xscissor"],
->>>>>>> add github plugin
 		tier: "(PU)",
 		doublesTier: "(DUU)",
 	},
@@ -2346,26 +2276,12 @@ export const FormatsData: {[k: string]: SpeciesFormatsData} = {
 		tier: "LC",
 	},
 	sharpedo: {
-<<<<<<< HEAD
 		randomBattleMoves: ["closecombat", "crunch", "destinybond", "hydropump", "protect"],
-=======
-		randomBattleMoves: ["closecombat", "crunch", "destinybond", "flipturn", "protect", "waterfall"],
-<<<<<<< HEAD
->>>>>>> add github plugin
 		randomBattleLevel: 82,
 		randomDoubleBattleMoves: ["closecombat", "crunch", "flipturn", "icebeam", "protect", "waterfall"],
 		randomDoubleBattleLevel: 84,
 		tier: "UU",
-<<<<<<< HEAD
 		doublesTier: "(DUU)",
-=======
-		doublesTier: "DUU",
-=======
-		randomBattleLevel: 84,
-		tier: "OU",
-		doublesTier: "DOU",
->>>>>>> add github plugin
->>>>>>> add github plugin
 	},
 	sharpedomega: {
 		isNonstandard: "Past",
@@ -4058,22 +3974,10 @@ export const FormatsData: {[k: string]: SpeciesFormatsData} = {
 	},
 	golurk: {
 		randomBattleMoves: ["dynamicpunch", "earthquake", "poltergeist", "rockpolish", "stoneedge"],
-<<<<<<< HEAD
 		randomBattleLevel: 84,
 		randomDoubleBattleMoves: ["dynamicpunch", "earthquake", "highhorsepower", "icepunch", "poltergeist", "protect"],
 		randomDoubleBattleLevel: 86,
 		tier: "RU",
-=======
-		randomBattleLevel: 86,
-<<<<<<< HEAD
-		randomDoubleBattleMoves: ["dynamicpunch", "earthquake", "highhorsepower", "icepunch", "poltergeist", "protect"],
-		randomDoubleBattleLevel: 86,
-		tier: "NU",
-=======
-		randomDoubleBattleMoves: ["closecombat", "earthquake", "highhorsepower", "icepunch", "protect", "shadowpunch"],
-		tier: "PUBL",
->>>>>>> add github plugin
->>>>>>> add github plugin
 		doublesTier: "(DUU)",
 	},
 	pawniard: {
@@ -4533,25 +4437,11 @@ export const FormatsData: {[k: string]: SpeciesFormatsData} = {
 	},
 	dragalge: {
 		randomBattleMoves: ["dracometeor", "dragonpulse", "flipturn", "focusblast", "sludgewave", "toxicspikes"],
-<<<<<<< HEAD
 		randomBattleLevel: 84,
 		randomDoubleBattleMoves: ["dracometeor", "dragonpulse", "focusblast", "protect", "sludgebomb"],
 		randomDoubleBattleLevel: 86,
 		tier: "RU",
 		doublesTier: "(DUU)",
-=======
-<<<<<<< HEAD
-		randomBattleLevel: 82,
-		randomDoubleBattleMoves: ["dracometeor", "dragonpulse", "focusblast", "protect", "sludgebomb"],
-		randomDoubleBattleLevel: 86,
-		tier: "UU",
-		doublesTier: "DUU",
-=======
-		randomBattleLevel: 84,
-		tier: "OU",
-		doublesTier: "DOU",
->>>>>>> add github plugin
->>>>>>> add github plugin
 	},
 	clauncher: {
 		tier: "LC",
@@ -4650,15 +4540,8 @@ export const FormatsData: {[k: string]: SpeciesFormatsData} = {
 		randomBattleMoves: ["earthquake", "hornleech", "poltergeist", "rockslide", "trickroom", "woodhammer"],
 		randomBattleLevel: 86,
 		randomDoubleBattleMoves: ["allyswitch", "poltergeist", "rockslide", "trickroom", "willowisp", "woodhammer"],
-<<<<<<< HEAD
 		randomDoubleBattleLevel: 88,
-<<<<<<< HEAD
 		tier: "NU",
-=======
-=======
->>>>>>> add github plugin
-		tier: "PU",
->>>>>>> add github plugin
 		doublesTier: "(DUU)",
 	},
 	pumpkaboo: {
@@ -4699,23 +4582,10 @@ export const FormatsData: {[k: string]: SpeciesFormatsData} = {
 	},
 	gourgeistsuper: {
 		randomBattleMoves: ["poltergeist", "powerwhip", "rockslide", "shadowsneak", "trickroom"],
-<<<<<<< HEAD
 		randomBattleLevel: 88,
 		randomDoubleBattleMoves: ["poltergeist", "powerwhip", "protect", "shadowsneak", "trickroom"],
 		randomDoubleBattleLevel: 88,
 		tier: "PU",
-=======
-<<<<<<< HEAD
-		randomBattleLevel: 86,
-		randomDoubleBattleMoves: ["poltergeist", "powerwhip", "protect", "shadowsneak", "trickroom"],
-		randomDoubleBattleLevel: 88,
-		tier: "NU",
-=======
-		randomBattleLevel: 88,
-		randomDoubleBattleMoves: ["powerwhip", "protect", "shadowsneak", "synthesis", "trickroom"],
-		tier: "PU",
->>>>>>> add github plugin
->>>>>>> add github plugin
 		doublesTier: "(DUU)",
 	},
 	bergmite: {
@@ -5586,23 +5456,12 @@ export const FormatsData: {[k: string]: SpeciesFormatsData} = {
 		doublesTier: "DUU",
 	},
 	rillaboom: {
-<<<<<<< HEAD
 		randomBattleMoves: ["grassyglide", "highhorsepower", "knockoff", "uturn", "woodhammer"],
-=======
-		randomBattleMoves: ["acrobatics", "grassyglide", "highhorsepower", "knockoff", "swordsdance", "uturn", "woodhammer"],
-<<<<<<< HEAD
->>>>>>> add github plugin
 		randomBattleLevel: 80,
 		randomDoubleBattleMoves: ["fakeout", "grassyglide", "highhorsepower", "protect", "uturn", "woodhammer"],
 		randomDoubleBattleLevel: 80,
 		tier: "OU",
 		doublesTier: "DOU",
-=======
-		randomBattleLevel: 84,
-		randomDoubleBattleMoves: ["drumbeating", "fakeout", "highhorsepower", "protect", "superpower", "uturn", "woodhammer"],
-		tier: "RU",
-		doublesTier: "DUU",
->>>>>>> add github plugin
 	},
 	rillaboomgmax: {
 		randomBattleMoves: ["acrobatics", "grassyglide", "highhorsepower", "knockoff", "swordsdance"],
@@ -6033,20 +5892,10 @@ export const FormatsData: {[k: string]: SpeciesFormatsData} = {
 	},
 	indeedeef: {
 		randomBattleMoves: ["calmmind", "expandingforce", "healingwish", "hypervoice", "mysticalfire"],
-<<<<<<< HEAD
 		randomBattleLevel: 84,
 		randomDoubleBattleMoves: ["expandingforce", "followme", "healpulse", "helpinghand", "protect"],
 		randomDoubleBattleLevel: 80,
-<<<<<<< HEAD
 		tier: "RU",
-=======
-		tier: "RUBL",
-=======
-		randomBattleLevel: 86,
-		randomDoubleBattleMoves: ["allyswitch", "followme", "healpulse", "helpinghand", "protect", "psychic"],
-		tier: "NU",
->>>>>>> add github plugin
->>>>>>> add github plugin
 		doublesTier: "DOU",
 	},
 	morpeko: {
@@ -6184,79 +6033,40 @@ export const FormatsData: {[k: string]: SpeciesFormatsData} = {
 	urshifu: {
 		randomBattleMoves: ["closecombat", "ironhead", "suckerpunch", "uturn", "wickedblow"],
 		randomBattleLevel: 80,
-<<<<<<< HEAD
 		randomDoubleBattleMoves: ["closecombat", "ironhead", "protect", "suckerpunch", "wickedblow"],
-<<<<<<< HEAD
 		randomDoubleBattleLevel: 76,
-=======
-		randomDoubleBattleLevel: 80,
-=======
->>>>>>> add github plugin
->>>>>>> add github plugin
 		tier: "OU",
 		doublesTier: "DUber",
 	},
 	urshifurapidstrike: {
-<<<<<<< HEAD
 		randomBattleMoves: ["bulkup", "drainpunch", "substitute", "surgingstrikes"],
 		randomBattleLevel: 80,
 		randomDoubleBattleMoves: ["aquajet", "closecombat", "poisonjab", "protect", "surgingstrikes", "uturn"],
 		randomDoubleBattleLevel: 80,
-=======
-		randomBattleMoves: ["closecombat", "surgingstrikes", "thunderpunch", "uturn"],
-		randomBattleLevel: 82,
->>>>>>> add github plugin
 		tier: "OU",
 		doublesTier: "DOU",
 	},
 	urshifugmax: {
 		randomBattleMoves: ["bulkup", "drainpunch", "substitute", "wickedblow"],
-<<<<<<< HEAD
 		randomBattleLevel: 80,
-<<<<<<< HEAD
 		isNonstandard: "Gigantamax",
-=======
-=======
->>>>>>> add github plugin
->>>>>>> add github plugin
 		tier: "(Uber)",
 		doublesTier: "(DUber)",
 	},
 	urshifurapidstrikegmax: {
-<<<<<<< HEAD
 		randomBattleMoves: ["bulkup", "closecombat", "surgingstrikes", "thunderpunch", "uturn"],
 		randomBattleLevel: 80,
 		isNonstandard: "Gigantamax",
-=======
-<<<<<<< HEAD
-		randomBattleMoves: ["closecombat", "surgingstrikes", "thunderpunch", "uturn"],
-		randomBattleLevel: 80,
-=======
-		randomBattleMoves: ["bulkup", "drainpunch", "substitute", "surgingstrikes"],
-		randomBattleLevel: 82,
->>>>>>> add github plugin
->>>>>>> add github plugin
 		tier: "(Uber)",
 		doublesTier: "(DUber)",
 	},
 	zarude: {
 		randomBattleMoves: ["bulkup", "closecombat", "darkestlariat", "powerwhip", "uturn"],
-<<<<<<< HEAD
 		randomBattleLevel: 82,
 		randomDoubleBattleMoves: ["closecombat", "darkestlariat", "junglehealing", "powerwhip", "protect", "rockslide"],
 		randomDoubleBattleLevel: 80,
 		tier: "UU",
 		doublesTier: "DUU",
-=======
-		randomBattleLevel: 80,
-<<<<<<< HEAD
-		randomDoubleBattleMoves: ["closecombat", "darkestlariat", "junglehealing", "powerwhip", "protect", "rockslide"],
-		randomDoubleBattleLevel: 80,
-=======
->>>>>>> add github plugin
-		isNonstandard: "Unobtainable",
-		tier: "Unreleased",
->>>>>>> add github plugin
 	},
 	zarudedada: {
 		isNonstandard: "Unobtainable",
