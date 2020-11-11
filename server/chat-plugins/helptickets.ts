@@ -19,6 +19,7 @@ interface TicketState {
 	claimed: string | null;
 	ip: string;
 	needsDelayWarning?: boolean;
+	offline?: boolean;
 }
 type TicketResult = 'approved' | 'valid' | 'assisted' | 'denied' | 'invalid' | 'unassisted' | 'ticketban' | 'deleted';
 
@@ -83,7 +84,6 @@ export class HelpTicket extends Rooms.RoomGame {
 	closeTime: number;
 	resolution: 'unknown' | 'dead' | 'unresolved' | 'resolved';
 	result: TicketResult | null;
-
 	constructor(room: ChatRoom, ticket: TicketState) {
 		super(room);
 		this.room = room;
@@ -142,6 +142,9 @@ export class HelpTicket extends Rooms.RoomGame {
 	onLeave(user: User, oldUserid: ID) {
 		const player = this.playerTable[oldUserid || user.id];
 		if (player) {
+			this.ticket.offline = true;
+			writeTickets();
+			notifyStaff();
 			this.removePlayer(player);
 			return;
 		}
@@ -213,9 +216,11 @@ export class HelpTicket extends Rooms.RoomGame {
 	}
 
 	getButton() {
-		const notifying = this.ticket.claimed ? `` : `notifying`;
+		const offline = this.ticket.offline;
+		const claimed = this.ticket.claimed;
+		const notifying = offline ? `quietnotify` : !claimed ? `notifying` : ``;
 		const creator = (
-			this.ticket.claimed ? Utils.html`${this.ticket.creator}` : Utils.html`<strong>${this.ticket.creator}</strong>`
+			claimed || offline ? Utils.html`${this.ticket.creator}` : Utils.html`<strong>${this.ticket.creator}</strong>`
 		);
 		return (
 			`<a class="button ${notifying}" href="/help-${this.ticket.userid}"` +
@@ -443,6 +448,10 @@ export function notifyStaff() {
 	const keys = Object.keys(tickets).sort((aKey, bKey) => {
 		const a = tickets[aKey];
 		const b = tickets[bKey];
+		if (a.offline) {
+			if (b.offline) return 1;
+			return -1;
+		}
 		if (a.open !== b.open) {
 			return (a.open ? -1 : 1);
 		} else if (a.open && b.open) {
@@ -788,6 +797,10 @@ export const pages: PageTable = {
 			const keys = Object.keys(tickets).sort((aKey, bKey) => {
 				const a = tickets[aKey];
 				const b = tickets[bKey];
+				if (a.offline) {
+					if (b.offline) return 0;
+					return -1;
+				}
 				if (a.open !== b.open) {
 					return (a.open ? -1 : 1);
 				}
@@ -806,6 +819,7 @@ export const pages: PageTable = {
 					break;
 				}
 				const ticket = tickets[key];
+				const offline = ticket.offline ? ` <span style="color: DodgerBlue">offline)</span>` : "";
 				let icon = `<span style="color:gray"><i class="fa fa-check-circle-o"></i> ${this.tr`Closed`}</span>`;
 				if (ticket.open) {
 					if (!ticket.active) {
@@ -816,7 +830,7 @@ export const pages: PageTable = {
 						icon = `<span style="color:orange"><i class="fa fa-circle-o"></i> <strong>${this.tr`Unclaimed`}</strong></span>`;
 					}
 				}
-				buf += `<tr><td>${icon}</td>`;
+				buf += `<tr><td>${icon}${offline}</td>`;
 				buf += Utils.html`<td>${ticket.creator}</td>`;
 				buf += `<td>${ticket.type}</td>`;
 				buf += Utils.html`<td>${ticket.claimed ? ticket.claimed : `-`}</td>`;
