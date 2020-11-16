@@ -123,6 +123,37 @@ export const commands: ChatCommands = {
 		`/modchat [off/autoconfirmed/trusted/+/%/@/*/player/#/&] - Set the level of moderated chat. Requires: % \u2606 for off/autoconfirmed/+ options, * @ # & for all the options`,
 	],
 
+	automodchat(target, room, user) {
+		room = this.requireRoom();
+		const setting = room.settings.autoModchat;
+		if (!toID(target)) {
+			if (!setting) return this.sendReply(`This room does not have auto modchat set. `);
+			return this.sendReply(`This room has automatic modchat set to trigger after ${Chat.toDurationString(setting)}.`);
+		}
+		this.checkCan('declare', null, room);
+
+		if (this.meansNo(target)) {
+			if (!setting) return this.errorReply(`Automatic modchat is already disabled.`);
+			delete room.settings.autoModchat;
+			room.saveSettings();
+			this.modlog(`AUTOMODCHAT`, null, `off`);
+			return this.privateModAction(`${user.name} turned off automatic modchat.`);
+		}
+
+		const num = parseInt(target);
+		if (isNaN(num)) {
+			return this.errorReply(`That's an invalid duration.`);
+		}
+		const full = num * 60 * 1000;
+		if (full > (12 * 60 * 60 * 1000)) {
+			return this.errorReply(`Set the timer under 12 hours.`);
+		}
+		room.settings.autoModchat = full;
+		this.modlog(`AUTOMODCHAT`, null, target);
+		this.privateModAction(`${user.name} set the automatic modchat timer to ${Chat.toDurationString(full)}.`);
+		room.saveSettings();
+	},
+
 	inviteonlynext: 'ionext',
 	ionext(target, room, user) {
 		const groupConfig = Config.groups[Users.PLAYER_SYMBOL];

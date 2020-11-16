@@ -117,6 +117,7 @@ export interface RoomSettings {
 	requestShowEnabled?: boolean | null;
 	permissions?: {[k: string]: GroupSymbol};
 	repeats?: RepeatedPhrase[];
+	autoModchat?: number;
 
 	scavSettings?: AnyObject;
 	scavQueue?: QueuedHunt[];
@@ -176,6 +177,7 @@ export abstract class BasicRoom {
 	userCount: number;
 	active: boolean;
 	muteTimer: NodeJS.Timer | null;
+	modchatTimer: NodeJS.Timer | null;
 	lastUpdate: number;
 	lastBroadcast: string;
 	lastBroadcastTime: number;
@@ -223,6 +225,7 @@ export abstract class BasicRoom {
 		this.active = false;
 
 		this.muteTimer = null;
+		this.modchatTimer = null;
 
 		this.lastUpdate = 0;
 		this.lastBroadcast = '';
@@ -799,6 +802,11 @@ export abstract class BasicRoom {
 		if (!user) return false; // ???
 		if (this.users[user.id]) return false;
 
+		if (this.auth.has(user.id) && this.modchatTimer) {
+			clearTimeout(this.modchatTimer);
+			this.modchatTimer = null;
+		}
+
 		if (user.named) {
 			this.reportJoin('j', user.getIdentityWithStatus(this.roomid), user);
 		}
@@ -865,6 +873,10 @@ export abstract class BasicRoom {
 			this.reportJoin('l', user.getIdentity(this.roomid), user);
 		}
 		if (this.game && this.game.onLeave) this.game.onLeave(user);
+
+		const staff = Object.keys(this.users).filter(id => this.auth.has(id as ID));
+		if (!staff.length) this.runModchatTimer();
+
 		return true;
 	}
 
@@ -932,6 +944,19 @@ export abstract class BasicRoom {
 	}
 	tr(strings: string | TemplateStringsArray, ...keys: any[]) {
 		return Chat.tr(this.settings.language || 'english' as ID, strings, ...keys);
+	}
+	runModchatTimer() {
+		if (!this.settings.autoModchat) return;
+		this.modchatTimer = setTimeout(() => {
+			this.settings.modchat = '+';
+			this.saveSettings();
+			this.add(
+				`|raw|<div class="broadcast-red"><strong>This room has been without staff for ` +
+				`${Chat.toDurationString(this.settings.autoModchat!)} and has had modchat set to +!</strong>` +
+				`<br />Only users of rank + and higher can talk.</div>`
+			).update();
+		}, this.settings.autoModchat);
+		return this.modchatTimer;
 	}
 }
 
