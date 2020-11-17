@@ -510,8 +510,9 @@ export const commands: ChatCommands = {
 			this.room = null;
 		} else if (!targetUser) {
 			let error = this.tr`User ${targetUsername} not found. Did you misspell their name?`;
-			error = `|pm|${this.user.getIdentity()}| ${targetUsername}|/error ${error}`;
-			connection.send(error);
+			const errorPrefix = `|pm|${this.user.getIdentity()}| ${targetUsername}|/error`;
+			connection.send(`${errorPrefix} ${error}`);
+			connection.send(`${errorPrefix} To send them an offline message, use /offlinepm.`);
 			return;
 		} else {
 			this.pmTarget = targetUser;
@@ -526,6 +527,28 @@ export const commands: ChatCommands = {
 	},
 	msghelp: [`/msg OR /whisper OR /w [username], [message] - Send a private message.`],
 
+	offlinepm: 'offlinemsg',
+	async offlinemsg(target, room, user) {
+		if (!toID(target)) return this.parse('/help msg');
+		if (!target.includes(',')) {
+			this.errorReply(this.tr("You forgot the comma."));
+			return this.parse('/help msg');
+		}
+		const [receiver, rest] = Utils.splitFirst(target, ',');
+		if (Users.get(receiver)?.connected) {
+			return this.errorReply(`${receiver} is online - use /pm to PM them.`);
+		}
+		const filtered = this.filter(rest);
+		if (filtered !== rest) {
+			return;
+		}
+		await Chat.sendOfflinePM(rest, user, toID(receiver));
+	},
+
+	undopm(target, room, user) {
+
+
+	},
 	inv: 'invite',
 	invite(target, room, user) {
 		if (!target) return this.parse('/help invite');

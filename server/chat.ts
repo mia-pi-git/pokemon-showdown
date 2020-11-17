@@ -26,6 +26,7 @@ To reload chat commands:
 import type {RoomPermission, GlobalPermission} from './user-groups';
 import type {Punishment} from './punishments';
 import type {PartialModlogEntry} from './modlog';
+import type {Statement} from 'better-sqlite3';
 
 export type PageHandler = (this: PageContext, query: string[], user: User, connection: Connection)
 => Promise<string | null | void> | string | null | void;
@@ -122,6 +123,9 @@ const BROADCAST_TOKEN = '!';
 import {FS} from '../lib/fs';
 import {Utils} from '../lib/utils';
 import {formatText, linkRegex, stripFormatting} from './chat-formatter';
+import {QueryProcessManager} from '../lib/process-manager';
+import {Config} from './config-loader';
+import {Dex} from '../sim';
 
 // @ts-ignore no typedef available
 import ProbeModule = require('probe-image-size');
@@ -1310,6 +1314,41 @@ export class CommandContext extends MessageContext {
 	}
 }
 
+/**
+ * Offline PM database manager.
+ */
+
+const DB_ACTIONS: {[k: string]: string} = {
+	send: `INSERT INTO offline_pms (sender, receiver, message) VALUES (?, ?, ?)`,
+	forReceiver: `SELECT * FROM offline_pms WHERE receiver = ?`,
+	delete: `DELETE FROM offline_pms WHERE sender = ? AND receiver = ? LIMIT ?`,
+};
+const statements: {[k: string]: Statement} = {};
+
+export const PM = new QueryProcessManager<AnyObject, any>(module, request => {
+	const {data, type, statement} = request;
+	const cached = statements[statement];
+	const result: any[] | AnyObject | null = cached[type as 'get' | 'all' | 'run'](data);
+	return result;
+});
+
+if (!PM.isParentProcess && Config.usesqlite) {
+	const Database = require('better-sqlite3');
+	let pmDatabase;
+	try {
+		pmDatabase = new Database(`${__dirname}/../databases/offline_pms.db`, {fileMustExist: true});
+	} catch (e) {
+		pmDatabase = new Database(`${__dirname}/../databases/offline_pms.db`);
+		const schemaContent = FS(`databases/schemas/pms.sql`);
+		pmDatabase.exec(schemaContent);
+	}
+	for (const k in DB_ACTIONS) {
+		statements[k] = pmDatabase.prepare(DB_ACTIONS[k]);
+	}
+} else if (Config.usesqlite) {
+	PM.spawn(1);
+}
+
 export const Chat = new class {
 	constructor() {
 		void this.loadTranslations().then(() => {
@@ -1323,6 +1362,8 @@ export const Chat = new class {
 	 * which tends to cause unexpected behavior.
 	 */
 	readonly MAX_TIMEOUT_DURATION = 2147483647;
+
+	readonly PM = PM;
 
 	readonly multiLinePattern = new PatternTester();
 
@@ -1605,6 +1646,25 @@ export const Chat = new class {
 		if (pmTarget !== user) pmTarget.send(buf);
 		pmTarget.lastPM = user.id;
 		user.lastPM = pmTarget.id;
+	}
+
+	sendOfflinePM(message: string, user: User, target: ID) {
+		user.lastPM = target;
+		user.send(`|pm|${user.getIdentity()}|~|/raw You sent an offline PM to ${target}!`);
+		user.send(
+			`|pm|${user.getIdentity()}|~|/raw ` +
+			`<button class="button" name="send" value="/undopm ${target},1">Undo</button>`
+		);
+		const data = [user.id, target, message, Date.now()];
+		return PM.query({data, statement: 'send', type: 'run'});
+	}
+	async receiveOffline(user: User) {
+		const pms = await PM.query({statement: 'forReceiver', type: 'all', data: [user.id]});
+		for (const {sender, message, sent_at} of pms) {
+			const sentAgo = Chat.toDurationString(Date.now() - Number(sent_at), {precision: 1});
+			const buf = `| ${sender}|${user.getIdentity()}|${message} __(sent while you were offline ${sentAgo})__`;
+			user.send(buf);
+		}
 	}
 
 	packageData: AnyObject = {};
