@@ -27,6 +27,8 @@ interface ChatlogSearch {
 	date: string;
 	limit?: number | null;
 	args?: string[];
+	overwriteArgs?: boolean;
+	execOptions?: AnyObject;
 }
 
 export class LogReaderRoom {
@@ -586,7 +588,7 @@ export const LogSearcher = new class {
 		return {results, total};
 	}
 	async ripgrepSearchMonth(opts: ChatlogSearch) {
-		let {raw, search, room: roomid, date: month, args} = opts;
+		let {raw, search, room: roomid, date: month, args, execOptions, overwriteArgs} = opts;
 		let results: string[];
 		let count = 0;
 		if (!raw) {
@@ -594,17 +596,15 @@ export const LogSearcher = new class {
 		}
 		const resultSep = args?.includes('-m') ? '--' : '\n';
 		try {
-			const options = [
-				'-e', search,
-				`logs/chat/${roomid}/${month}`,
-				'-i',
+			const options = overwriteArgs ? args as string[] : [
+				'-e', search, `logs/chat/${roomid}/${month}`, '-i',
 			];
-			if (args) {
+			if (args && !overwriteArgs) {
 				options.push(...args);
 			}
-			const {stdout} = await exec(['rg', ...options], {
+			const {stdout} = await exec(['rg', ...options], execOptions || {
 				maxBuffer: MAX_MEMORY,
-				cwd: `${__dirname}/../../`,
+				cwd: `${__dirname}/../../../`,
 			});
 			results = stdout.split(resultSep);
 		} catch (e) {
