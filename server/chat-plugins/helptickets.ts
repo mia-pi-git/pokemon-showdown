@@ -2,6 +2,7 @@ import {FS} from '../../lib/fs';
 import {Utils} from '../../lib/utils';
 import {getCommonBattles} from '../chat-commands/info';
 import type {Punishment} from '../punishments';
+import * as crypto from 'crypto';
 
 const TICKET_FILE = 'config/tickets.json';
 const TICKET_CACHE_TIME = 24 * 60 * 60 * 1000; // 24 hours
@@ -21,9 +22,20 @@ interface TicketState {
 	needsDelayWarning?: boolean;
 	offline?: boolean;
 }
+
+interface AnonymousTicketState {
+	user: string; // encrypted userid, lets staff know who to ban without seeing the real userid, should they misuse
+	text?: string; // buffer of report html
+	submittedAt?: number;
+	raw?: string[];
+	resolution?: string;
+	// time banned at, reason
+	banned?: [number, string];
+}
+
 type TicketResult = 'approved' | 'valid' | 'assisted' | 'denied' | 'invalid' | 'unassisted' | 'ticketban' | 'deleted';
 
-export const tickets: {[k: string]: TicketState} = {};
+export const tickets: {[k: string]: TicketState | AnonymousTicketState} = {};
 
 try {
 	const ticketData = JSON.parse(FS(TICKET_FILE).readSync());
@@ -387,6 +399,109 @@ export class HelpTicket extends Rooms.RoomGame {
 		return false;
 	}
 }
+/** This is separate from a help ticket because it does a lot of different handling. */
+export class AnonymousTicket extends Rooms.RoomGame {
+	user: User;
+	constructor(room: Room, user: User) {
+		super(room);
+		this.user = user;
+		this.room.auth.set(user.id, Users.PLAYER_SYMBOL);
+	}
+	encrypt = (text: string) => AnonymousTicket.encrypt(text);
+
+	static roomintroText() {
+
+	}
+	onJoin(user: User) {
+		if (user.id !== this.user.id) {
+			user.leaveRoom(this.room);
+			user.popup(`You are not allowed to view anonymous reports.`);
+			return;
+		}
+	}
+	onConnect(user: User, conn: Connection) {
+		if (conn.user.id !== this.user.id) {
+			user.leaveRoom(this.room);
+			user.popup(`You are not allowed to view anonymous reports.`);
+			return;
+		}
+	}
+	submit() {
+		const state = this.toJSON();
+		tickets[state.user] = state;
+		writeTickets();
+		this.user.popup('Your report has been submitted!');
+		this.room.destroy();
+	}
+	toJSON() {
+		return {
+			user: this.encrypt(this.user.id),
+			submittedAt: Date.now(),
+			raw: this.getReportText(),
+			text: this.toReportString(),
+		} as AnonymousTicketState;
+	}
+	getReportText() {
+		const roomlog = this.room.log;
+		const buffer = [];
+		for (const line of roomlog.log) {
+			const parsed = roomlog.parseChatLine(line);
+			if (!parsed) continue;
+			buffer.push(parsed.message);
+		}
+		return buffer;
+	}
+	toReportString() {
+		const strings = this.getReportText();
+		let buf = `<b>Anonymous report from ${this.encrypt(this.user.id)}</b><hr />`;
+		buf += `<div class="infobox">`;
+		while (strings.length) {
+			let string = strings.shift();
+			if (!string) break; // shouldn't happen but /shrug
+			if (string.length < 30) {
+				const next = strings.shift();
+				if (next) string += ` ${next}`;
+			}
+			buf += Utils.escapeHTML(string);
+			buf += `<br />`;
+		}
+		buf += `</div>`;
+		return buf;
+	}
+	static encrypt(text: string) {
+		return crypto.createHash('md5').update(text).digest('hex');
+	}
+	static ban(user: ID, reason = '') {
+		const id = this.encrypt(user);
+		let ticket = tickets[this.encrypt(user)] as AnonymousTicketState;
+		if (!ticket) {
+			ticket = tickets[id] = {
+				user: id,
+				banned: [Date.now(), reason],
+			};
+		} else {
+			ticket.banned = [Date.now(), reason];
+		}
+		writeTickets();
+	}
+	static isBanned(user: ID) {
+		const bannedTicket = tickets[this.encrypt(user)] as AnonymousTicketState;
+		if (!bannedTicket || !bannedTicket.banned) return false;
+		const duration = Date.now() - bannedTicket.banned[0];
+		if (duration < TICKET_BAN_DURATION) {
+			delete bannedTicket.banned;
+			writeTickets();
+			return false;
+		}
+		return true;
+	}
+	static unban(user: ID) {
+		const ticket = tickets[this.encrypt(user)] as AnonymousTicketState | undefined;
+		if (!ticket || !ticket.banned) throw new Chat.ErrorMessage(`That user is not banned from using anonymous tickets.`);
+		delete ticket.banned;
+		writeTickets();
+	}
+}
 
 const NOTIFY_ALL_TIMEOUT = 5 * 60 * 1000;
 const NOTIFY_ASSIST_TIMEOUT = 60 * 1000;
@@ -422,7 +537,9 @@ function notifyUnclaimedTicket(hasAssistRequest: boolean) {
 	clearTimeout(unclaimedTicketTimer[room.roomid]!);
 	unclaimedTicketTimer[room.roomid] = null;
 	timerEnds[room.roomid] = 0;
-	for (const ticket of Object.values(tickets)) {
+	for (const ticket of Object.values(tickets) as TicketState[]) {
+		// @ts-ignore
+		if (ticket.user) continue; // anonymous
 		if (!ticket.open) continue;
 		if (!ticket.active) continue;
 		const ticketRoom = Rooms.get(`help-${ticket.userid}`) as ChatRoom;
@@ -449,9 +566,14 @@ export function notifyStaff() {
 	const room = Rooms.get('staff');
 	if (!room) return;
 	let buf = ``;
-	const keys = Object.keys(tickets).sort((aKey, bKey) => {
-		const a = tickets[aKey];
-		const b = tickets[bKey];
+	const ticketList = Object.keys(tickets).filter(t => {
+		const ticket = tickets[t];
+		if ((ticket as AnonymousTicketState).user) return false;
+		return true;
+	});
+	const keys = ticketList.sort((aKey, bKey) => {
+		const a = tickets[aKey] as TicketState;
+		const b = tickets[bKey] as TicketState;
 		if (a.offline) {
 			return (b.offline ? 1 : -1);
 		}
@@ -475,7 +597,7 @@ export function notifyStaff() {
 	let fourthTicketIndex = 0;
 	let hasAssistRequest = false;
 	for (const key of keys) {
-		const ticket = tickets[key];
+		const ticket = tickets[key] as TicketState;
 		if (!ticket.open) continue;
 		if (!ticket.active) continue;
 		if (count >= 3) {
@@ -524,8 +646,9 @@ export function notifyStaff() {
 
 function checkIp(ip: string) {
 	for (const t in tickets) {
-		if (tickets[t].ip === ip && tickets[t].open && !Punishments.sharedIps.has(ip)) {
-			return tickets[t];
+		const ticket = tickets[t] as TicketState;
+		if (ticket.ip === ip && ticket.open && !Punishments.sharedIps.has(ip)) {
+			return ticket;
 		}
 	}
 	return false;
@@ -535,7 +658,7 @@ function checkIp(ip: string) {
 for (const room of Rooms.rooms.values()) {
 	if (!room.settings.isHelp || !room.game) continue;
 	const game = room.getGame(HelpTicket)!;
-	if (game.ticket) game.ticket = tickets[game.ticket.userid];
+	if (game.ticket) game.ticket = tickets[game.ticket.userid] as TicketState;
 }
 
 const delayWarningPreamble = `Hi! All global staff members are busy right now and we apologize for the delay. `;
@@ -609,14 +732,15 @@ export const pages: PageTable = {
 
 			const banMsg = HelpTicket.checkBanned(user);
 			if (banMsg) return connection.popup(banMsg);
-			let ticket = tickets[user.id];
+			// safe assertion because ps names are not as long as md5
+			let ticket = tickets[user.id] as TicketState;
 			const ipTicket = checkIp(user.latestIp);
 			if (ticket?.open || ipTicket) {
 				if (!ticket && ipTicket) ticket = ipTicket;
 				const helpRoom = Rooms.get(`help-${ticket.userid}`);
 				if (!helpRoom) {
 					// Should never happen
-					tickets[ticket.userid].open = false;
+					(tickets[ticket.userid] as TicketState).open = false;
 					writeTickets();
 				} else {
 					if (!helpRoom.auth.has(user.id)) helpRoom.auth.set(user.id, '+');
@@ -797,9 +921,14 @@ export const pages: PageTable = {
 			buf += `<table style="margin-left: auto; margin-right: auto"><tbody><tr><th colspan="5"><h2 style="margin: 5px auto">${this.tr`Help tickets`}</h1></th></tr>`;
 			buf += `<tr><th>${this.tr`Status`}</th><th>${this.tr`Creator`}</th><th>${this.tr`Ticket Type`}</th><th>${this.tr`Claimed by`}</th><th>${this.tr`Action`}</th></tr>`;
 
-			const keys = Object.keys(tickets).sort((aKey, bKey) => {
-				const a = tickets[aKey];
-				const b = tickets[bKey];
+			const ticketList = Object.keys(tickets).filter(t => {
+				const ticket = tickets[t];
+				if ((ticket as AnonymousTicketState).user) return false;
+				return true;
+			});
+			const keys = ticketList.sort((aKey, bKey) => {
+				const a = tickets[aKey] as TicketState;
+				const b = tickets[bKey] as TicketState;
 				if (a.open !== b.open) {
 					return (a.open ? -1 : 1);
 				}
@@ -817,7 +946,7 @@ export const pages: PageTable = {
 					buf += `<tr><td colspan="5">${this.tr`And ${keys.length - count} more tickets.`} <a class="button" href="/view-help-tickets-all" target="replace">${this.tr`View all tickets`}</a></td></tr>`;
 					break;
 				}
-				const ticket = tickets[key];
+				const ticket = tickets[key] as TicketState;
 				let icon = `<span style="color:gray"><i class="fa fa-check-circle-o"></i> ${this.tr`Closed`}</span>`;
 				if (ticket.open) {
 					if (!ticket.active) {
@@ -1099,14 +1228,14 @@ export const commands: ChatCommands = {
 			if (!user.named) return this.popupReply(this.tr`You need to choose a username before doing this.`);
 			const banMsg = HelpTicket.checkBanned(user);
 			if (banMsg) return this.popupReply(banMsg);
-			let ticket = tickets[user.id];
+			let ticket = tickets[user.id] as TicketState;
 			const ipTicket = checkIp(user.latestIp);
 			if (ticket?.open || ipTicket) {
 				if (!ticket && ipTicket) ticket = ipTicket;
 				const helpRoom = Rooms.get(`help-${ticket.userid}`);
 				if (!helpRoom) {
 					// Should never happen
-					tickets[ticket.userid].open = false;
+					(tickets[ticket.userid] as TicketState).open = false;
 					writeTickets();
 				} else {
 					if (!helpRoom.auth.has(user.id)) helpRoom.auth.set(user.id, '+');
@@ -1272,7 +1401,9 @@ export const commands: ChatCommands = {
 		close(target, room, user) {
 			if (!target) return this.parse(`/help helpticket close`);
 			let result = !(this.splitTarget(target) === 'false');
-			const ticket = tickets[toID(this.inputUsername)];
+			const targetID = toID(this.inputUsername);
+			if (targetID.length > 18) return this.errorReply(`Invalid username.`);
+			const ticket = tickets[toID(this.inputUsername)] as TicketState;
 			if (!ticket || !ticket.open || (ticket.userid !== user.id && !user.can('lock'))) {
 				return this.errorReply(this.tr`${this.inputUsername} does not have an open ticket.`);
 			}
@@ -1346,7 +1477,7 @@ export const commands: ChatCommands = {
 			this.globalModlog(`TICKETBAN`, targetUser || userid, target);
 			for (const userObj of affected) {
 				const userObjID = (typeof userObj !== 'string' ? userObj.getLastId() : toID(userObj));
-				const targetTicket = tickets[userObjID];
+				const targetTicket = tickets[userObjID] as TicketState;
 				if (targetTicket?.open) targetTicket.open = false;
 				const helpRoom = Rooms.get(`help-${userObjID}`);
 				if (helpRoom) {
@@ -1405,7 +1536,9 @@ export const commands: ChatCommands = {
 			// This is a utility only to be used if something goes wrong
 			this.checkCan('makeroom');
 			if (!target) return this.parse(`/help helpticket delete`);
-			const ticket = tickets[toID(target)];
+			const targetID = toID(target);
+			if (targetID.length > 18) return this.errorReply(`Invalid input username.`);
+			const ticket = tickets[targetID] as TicketState;
 			if (!ticket) return this.errorReply(this.tr`${target} does not have a ticket.`);
 			const targetRoom = Rooms.get(`help-${ticket.userid}`);
 			if (targetRoom) {
@@ -1430,6 +1563,45 @@ export const commands: ChatCommands = {
 		`/helpticket unignore - Stop ignoring notifications for help tickets. Requires: % @ &`,
 		`/helpticket delete [user] - Deletes a user's ticket. Requires: &`,
 	],
+	anonreport: 'anonymousreport',
+	anonymousreport: {
+		create(target, room, user) {
+			if (AnonymousTicket.isBanned(user.id)) {
+				return this.errorReply(`You're banned from making anonymous reports.`);
+			}
+			const encryptedID = AnonymousTicket.encrypt(user.id);
+		},
+		submit(target, room, user) {
+
+		},
+		ban(target, room, user) {
+			this.checkCan('rangeban');
+			target = this.splitTarget(target);
+			const targetID = toID(this.inputUsername);
+			if (!targetID) return this.errorReply(`Invalid userid.`);
+			AnonymousTicket.ban(targetID, target);
+			this.globalModlog(`ANONYMOUS TICKETBAN`, targetID, target);
+		},
+		unban(target, room, user) {
+			this.checkCan('rangeban');
+			target = toID(target);
+			if (!target) return this.errorReply(`Invalid userid.`);
+			AnonymousTicket.unban(target as ID);
+			this.globalModlog(`ANONYMOUS TICKETUNBAN`, target);
+		},
+		resolve(target, room, user) {
+			this.checkCan('rangeban');
+			const [submitter, result] = Utils.splitFirst(target, ',');
+			const ticket = tickets[submitter] as AnonymousTicketState;
+			if (!ticket || !(tickets[submitter] as TicketState).creator || ticket.user !== submitter) {
+				return this.errorReply(`That ticket does not match that submitter ID.`);
+			}
+			ticket.resolution = result;
+			writeTickets();
+			this.modlog(`ANONYMOUS TICKETRESOLVE`);
+			this.sendReply(`You resolved ${submitter}'s anonymous ticket. They will see the result when they next log in.`);
+		},
+	}
 };
 
 export const punishmentfilter: Chat.PunishmentFilter = (user, punishment) => {
@@ -1441,3 +1613,19 @@ export const punishmentfilter: Chat.PunishmentFilter = (user, punishment) => {
 	const ticket = helpRoom.game as HelpTicket;
 	ticket.close('ticketban');
 };
+
+export const loginfilter: LoginFilter = (user) => {
+	const userid = AnonymousTicket.encrypt(user.id);
+	const ticket = tickets[userid] as AnonymousTicketState;
+	if (ticket?.resolution) {
+		let buf = `<div class="pad"><b>Your anonymous report was resolved!</b><br />`;
+		buf += `<div class="infobox">${ticket.resolution.replace(/\n/ig, '<br />')}</div></div>`;
+		new Chat.PageContext({
+			pageid: `view-report-resolution`,
+			connection: user.connections[0],
+			user,
+		}).send(buf);
+		delete tickets[userid];
+		writeTickets();
+	}
+}
