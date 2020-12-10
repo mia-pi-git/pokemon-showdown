@@ -25,6 +25,7 @@ const LOCK_DURATION = 48 * 60 * 60 * 1000; // 48 hours
 const GLOBALBAN_DURATION = 7 * 24 * 60 * 60 * 1000; // 1 week
 const BATTLEBAN_DURATION = 48 * 60 * 60 * 1000; // 48 hours
 const GROUPCHATBAN_DURATION = 7 * 24 * 60 * 60 * 1000; // 1 week
+const NICKNAMEBAN_DURATION = 48 * 60 * 60 * 1000; // 48 hours
 const MOBILE_PUNISHMENT_DURATIION = 6 * 60 * 60 * 1000; // 6 hours
 
 const ROOMBAN_DURATION = 48 * 60 * 60 * 1000; // 48 hours
@@ -212,6 +213,7 @@ export const Punishments = new class {
 		['BATTLEBAN', 'battlebanned'],
 		['MUTE', 'muted'],
 		['GROUPCHATBAN', 'banned from using groupchats'],
+		['NICKNAMEBAN', 'banned from using pokemon nicknames'],
 	]);
 	constructor() {
 		setImmediate(() => {
@@ -1085,6 +1087,47 @@ export const Punishments = new class {
 
 				Rooms.global.notifyRooms(['staff'], html);
 				Punishments.lastGroupchatMonitorTime[room.roomid] = Date.now();
+			}
+		}
+	}
+
+	nicknameBan(user: User | ID, reason = '', expireTime?: number) {
+		const userid = typeof user === 'object' ? (user as User).id : user;
+		const duration = expireTime ? Date.now() + expireTime : Date.now() + NICKNAMEBAN_DURATION;
+		const punishment: Punishment = ['NICKNAMEBAN', userid, duration, reason];
+		this.roomPunish('battle', user, punishment);
+		const battles: RoomID[] = [];
+		for (const room of Rooms.rooms.values()) {
+			if (!room.battle) continue;
+			if (room.battle.players.some(player => player.id === userid)) {
+				battles.push(room.roomid);
+			}
+		}
+		return battles;
+	}
+
+	unnicknameBan(user: ID) {
+		return this.roomUnpunish('battle', user, 'NICKNAMEBAN');
+	}
+
+	isNicknameBanned(userid: ID) {
+		const targetUser = Users.get(userid);
+
+		let punishment = Punishments.roomUserids.nestedGet(`battle`, userid);
+		if (punishment?.[0] === 'NICKNAMEBAN') return punishment;
+
+		if (targetUser?.autoconfirmed) {
+			punishment = Punishments.roomUserids.nestedGet(`battle`, targetUser.autoconfirmed);
+			if (punishment?.[0] === 'NICKNAMEBAN') return punishment;
+		}
+
+		if (targetUser && !targetUser.trusted) {
+			for (const ip of targetUser.ips) {
+				punishment = Punishments.roomIps.nestedGet(`battle`, ip);
+				if (punishment?.[0] === 'NICKNAMEBAN') {
+					if (Punishments.sharedIps.has(ip) && targetUser.autoconfirmed) return;
+					return punishment;
+				}
 			}
 		}
 	}

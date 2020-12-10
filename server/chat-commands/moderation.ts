@@ -1931,6 +1931,34 @@ export const commands: ChatCommands = {
 	},
 	ungroupchatbanhelp: [`/ungroupchatban [user] - Allows a groupchatbanned user to use groupchats again. Requires: % @ &`],
 
+	ncb: 'nicknameban',
+	nicknameban(target, room, user) {
+		if (!target.trim()) return this.parse(`/help nicknameban`);
+		target = this.splitTarget(target);
+		target = target.trim();
+		const targetUser = this.targetUser;
+		if (!targetUser) return this.errorReply(`User not found.`);
+		this.checkCan('lock', targetUser);
+
+		if (room?.battle) {
+			this.parse(`/savereplay forpunishment`);
+		}
+		Punishments.nicknameBan(targetUser.id, target);
+		this.privateGlobalModAction(`${user.name} banned ${targetUser.name} from using Pokemon nicknames.`);
+		this.globalModlog(`NICKNAMEBAN`, targetUser, target);
+		targetUser.popup(`You have been banned from using Pokemon nicknames for two days ${target ? `(${target})` : ''}`)
+	},
+
+	unnicknameban(target, room, user) {
+		this.checkCan('lock');
+		const targetID = toID(target);
+		if (!Punishments.unnicknameBan(targetID)) {
+			return this.errorReply(`${targetID} is not nickname banned.`);
+		}
+		this.privateGlobalModAction(`${user.name} allowed ${targetID} to use Pokemon nicknames again.`);
+		this.globalModlog(`UNNICKNAMEBAN`, targetID);
+	},
+
 	nameblacklist: 'blacklistname',
 	blacklistname(target, room, user) {
 		room = this.requireRoom();

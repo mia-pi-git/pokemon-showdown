@@ -114,7 +114,7 @@ class Ladder extends LadderStore {
 
 		let rating = 0;
 		let valResult;
-		let removeNicknames = !!(user.locked || user.namelocked);
+		let removeNicknames = !!(user.locked || user.namelocked || Punishments.isNicknameBanned(user.id));
 
 
 		const regex = /(?:^|])([^|]*)\|([^|]*)\|/g;
