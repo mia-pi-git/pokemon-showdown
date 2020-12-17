@@ -461,6 +461,14 @@ export class CommandContext extends MessageContext {
 			this.target = parsedCommand.target;
 			this.handler = parsedCommand.handler;
 		}
+		const {Achievements} = Chat.plugins.achievements || {};
+		if (Achievements) {
+			if (this.handler) {
+				Achievements.runAll("chat", "command", this.user.id, [this.user, this.room, this]);
+			} else {
+				Achievements.runAll("chat", "chat", this.user.id, [this.user, this.room, this]);
+			}
+		}
 
 		if (this.room && !(this.user.id in this.room.users)) {
 			if (this.room.roomid === 'lobby') {
@@ -1598,7 +1606,6 @@ export const Chat = new class {
 	parse(message: string, room: Room | null | undefined, user: User, connection: Connection) {
 		Chat.loadPlugins();
 		const context = new CommandContext({message, room, user, connection});
-
 		return context.parse();
 	}
 	sendPM(message: string, user: User, pmTarget: User, onlyRecipient: User | null = null) {

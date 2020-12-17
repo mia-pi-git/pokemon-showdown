@@ -21,7 +21,7 @@ import {Utils} from '../lib/utils';
 // ladder is basically a 2D array representing the corresponding ladder.tsv
 //   with userid in front
 /** [userid, elo, username, w, l, t, lastUpdate */
-type LadderRow = [string, number, string, number, number, number, string];
+export type LadderRow = [string, number, string, number, number, number, string];
 /** formatid: ladder */
 type LadderCache = Map<string, LadderRow[] | Promise<LadderRow[]>>;
 
@@ -65,7 +65,10 @@ export class LadderStore {
 		try {
 			const data = await FS('config/ladders/' + this.formatid + '.tsv').readIfExists();
 			const ladder: LadderRow[] = [];
-			for (const dataLine of data.split('\n')) {
+			const rows = data.split('\n');
+			// remove first row because it's just the headings
+			rows.shift();
+			for (const dataLine of rows) {
 				const line = dataLine.trim();
 				if (!line) continue;
 				const row = line.split('\t');

@@ -872,6 +872,11 @@ export abstract class BasicRoom {
 		const staffIntro = this.getStaffIntroMessage(user);
 		if (staffIntro) this.sendUser(user, staffIntro);
 
+		const {Achievements} = Chat.plugins.achievements || {};
+		if (Achievements) {
+			Achievements.runAll("chat", "joinroom", user.id, [user, this]);
+		}
+
 		this.users[user.id] = user;
 		this.userCount++;
 

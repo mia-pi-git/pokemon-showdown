@@ -11,7 +11,10 @@
  *
  * @license MIT
  */
+import { resourceLimits } from 'worker_threads';
+import {Net} from '../lib/net';
 import {Utils} from '../lib/utils';
+import type {LadderRow} from './ladders-local';
 
 export class LadderStore {
 	formatid: string;
@@ -139,6 +142,19 @@ export class LadderStore {
 			room.update();
 		}
 		return [p1score, p1rating, p2rating];
+	}
+	async getLadder() {
+		const raw = await Net(`https://${Config.routes.root}/ladder/${this.formatid}.json`).get();
+		const {toplist} = JSON.parse(raw) as {toplist: AnyObject[]};
+		toplist.sort((a, b) => b.elo - a.elo);
+		const result: LadderRow[] = [];
+		for (const {userid, username, elo, w, l, t, rptime} of toplist) {
+			// date is irrelevant
+			result.push(
+				[userid, Number(elo), username, Number(w), Number(l), Number(t), new Date(rptime * 1000).toString()]
+			);
+		}
+		return result;
 	}
 
 	/**

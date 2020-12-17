@@ -852,6 +852,13 @@ export class RoomBattle extends RoomGames.RoomGame {
 			this.room.setPrivate('hidden');
 		}
 		this.room.update();
+		const {Achievements} = Chat.plugins.achievements || {};
+		if (Achievements) {
+			Achievements.runAll("battle", "win", winnerid, [winnerid, this.room, this]);
+			for (const player of this.players) {
+				Achievements.runAll("battle", "end", player.id, [player.id, this.room, this]);
+			}
+		}
 	}
 	async logBattle(
 		p1score: number, p1rating: AnyObject | null = null, p2rating: AnyObject | null = null,
@@ -1088,6 +1095,12 @@ export class RoomBattle extends RoomGames.RoomGame {
 			this.room.title = `${this.p1.name} vs. ${this.p2.name}`;
 		}
 		this.room.send(`|title|${this.room.title}`);
+		const {Achievements} = Chat.plugins.achievements || {};
+		if (Achievements) {
+			for (const player of this.players) {
+				Achievements.runAll("battle", "start", player.id, [player.id, this.room, this]);
+			}
+		}
 	}
 
 	clearPlayers() {
@@ -1127,8 +1140,8 @@ export class RoomBattle extends RoomGames.RoomGame {
 			}
 		}
 	}
-	async getTeam(user: User) {
-		const id = user.id;
+	async getTeam(user: User | string) {
+		const id = toID(user);
 		const player = this.playerTable[id];
 		if (!player) return;
 		void this.stream.write(`>requestteam ${player.slot}`);
