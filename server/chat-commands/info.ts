@@ -2615,7 +2615,9 @@ export const commands: ChatCommands = {
 	},
 
 	async show(target, room, user, connection) {
-		if (!room?.persist && !this.pmTarget) return this.errorReply(`/show cannot be used in temporary rooms.`);
+		if ((room && !room.persist && !user.can('altsself')) && !this.pmTarget) {
+			return this.errorReply(`/show cannot be used in temporary rooms.`);
+		}
 		if (!toID(target).trim()) return this.parse(`/help show`);
 		if (Monitor.countNetRequests(connection.ip)) {
 			return this.errorReply(`You are using this command too quickly. Wait a bit and try again.`);
