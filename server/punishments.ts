@@ -19,6 +19,7 @@ const ROOM_PUNISHMENT_FILE = 'config/room-punishments.tsv';
 const SHAREDIPS_FILE = 'config/sharedips.tsv';
 const SHAREDIPS_BLACKLIST_FILE = 'config/sharedips-blacklist.tsv';
 const WHITELISTED_NAMES_FILE = 'config/name-whitelist.tsv';
+const NAMETRACKED_IPS_FILE = 'config/ip-nametracks.tsv';
 
 const RANGELOCK_DURATION = 60 * 60 * 1000; // 1 hour
 const LOCK_DURATION = 48 * 60 * 60 * 1000; // 48 hours
@@ -178,6 +179,10 @@ export const Punishments = new class {
 	 */
 	readonly offlineWarns: Map<ID, string> = new Map();
 	/**
+	 * Map<tracked ip, reason they're tracked>
+	 */
+	readonly nameWatchlist: Map<string, string> = new Map();
+	/**
 	 * punishType is an allcaps string, for global punishments they can be
 	 * anything in the punishmentTypes map.
 	 *
@@ -221,6 +226,7 @@ export const Punishments = new class {
 			void Punishments.loadSharedIps();
 			void Punishments.loadSharedIpBlacklist();
 			void Punishments.loadWhitelistedNames();
+			void Punishments.loadNametrackedIps();
 		});
 	}
 
@@ -455,6 +461,29 @@ export const Punishments = new class {
 			buf += `${userid}\t${whitelister}\r\n`;
 		});
 		return FS(WHITELISTED_NAMES_FILE).write(buf);
+	}
+
+	async loadNametrackedIps() {
+		const data = await FS(NAMETRACKED_IPS_FILE).readIfExists();
+		if (!data) return;
+		const lines = data.split('\n');
+		lines.shift();
+		for (const line of lines) {
+			const [ip, reason] = line.split('\t');
+			this.nameWatchlist.set(ip, reason);
+		}
+	}
+
+	appendNametrackedIp(ip: string, reason: string) {
+		return FS(NAMETRACKED_IPS_FILE).append(`${ip}\t${reason}\r\n`);
+	}
+
+	saveNametrackedIps() {
+		let buf = 'Ip\tReason\r\n';
+		Punishments.nameWatchlist.forEach((ip, reason) => {
+			buf += `${ip}\t${reason}\r\n`;
+		});
+		return FS(NAMETRACKED_IPS_FILE).write(buf);
 	}
 
 	/*********************************************************
@@ -1256,6 +1285,19 @@ export const Punishments = new class {
 		if (!this.namefilterwhitelist.has(name)) return false;
 		this.namefilterwhitelist.delete(name);
 		void this.saveNameWhitelist();
+		return true;
+	}
+
+	nametrackIp(ip: string, reason: string) {
+		if (this.nameWatchlist.has(ip)) return false;
+		this.nameWatchlist.set(ip, reason);
+		void this.saveNametrackedIps();
+		return true;
+	}
+
+	untrackIp(ip: string) {
+		if (!this.nameWatchlist.delete(ip)) return;
+		void this.saveNametrackedIps();
 		return true;
 	}
 

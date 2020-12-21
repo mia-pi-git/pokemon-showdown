@@ -967,6 +967,39 @@ export const commands: ChatCommands = {
 		`/unlockip [ip] - Unlocks a punished ip while leaving the original punishment intact. Requires: @ &`,
 	],
 
+	nametrackedips: {
+		add(target, room, user) {
+			this.checkCan('globalban');
+			const [ip, reason] = Utils.splitFirst(target, ',').map(i => i.trim());
+			if (!IPTools.ipRegex.test(ip)) {
+				return this.errorReply(`Invalid IP.`);
+			}
+			if (!toID(reason)) {
+				return this.errorReply(`Must specify a reason.`);
+			}
+			if (!Punishments.nametrackIp(ip, reason)) {
+				return this.errorReply(`That IP's names are already tracked.`);
+			}
+			this.privateGlobalModAction(`${user.name} put the IP ${ip} on the name track list (${reason})`);
+			this.globalModlog(`NAMETRACKIP`, null, reason, ip);
+		},
+		remove(target, room, user) {
+			this.checkCan('globalban');
+			target = target.trim();
+			if (!IPTools.ipRegex.test(target)) {
+				return this.errorReply(`Invalid IP.`);
+			}
+			if (!Punishments.untrackIp(target)) {
+				return this.errorReply(`That IP is not on the name track list.`);
+			}
+			this.privateGlobalModAction(`${user.name} removed the IP ${target} from the name track list.`);
+
+		},
+		list() {
+
+		},
+	},
+
 	forceglobalban: 'globalban',
 	gban: 'globalban',
 	async globalban(target, room, user, connection, cmd) {
