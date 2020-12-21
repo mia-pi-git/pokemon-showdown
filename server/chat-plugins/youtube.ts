@@ -124,6 +124,7 @@ export class YoutubeInterface {
 		} else {
 			buf += '</td></tr></table></div>';
 		}
+		buf += this.youtubeDisclaimer();
 		return buf;
 	}
 	randChannel(cat?: string) {
@@ -224,6 +225,7 @@ export class YoutubeInterface {
 		if (!fullInfo) {
 			let buf = `<b>${info.title}</b> `;
 			buf += `(<a class="subtle" href="https://youtube.com/channel/${info.channelUrl}">${info.channelTitle}</a>)<br />`;
+			buf += `${this.youtubeDisclaimer()}<br />`;
 			buf += `<youtube src="https://www.youtube.com/embed/${id}" />`;
 			return buf;
 		}
@@ -241,6 +243,7 @@ export class YoutubeInterface {
 		buf += `<br><details><summary>Video Description</p></summary>`;
 		buf += `<p style="background: #e22828;max-width:500px;padding: 5px;border-radius:8px;color:white;font-weight:bold;text-align:center;">`;
 		buf += `<i>${info.description.slice(0, 400).replace(/\n/g, ' ')}${info.description.length > 400 ? '(...)' : ''}</p><i></details></td>`;
+		buf += this.youtubeDisclaimer();
 		return buf;
 	}
 	save() {
@@ -288,6 +291,12 @@ export class YoutubeInterface {
 			})();
 		}, interval);
 		return this.interval;
+	}
+	youtubeDisclaimer() {
+		return (
+			`<small>[<a class="subtle" href="https://www.youtube.com/t/terms">` +
+			`In compliance with the Youtube Terms of Service</a>]</small>`
+		);
 	}
 	async createGroupWatch(url: string, baseRoom: Room, title: string) {
 		const id = this.getId(url);
@@ -346,6 +355,7 @@ export class GroupWatch extends Rooms.RoomGame {
 		controlsHTML += `<b>Likes:</b> ${this.info.likes} | <b>Dislikes:</b> ${this.info.dislikes}<br />`;
 		controlsHTML += `<b>Uploaded:</b> ${Chat.toTimestamp(new Date(this.info.date))}<br />`;
 		controlsHTML += `<details><summary>Description</summary>${this.info.description.replace(/\n/ig, '<br />')}</details>`;
+		controlsHTML += `<br />${YouTube.youtubeDisclaimer()}`;
 		controlsHTML += `</div>`;
 		return controlsHTML;
 	}
