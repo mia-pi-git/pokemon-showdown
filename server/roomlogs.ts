@@ -34,7 +34,7 @@ interface RoomlogOptions {
  * a wrapper to make other code more readable.
  *
  * The roomlog is stored in
- * `logs/chat/<ROOMID>/<YEAR>-<MONTH>/<YEAR>-<MONTH>-<DAY>.txt`
+ * `logs/LOGTYPE/<ROOMID>/<YEAR>-<MONTH>/<YEAR>-<MONTH>-<DAY>.txt`
  * It contains (nearly) everything.
  */
 export class Roomlog {
@@ -53,6 +53,7 @@ export class Roomlog {
 	 */
 	readonly noLogTimes: boolean;
 	roomid: RoomID;
+	logType: "chat" | "games";
 	/**
 	 * Scrollback log
 	 */
@@ -66,6 +67,7 @@ export class Roomlog {
 	roomlogFilename: string;
 	constructor(room: BasicRoom, options: RoomlogOptions = {}) {
 		this.roomid = room.roomid;
+		this.logType = room.type === 'chat' ? room.type : 'games';
 
 		this.isMultichannel = !!options.isMultichannel;
 		this.noAutoTruncate = !!options.noAutoTruncate;
@@ -103,18 +105,14 @@ export class Roomlog {
 	}
 	async setupRoomlogStream(sync = false) {
 		if (this.roomlogStream === null) return;
-		if (!Config.logchat) {
-			this.roomlogStream = null;
-			return;
-		}
-		if (this.roomid.startsWith('battle-')) {
+		if (!Config.logchat || this.roomid.startsWith('battle-')) {
 			this.roomlogStream = null;
 			return;
 		}
 		const date = new Date();
 		const dateString = Chat.toTimestamp(date).split(' ')[0];
 		const monthString = dateString.split('-', 2).join('-');
-		const basepath = `logs/chat/${this.roomid}/`;
+		const basepath = `logs/${this.logType}/${this.roomid}/`;
 		const relpath = `${monthString}/${dateString}.txt`;
 
 		if (relpath === this.roomlogFilename) return;
@@ -228,7 +226,7 @@ export class Roomlog {
 		void Rooms.Modlog.write(this.roomid, entry, overrideID);
 	}
 	async rename(newID: RoomID): Promise<true> {
-		const roomlogPath = `logs/chat`;
+		const roomlogPath = `logs/${this.logType}`;
 		const roomlogStreamExisted = this.roomlogStream !== null;
 		await this.destroy(false); // don't destroy modlog, since it's renamed later
 		const [roomlogExists, newRoomlogExists] = await Promise.all([

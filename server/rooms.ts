@@ -203,9 +203,12 @@ export abstract class BasicRoom {
 	userList: string;
 	pendingApprovals: Map<string, ShowRequest> | null;
 
-	constructor(roomid: RoomID, title?: string, options: Partial<RoomSettings> = {}) {
+	constructor(
+		roomid: RoomID, title?: string,
+		options: Partial<RoomSettings> & {type?: "battle"| "chat"} = {}
+	) {
 		this.users = Object.create(null);
-		this.type = 'chat';
+		this.type = options.type || 'chat';
 		this.muteQueue = [];
 
 		this.battle = null;
@@ -1760,7 +1763,7 @@ export const Rooms = {
 	createGameRoom(roomid: RoomID, title: string, options: AnyObject) {
 		if (Rooms.rooms.has(roomid)) throw new Error(`Room ${roomid} already exists`);
 		Monitor.debug("NEW BATTLE ROOM: " + roomid);
-		const room = new GameRoom(roomid, title, options);
+		const room = new GameRoom(roomid, title, {...options, type: 'battle'});
 		Rooms.rooms.set(roomid, room);
 		return room;
 	},
