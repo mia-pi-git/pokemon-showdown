@@ -25,6 +25,16 @@ interface BattleSearchResults {
 	timesBattled: {[k: string]: number};
 }
 
+function sameUserids(set1: string[], set2: string[]) {
+	set1.sort();
+	set2.sort();
+	for (const [i, item] of set1.entries()) {
+		if (!set2[i]) return false;
+		if (set2[i] !== item) return false;
+	}
+	return true;
+}
+
 const MAX_BATTLESEARCH_PROCESSES = 1;
 export async function runBattleSearch(userids: ID[], month: string, tierid: ID, turnLimit?: number) {
 	const useRipgrep = await checkRipgrepAvailability();
@@ -72,9 +82,9 @@ export async function runBattleSearch(userids: ID[], month: string, tierid: ID, 
 
 			if (userids.length > 1) {
 				// looking for specific userids, only register ones where those users are players
-				if (userids.filter(item => [p1id, p2id].includes(item)).length < userids.length) continue;
+				if (!sameUserids([p1id, p2id], userids)) continue;
 			} else {
-				if (!(p1id === userid || p2id === userid)) continue;
+				if (![p1id, p2id].includes(userid)) continue;
 			}
 
 			if (turnLimit && data.turns > turnLimit) continue;
@@ -129,9 +139,9 @@ export async function runBattleSearch(userids: ID[], month: string, tierid: ID, 
 			const p2id = toID(data.p2);
 			if (userids.length > 1) {
 				// looking for specific userids, only register ones where those users are players
-				if (userids.filter(item => item === p1id || item === p2id).length < userids.length) continue;
+				if (!sameUserids([p1id, p2id], userids)) continue;
 			} else {
-				if (!(p1id === userid || p2id === userid)) continue;
+				if (![p1id, p2id].includes(userid)) continue;
 			}
 			if (turnLimit && data.turns > turnLimit) continue;
 			if (!results[day]) {
@@ -259,6 +269,8 @@ export const pages: PageTable = {
 		let buf = `<div class="pad ladder"><h2>Battle Search</h2><p>Userid${Chat.plural(userids)}: ${userids.join(', ')}</p><p>`;
 		if (turnLimit) {
 			buf += `Maximum Turns: ${turnLimit}`;
+		} else {
+			turnLimit = 1000;
 		}
 		buf += `</p>`;
 
