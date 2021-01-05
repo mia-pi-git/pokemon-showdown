@@ -1,5 +1,6 @@
 import {Utils} from '../../lib/utils';
 import {FS} from '../../lib/fs';
+import type {RoomSettings} from '../rooms';
 
 const STORAGE_PATH = 'config/chat-plugins/quotes.json';
 const MAX_QUOTES = 200;
@@ -15,12 +16,10 @@ const quotes: {[room: string]: Quote[]} = JSON.parse(FS(STORAGE_PATH).readIfExis
 // migrate quotes out of roomsettings
 function convertOldQuotes() {
 	for (const room of Rooms.rooms.values()) {
-		// @ts-ignore
-		if (room.settings.quotes) {
-			// @ts-ignore
-			quotes[room.roomid] = room.settings.quotes;
-			// @ts-ignore
-			delete room.settings.quotes;
+		const curSettings = (room.settings as RoomSettings & {quotes?: Quote[]});
+		if (curSettings.quotes) {
+			quotes[room.roomid] = curSettings.quotes;
+			delete curSettings.quotes;
 			room.saveSettings();
 			saveQuotes();
 		}

@@ -99,8 +99,7 @@ function solveRPN(rpn: string[]) {
 		} else if (!"^%*/+-".includes(token)) {
 			let num = Number(token);
 			if (isNaN(num) && token.toUpperCase() in Math) {
-				// @ts-ignore
-				num = Math[token.toUpperCase()];
+				num = (Math as any)[token.toUpperCase()] as number;
 			}
 			if (isNaN(num) && token !== 'NaN') {
 				throw new SyntaxError(`Unrecognized token ${token}`);

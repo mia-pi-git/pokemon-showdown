@@ -301,10 +301,10 @@ export class ServerStream extends Streams.ObjectReadWriteStream<string> {
 
 		if (this.serverSsl) {
 			server.installHandlers(this.serverSsl, {});
-			// @ts-ignore - if appssl exists, then `config.ssl` must also exist
-			this.serverSsl.listen(config.ssl.port, config.bindaddress);
-			// @ts-ignore - if appssl exists, then `config.ssl` must also exist
-			console.log(`Worker ${PM.workerid} now listening for SSL on port ${config.ssl.port}`);
+			// if appssl exists, then `config.ssl` must also exist
+			this.serverSsl.listen(config.ssl!.port, config.bindaddress);
+			// if appssl exists, then `config.ssl` must also exist
+			console.log(`Worker ${PM.workerid} now listening for SSL on port ${config.ssl!.port}`);
 		}
 
 		console.log(`Test your server at http://${config.bindaddress === '0.0.0.0' ? 'localhost' : config.bindaddress}:${config.port}`);

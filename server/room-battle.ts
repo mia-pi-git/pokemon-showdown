@@ -18,6 +18,7 @@ import {StreamProcessManager} from "../lib/process-manager";
 import {Repl} from "../lib/repl";
 import {BattleStream} from "../sim/battle-stream";
 import * as RoomGames from "./room-game";
+import type {Tournament} from './tournaments/index';
 
 type ChannelIndex = 0 | 1 | 2 | 3 | 4;
 type PlayerIndex = 1 | 2 | 3 | 4;
@@ -199,8 +200,7 @@ export class RoomBattleTimer {
 
 		// so that Object.assign doesn't overwrite anything with `undefined`
 		for (const k in timerSettings) {
-			// @ts-ignore
-			if (timerSettings[k] === undefined) delete timerSettings[k];
+			if (timerSettings[k as keyof GameTimerSettings] === undefined) delete timerSettings[k as keyof GameTimerSettings];
 		}
 
 		this.settings = {
@@ -841,10 +841,8 @@ export class RoomBattle extends RoomGames.RoomGame {
 			}
 		}
 		const parentGame = this.room.parent && this.room.parent.game;
-		// @ts-ignore - Tournaments aren't TS'd yet
-		if (parentGame?.onBattleWin) {
-			// @ts-ignore
-			parentGame.onBattleWin(this.room, winnerid);
+		if ('onBattleWin' in this.room.game) {
+			(parentGame as Tournament).onBattleWin(this.room, winnerid);
 		}
 		// If the room's replay was hidden, disable users from joining after the game is over
 		if (this.room.hideReplay) {
@@ -1075,8 +1073,8 @@ export class RoomBattle extends RoomGames.RoomGame {
 			return user;
 		});
 		if (!this.missingBattleStartMessage) {
-			// @ts-ignore The above error should throw if null is found, or this should be skipped
-			Rooms.global.onCreateBattleRoom(users, this.room, {rated: this.rated});
+			// The above error should throw if null is found, or this should be skipped
+			Rooms.global.onCreateBattleRoom(users as User[], this.room, {rated: this.rated});
 		}
 
 		if (this.gameType === 'multi') {
@@ -1110,14 +1108,10 @@ export class RoomBattle extends RoomGames.RoomGame {
 		}
 		this.playerTable = {};
 		this.players = [];
-		// @ts-ignore
-		this.p1 = null;
-		// @ts-ignore
-		this.p2 = null;
-		// @ts-ignore
-		this.p3 = null;
-		// @ts-ignore
-		this.p4 = null;
+		this.p1 = null!;
+		this.p2 = null!;
+		this.p3 = null!;
+		this.p4 = null!;
 
 		this.ended = true;
 		void this.stream.destroy();
@@ -1126,8 +1120,7 @@ export class RoomBattle extends RoomGames.RoomGame {
 			this.active = false;
 		}
 
-		// @ts-ignore
-		this.room = null;
+		(this.room as any) = null;
 		if (this.dataResolvers) {
 			for (const [, reject] of this.dataResolvers) {
 				// reject the promise, make whatever function called it return undefined

@@ -93,10 +93,8 @@ class LoginServerInstance {
 
 		// ladderupdate and mmr are the most common actions
 		// prepreplay is also common
-		// @ts-ignore
-		if (this[action + 'Server']) {
-			// @ts-ignore
-			return this[action + 'Server'].request(action, data);
+		if ((this as any)[action + 'Server']) {
+			return (this as any)[action + 'Server'].request(action, data);
 		}
 
 		const actionData = data || {};

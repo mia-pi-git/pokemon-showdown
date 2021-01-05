@@ -129,15 +129,12 @@ export class RoomGame {
 		} else {
 			this.room.game = null;
 		}
-		// @ts-ignore
-		this.room = null;
+		(this.room as any) = null;
 		for (const player of this.players) {
 			player.destroy();
 		}
-		// @ts-ignore
-		this.players = null;
-		// @ts-ignore
-		this.playerTable = null;
+		this.players = null!;
+		this.playerTable = null!;
 	}
 
 	addPlayer(user: User | string | null = null, ...rest: any[]) {

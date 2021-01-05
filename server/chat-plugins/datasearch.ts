@@ -2533,8 +2533,7 @@ if (!PM.isParentProcess) {
 	global.toID = Dex.toID;
 	Dex.includeData();
 
-	// @ts-ignore
-	require('../../lib/repl').Repl.start('dexsearch', cmd => eval(cmd)); // eslint-disable-line no-eval
+	require('../../lib/repl').Repl.start('dexsearch', (cmd: string) => eval(cmd)); // eslint-disable-line no-eval
 } else {
 	PM.spawn(MAX_PROCESSES);
 }

@@ -52,6 +52,7 @@ const IDLE_TIMER = 60 * MINUTES;
 const STAFF_IDLE_TIMER = 30 * MINUTES;
 
 import type {StreamWorker} from '../lib/process-manager';
+import type {Tournament} from './tournaments/index';
 
 /*********************************************************
  * Utility functions
@@ -1306,7 +1307,7 @@ export class User extends Chat.MessageContext {
 		}
 	}
 	leaveRoom(room: Room | string, connection: Connection | null = null) {
-		room = Rooms.get(room)!;
+		room = Rooms.get(room) as Room;
 		if (!this.inRooms.has(room.roomid)) {
 			return false;
 		}
@@ -1321,8 +1322,8 @@ export class User extends Chat.MessageContext {
 
 		let stillInRoom = false;
 		if (connection) {
-			// @ts-ignore TypeScript inferring wrong type for room
-			stillInRoom = this.connections.some(conn => conn.inRooms.has(room.roomid));
+			// TypeScript inferring wrong type for room
+			stillInRoom = this.connections.some(conn => conn.inRooms.has((room as Room).roomid));
 		}
 		if (!stillInRoom) {
 			room.onLeave(this);
@@ -1341,8 +1342,10 @@ export class User extends Chat.MessageContext {
 		// no need for a popup because users can't change their name while in a tournament anyway
 		for (const roomid of this.games) {
 			const room = Rooms.get(roomid);
-			// @ts-ignore Tournaments aren't TS'd yet
-			if (room.game && room.game.cancelChallenge) room.game.cancelChallenge(this);
+			// Tournaments aren't TS'd yet
+			if (room?.game && (room.game as Tournament).cancelChallenge) {
+				(room.game as Tournament).cancelChallenge(this);
+			}
 		}
 	}
 	updateReady(connection: Connection | null = null) {

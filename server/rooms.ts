@@ -1299,8 +1299,7 @@ export class GlobalRoomState {
 
 			if (room.settings.isOfficial) {
 				roomsData.official.push(roomData);
-			// @ts-ignore
-			} else if (room.pspl) {
+			} else if ((room as Room & {pspl: boolean}).pspl) {
 				roomsData.pspl.push(roomData);
 			} else {
 				roomsData.chat.push(roomData);
@@ -1445,8 +1444,7 @@ export class GlobalRoomState {
 	startLockdown(err: Error | null = null, slow = false) {
 		if (this.lockdown && err) return;
 		const devRoom = Rooms.get('development');
-		// @ts-ignore
-		const stack = (err ? Utils.escapeHTML(err.stack).split(`\n`).slice(0, 2).join(`<br />`) : ``);
+		const stack = (err ? Utils.escapeHTML(err?.stack || '').split(`\n`).slice(0, 2).join(`<br />`) : ``);
 		for (const [id, curRoom] of Rooms.rooms) {
 			if (err) {
 				if (id === 'staff' || id === 'development' || (!devRoom && id === 'lobby')) {
@@ -1460,10 +1458,8 @@ export class GlobalRoomState {
 				curRoom.addRaw(`<div class="broadcast-red"><b>The server is restarting soon.</b><br />Please finish your battles quickly. No new battles can be started until the server resets in a few minutes.</div>`).update();
 			}
 			const game = curRoom.game;
-			// @ts-ignore TODO: revisit when game.timer is standardized
-			if (!slow && game && game.timer && typeof game.timer.start === 'function' && !game.ended) {
-				// @ts-ignore
-				game.timer.start();
+			if (!slow && game && game.timer && typeof (game.timer as RoomBattleTimer).start === 'function' && !game.ended) {
+				(game.timer as RoomBattleTimer).start();
 				if (curRoom.settings.modchat !== '+') {
 					curRoom.settings.modchat = '+';
 					curRoom.addRaw(`<div class="broadcast-red"><b>Moderated chat was set to +!</b><br />Only users of rank + and higher can talk.</div>`).update();
@@ -1652,8 +1648,7 @@ export class GameRoom extends BasicRoom {
 	}
 	getLogForUser(user: User) {
 		if (!(user.id in this.game.playerTable)) return this.getLog();
-		// @ts-ignore
-		return this.getLog(this.game.playerTable[user.id].num);
+		return this.getLog(this.game.playerTable[user.id].num as 0 | -1 | 1 | 2 | 3 | 4);
 	}
 	update(excludeUser: User | null = null) {
 		if (!this.log.broadcastBuffer.length) return;
@@ -1681,8 +1676,7 @@ export class GameRoom extends BasicRoom {
 		player.sendRoom(message);
 	}
 	getPlayer(num: 0 | 1) {
-		// @ts-ignore
-		return this.game['p' + (num + 1)];
+		return (this.game as any)['p' + (num + 1)];
 	}
 	requestModchat(user: User | null) {
 		if (!user) {

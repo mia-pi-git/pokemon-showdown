@@ -125,9 +125,7 @@ import {FS} from '../lib/fs';
 import {Utils} from '../lib/utils';
 import {formatText, linkRegex, stripFormatting} from './chat-formatter';
 
-// @ts-ignore no typedef available
-import ProbeModule = require('probe-image-size');
-const probe: (url: string) => Promise<{width: number, height: number}> = ProbeModule;
+const probe: (url: string) => Promise<{width: number, height: number}> = require('probe-image-size');
 
 const EMOJI_REGEX = /[\p{Emoji_Modifier_Base}\p{Emoji_Presentation}\uFE0F]/u;
 const TRANSLATION_DIRECTORY = `${__dirname}/../.translations-dist`;
@@ -927,7 +925,6 @@ export class CommandContext extends MessageContext {
 		if (targetUser) {
 			room = null;
 		} else if (!room) {
-			// @ts-ignore excludes GlobalRoom above
 			room = this.room;
 		}
 		const user = this.user;
@@ -2235,23 +2232,39 @@ export const Chat = new class {
 (Chat as any).escapeHTML = Utils.escapeHTML;
 (Chat as any).html = Utils.html;
 (Chat as any).splitFirst = Utils.splitFirst;
-// @ts-ignore
-CommandContext.prototype.can = CommandContext.prototype.checkCan;
-// @ts-ignore
-CommandContext.prototype.canTalk = CommandContext.prototype.checkChat;
-// @ts-ignore
-CommandContext.prototype.canBroadcast = CommandContext.prototype.checkBroadcast;
-// @ts-ignore
-CommandContext.prototype.canHTML = CommandContext.prototype.checkHTML;
-// @ts-ignore
-CommandContext.prototype.canEmbedURI = CommandContext.prototype.checkEmbedURI;
-// @ts-ignore
-CommandContext.prototype.canPMHTML = CommandContext.prototype.checkPMHTML;
-// @ts-ignore
-CommandContext.prototype.privatelyCan = CommandContext.prototype.privatelyCheckCan;
-// @ts-ignore
-CommandContext.prototype.requiresRoom = CommandContext.prototype.requireRoom;
 
+Object.assign(CommandContext.prototype, {
+	can(permission: string, target: User | string | null, room: Room | null) {
+		(this as any).checkCan(permission as RoomPermission | GlobalPermission, target, room);
+		return true;
+	},
+	canTalk(message: string, room?: Room | null, targetUser?: User | null) {
+		(this as any).checkChat(message, room, targetUser);
+	},
+	canBroadcast(ignoreCooldown?: boolean, suppressMessage?: string | null) {
+		(this as any).checkBroadcast(ignoreCooldown, suppressMessage);
+		return true;
+	},
+	canHTML(htmlContent: string | null) {
+		(this as any).checkHTML(htmlContent);
+		return true;
+	},
+	canEmbedURI(uri: string, autofix?: boolean) {
+		(this as any).checkPMHTML(uri, autofix);
+		return true;
+	},
+	canPMHTML(targetUser: User | null) {
+		(this as any).checkPMHTML(targetUser);
+		return true;
+	},
+	privatelyCan(permission: string, target: User | string | null, room: Room | null) {
+		(this as any).privatelyCheckCan(permission as RoomPermission | GlobalPermission, target, room);
+		return true;
+	},
+	requiresRoom() {
+		(this as any).requireRoom();
+	},
+});
 /**
  * Used by ChatMonitor.
  */

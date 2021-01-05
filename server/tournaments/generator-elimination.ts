@@ -334,8 +334,11 @@ export class Elimination {
 			return undefined;
 		});
 		if (found) {
-			// @ts-ignore
-			const error = this.setMatchResult(found.match, found.result, found.score);
+			const error = this.setMatchResult(
+				found.match as [TournamentPlayer, TournamentPlayer],
+				found.result as "win" | 'loss',
+				found.score
+			);
 			if (error) {
 				throw new Error(`Unexpected ${error} from setMatchResult([${found.match.join(', ')}], ${found.result})`);
 			}

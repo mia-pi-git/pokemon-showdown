@@ -54,13 +54,12 @@ export class LadderStore {
 		// ladderCaches[formatid]
 		const cachedLadder = ladderCaches.get(this.formatid);
 		if (cachedLadder) {
-			// @ts-ignore
-			if (cachedLadder.then) {
+			if ((cachedLadder as any).then) {
 				const ladder = await cachedLadder;
 				return (this.ladder = ladder);
 			}
-			// @ts-ignore
-			return (this.ladder = cachedLadder);
+			// is not a promise
+			return (this.ladder = cachedLadder as LadderRow[]);
 		}
 		try {
 			const data = await FS('config/ladders/' + this.formatid + '.tsv').readIfExists();

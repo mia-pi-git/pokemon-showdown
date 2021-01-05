@@ -903,7 +903,7 @@ export class Tournament extends Rooms.RoomGame {
 		this.isBracketInvalidated = true;
 		this.update();
 	}
-	cancelChallenge(user: User, output: CommandContext) {
+	cancelChallenge(user: User, output?: CommandContext) {
 		if (!this.isTournamentStarted) {
 			if (output) output.sendReply('|tournament|error|NotStarted');
 			return;

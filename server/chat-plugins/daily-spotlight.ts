@@ -64,7 +64,7 @@ export const pages: PageTable = {
 				for (const [i, spotlight] of spotlights[room.roomid][key].entries()) {
 					const html = await renderSpotlight(spotlight.description, spotlight.image);
 					buf += `<tr><td>${i ? i : 'Current'}</td><td>${html}</td></tr>`;
-					// @ts-ignore room is definitely a proper room here.
+					// room is definitely a proper room here.
 					if (!user.can('announce', null, room)) break;
 				}
 				buf += '</table>';

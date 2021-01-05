@@ -1709,8 +1709,7 @@ class MafiaTracker extends Rooms.RoomGame {
 		if (this.timer) clearTimeout(this.timer);
 		if (this.IDEA.timer) clearTimeout(this.IDEA.timer);
 		this.room.game = null;
-		// @ts-ignore readonly
-		this.room = null;
+		(this.room as any) = null;
 		for (const i in this.playerTable) {
 			this.playerTable[i].destroy();
 		}
@@ -3335,14 +3334,12 @@ export const commands: ChatCommands = {
 
 			if (cmd in cmdTypes) {
 				const toSearch = MafiaData[cmdTypes[cmd]];
-				// @ts-ignore guaranteed not an alias
-				result = toSearch[target];
+				result = toSearch[target] as MafiaDataAlignment | MafiaDataRole | MafiaDataTheme | MafiaDataIDEA | MafiaDataTerm;
 			} else {
 				// search everything
 				for (const [cmdType, dataKey] of Object.entries(cmdTypes)) {
 					if (target in MafiaData[dataKey]) {
-						// @ts-ignore guaranteed not an alias
-						result = MafiaData[dataKey][target];
+						result = MafiaData[dataKey][target] as MafiaDataAlignment | MafiaDataRole | MafiaDataTheme | MafiaDataIDEA | MafiaDataTerm;
 						dataType = cmdType;
 						break;
 					}
@@ -3350,8 +3347,7 @@ export const commands: ChatCommands = {
 			}
 			if (!result) return this.errorReply(`"${target}" is not a valid mafia alignment, role, theme, or IDEA.`);
 
-			// @ts-ignore
-			let buf = `<h3${result.color ? ' style="color: ' + result.color + '"' : ``}>${result.name}</h3><b>Type</b>: ${dataType}<br/>`;
+			let buf = `<h3${'color' in result ? ' style="color: ' + result.color + '"' : ``}>${result.name}</h3><b>Type</b>: ${dataType}<br/>`;
 			if (dataType === 'theme') {
 				if ((result as MafiaDataTheme).desc) {
 					buf += `<b>Description</b>: ${(result as MafiaDataTheme).desc}<br/><details><summary class="button" style="font-weight: bold; display: inline-block">Setups:</summary>`;
@@ -3380,8 +3376,7 @@ export const commands: ChatCommands = {
 					buf += `${idearole}<br/>`;
 				}
 			} else {
-				// @ts-ignore
-				if (result.memo) buf += `${result.memo.join('<br/>')}`;
+				if ('memo' in result) buf += `${result.memo.join('<br/>')}`;
 			}
 			return this.sendReplyBox(buf);
 		},
@@ -3783,8 +3778,7 @@ export const commands: ChatCommands = {
 			if (!(source in MafiaData)) {
 				return this.errorReply(`Invalid source. Valid sources are ${Object.keys(MafiaData).join(', ')}`);
 			}
-			// @ts-ignore checked above
-			const dataSource = MafiaData[source];
+			const dataSource = MafiaData[source as keyof MafiaData];
 			if (!(entry in dataSource)) return this.errorReply(`${entry} does not exist in ${source}.`);
 
 			let buf = '';
