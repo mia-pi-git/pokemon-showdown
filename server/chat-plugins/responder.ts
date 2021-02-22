@@ -21,6 +21,20 @@ try {
 	answererData = JSON.parse(FS(PATH).readSync());
 } catch (e) {}
 
+function convertRoomData(data: AnyObject, roomid: RoomID) {
+	if (data.hasBeenConverted) return;
+	const obj: PluginData & {hasBeenConverted: boolean} = {
+		hasBeenConverted: true,
+		stats: data.stats,
+		pairs: {},
+	};
+	for (const [k, pairs] of Object.entries(data.pairs || {})) {
+		obj.pairs[k] = (pairs as string[]).map(str => AutoResponder.parseLegacy(str));
+	}
+	answererData[roomid] = obj;
+	FS(PATH).writeUpdate(() => JSON.stringify(answererData));
+}
+
 /**
  * A message caught by the filter.
  */
@@ -38,11 +52,17 @@ interface DayStats {
 	total?: number;
 }
 
+interface FilterTerm {
+	/** String if regex */
+	match: string[] | string;
+	ignore?: string[];
+}
+
 interface PluginData {
 	/** Stats - filter match and faq that was matched - done day by day. */
 	stats?: {[k: string]: DayStats};
 	/** Word pairs that have been marked as a match for a specific FAQ. */
-	pairs: {[k: string]: string[]};
+	pairs: {[k: string]: FilterTerm[]};
 	/** Common terms to be ignored in question parsing. */
 	ignore?: string[];
 }
@@ -53,9 +73,9 @@ export class AutoResponder {
 	constructor(room: Room, data?: PluginData) {
 		this.data = data || {pairs: {}, stats: {}};
 		this.room = room;
+		convertRoomData(this.data, room.roomid);
 	}
 	find(question: string, user?: User) {
-		// sanity slice, APPARENTLY people are dumb.
 		question = question.slice(0, 300);
 		const room = this.room;
 		const helpFaqs = roomFaqs[room.roomid];
@@ -118,41 +138,62 @@ export class AutoResponder {
 		if (this.data.pairs[faq]) delete this.data.pairs[faq];
 		return false;
 	}
-	stringRegex(str: string, raw?: boolean) {
-		[str] = Utils.splitFirst(str, '=>');
-		const args = str.split(',').map(item => item.trim());
-		if (!raw && args.length > 10) {
+	static parseString(str: string, raw = false) {
+		if (raw) {
+			Chat.validateRegex(str);
+			return {match: str.trim()};
+		}
+		const parts = str.split(',').map(i => i.trim()).filter(Boolean);
+		if (!raw && parts.length > 10) {
 			throw new Chat.ErrorMessage(`Too many arguments.`);
 		}
 		if (str.length > 300 && !raw) throw new Chat.ErrorMessage("Your given string is too long.");
-		return args.map(item => {
-			const split = item.split('&').map(string => {
-				// allow raw regex for admins and users with @ in Dev
-				if (raw) return string;
-				// escape
-				return string.replace(/[\\^$.*+?()[\]{}]/g, '\\$&').trim();
-			});
-			return split.map(term => {
-				if (term.length > 100 && !raw) {
-					throw new Chat.ErrorMessage(`One or more of your arguments is too long. Use less than 100 characters.`);
-				}
-				if (item.startsWith('|') || item.endsWith('|')) {
-					throw new Chat.ErrorMessage(`Invalid use of |. Make sure you have an option on either side.`);
-				}
-				if (term.startsWith('!')) {
-					return `^(?!.*${term.slice(1)})`;
-				}
-				if (!term.trim()) return null;
-				return `(?=.*?(${term.trim()}))`;
-			}).filter(Boolean).join('');
-		}).filter(Boolean).join('');
+		const entry: FilterTerm = {match: []};
+		for (let part of parts) {
+			if (part.length > 100 && !raw) throw new Chat.ErrorMessage(`Arg is too long (100 char max)`);
+			if (part.startsWith('!')) {
+				part = part.slice(1);
+				if (!entry.ignore) entry.ignore = [];
+				entry.ignore.push(part);
+				continue;
+			}
+			if (part.includes('&')) {
+				const sub = part.split('&').map(i => i.trim()).filter(Boolean);
+				(entry.match as string[]).push(...sub);
+				continue;
+			}
+			(entry.match as string[]).push(part);
+		}
+		return entry;
+	}
+	static parseLegacy(str: string): FilterTerm {
+		const result = str
+			.replace(/\^\(\?\!\.\*/ig, '!$1,')
+			.replace(/\(\?\=\.\*\?\(/ig, '')
+			.replace(/\)(\))?/ig, ',');
+
+		if (result.replace(/[\\^$.*+?[\]{}]/g, '\\$&') !== result) {
+			return {match: str};
+		}
+		return this.parseString(str);
 	}
 	test(question: string, faq: string) {
 		if (!this.data.pairs[faq]) this.data.pairs[faq] = [];
-		const regexes = this.data.pairs[faq].map(item => new RegExp(item, "i"));
-		if (!regexes) return;
-		for (const regex of regexes) {
-			if (regex.test(question)) return {faq, regex: regex.toString()};
+		const entries = this.data.pairs[faq];
+		if (!entries) return;
+		for (const entry of entries) {
+			if (typeof entry.match === 'string') {
+				if (new RegExp(entry.match, 'ig').test(question)) {
+					return {faq, regex: entry.match};
+				}
+			} else {
+				if (
+					entry.match.every(m => m.includes('|') ? m.split('|').some(p => question.includes(p)) : question.includes(m)) &&
+					(!entry.ignore || !entry.ignore.some(i => question.includes(i)))
+				) {
+					return {faq, regex: entry.match.join(',')};
+				}
+			}
 		}
 		return;
 	}
@@ -189,12 +230,11 @@ export class AutoResponder {
 		faq = this.getFaqID(toID(faq));
 		if (!this.data.pairs) this.data.pairs = {};
 		if (!this.data.pairs[faq]) this.data.pairs[faq] = [];
-		const regex = raw ? args.trim() : this.stringRegex(args, raw);
-		if (this.data.pairs[faq].includes(regex)) {
+		const entry = AutoResponder.parseString(args, raw);
+		if (this.data.pairs[faq].includes(entry)) {
 			throw new Chat.ErrorMessage(`That regex is already stored.`);
 		}
-		Chat.validateRegex(regex);
-		this.data.pairs[faq].push(regex);
+		this.data.pairs[faq].push(entry);
 		return this.writeState();
 	}
 	tryRemoveRegex(faq: string, index: number) {
@@ -360,7 +400,7 @@ export const commands: ChatCommands = {
 			this.modlog('AUTOFILTER REMOVE', null, index);
 			const pages = [`keys`, `pairs`];
 			for (const p of pages) {
-				this.refreshPage(`autofilter-${room.roomid}-${p}`);
+				this.refreshPage(`autoresponder-${room.roomid}-${p}`);
 			}
 		},
 		ignore(target, room, user) {
@@ -392,9 +432,7 @@ export const commands: ChatCommands = {
 			room.responder.unignore(targets);
 			this.privateModAction(`${user.name} removed ${Chat.count(targets.length, "terms")} from the autoresponder ignore list.`);
 			this.modlog(`AUTOFILTER UNIGNORE`, null, target);
-			if (this.connection.openPages?.has(`autoresponder-${room.roomid}-ignore`)) {
-				return this.parse(`/join view-autoresponder-${room.roomid}-ignore`);
-			}
+			this.refreshPage(`autoresponder-${room.roomid}-ignore`);
 		},
 	},
 	autoresponderhelp() {
@@ -477,8 +515,11 @@ export const pages: PageTable = {
 				buffer += `</tr>`;
 				for (const regex of regexes) {
 					const index = regexes.indexOf(regex) + 1;
-					const button = `<button class="button" name="send"value="/msgroom ${room.roomid},/ar remove ${item}, ${index}">Remove</button>`;
-					buffer += `<tr><td>${index}</td><td><code>${regex}</code></td>`;
+					const button = `<button class="button" name="send"value="/msgroom ${room.roomid},/ar remove ${item},${index}">Remove</button>`;
+					buffer += `<tr><td>${index}</td><td><code>`;
+					buffer += Array.isArray(regex.match) ? regex.match.join(', ') : regex.match;
+					if (regex.ignore) buffer += ` (ignores: ${regex.ignore.join(', ')})`;
+					buffer += `</code></td>`;
 					if (canChange) buffer += `<td>${button}</td></tr>`;
 				}
 				buffer += `</details>`;
