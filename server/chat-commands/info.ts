@@ -421,6 +421,26 @@ export const commands: ChatCommands = {
 	},
 	hosthelp: [`/host [ip] - Gets the host for a given IP. Requires: @ &`],
 
+	async ipdata(target, room, user) {
+		this.checkCan('globalban');
+		target = target.trim();
+		if (!net.isIPv4(target)) {
+			return this.errorReply(`Invalid IP.`);
+		}
+		if (!Config.ipinfoKey) return this.errorReply(`Configure Config.ipinfoKey to use this command.`);
+		const raw = await Net('https://ipinfo.io/' + target).get({
+			query: {
+				token: Config.ipinfoKey,
+			},
+		});
+		const data = JSON.parse(raw);
+		let buf = [`<strong>${target}</strong>`];
+		buf.push(`Host: ${data.hostname}`);
+		buf.push(`Location: ${data.city}, ${data.region}, ${data.country} (${data.loc})`);
+		buf.push(`Organization: ${data.org}`);
+		return this.sendReplyBox(buf.join('<br />'));
+	},
+
 	searchip: 'ipsearch',
 	ipsearchall: 'ipsearch',
 	hostsearch: 'ipsearch',
