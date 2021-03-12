@@ -3,8 +3,7 @@
  * @author mia-pi-git
  */
 import * as Database from 'better-sqlite3';
-import {Utils, FS, ProcessManager, Repl, Cache} from '../lib';
-import * as child_process from 'child_process';
+import {Utils, FS, ProcessManager, Repl, Cache, Streams} from '../lib';
 import {Config} from './config-loader';
 import * as path from 'path';
 
@@ -19,12 +18,14 @@ export interface DatabaseRequest {
 	statement: string;
 	type: 'all' | 'get' | 'run' | 'transaction';
 	data: AnyObject | any[];
+	taskId?: number;
 }
 
 export interface DatabaseResult {
 	/** Specify this to return an error message to the user */
 	error?: string;
 	result?: any;
+	taskId?: number;
 }
 
 /** Like Chat.ErrorMessage, but made for the subprocess so we can throw errors to the user not using errorMessage
@@ -61,17 +62,20 @@ export function sendPM(message: string, to: string, from = '&') {
 export class FriendsDatabase {
 	file: string;
 	cache: Cache<Set<string>>;
-	/** Separate process, made to be used for when it's not the main db file */
-	process?: FriendsProcess;
+	tasks: Map<number, (result: DatabaseResult) => any> = new Map();
+	taskId = 0;
 	constructor(file: string = DEFAULT_FILE) {
 		this.file = file === ':memory:' ? file : path.resolve(file);
 		this.cache = new Cache<Set<string>>(async user => {
 			const data = await this.getFriends(user as ID);
 			return new Set(data.map(f => f.friend));
 		});
-		if (file !== DEFAULT_FILE) {
-			this.process = PM.createProcess(file);
-		}
+		this.listen();
+	}
+	listen() {
+		PM.env = {filename: this.file};
+ 		PM.subscribeSpawn(worker => void this.onSpawn(worker));
+		PM.spawn(Config.friendsprocesses || 1);
 	}
 	static setupDatabase(fileName?: string) {
 		const file = fileName || process.env.filename || DEFAULT_FILE;
@@ -147,10 +151,24 @@ export class FriendsDatabase {
 	get(statement: string, data: any[] | AnyObject) {
 		return this.query({statement, data, type: 'get'});
 	}
+	async onSpawn(worker: ProcessManager.StreamWorker) {
+		for await (const line of worker.stream) {
+			const data = JSON.parse(line);
+			const resolve = this.tasks.get(data.taskId);
+			if (resolve) {
+				resolve(data);
+			}
+		}
+	}
 	private async query(input: DatabaseRequest) {
-		const process = this.process || PM.acquire() as FriendsProcess | null;
-		if (!process) throw new Error(`Missing friends process`);
-		const result = await process.query(input);
+		const result = await new Promise<DatabaseResult>(resolve => {
+			const taskId = this.taskId++;
+			this.tasks.set(taskId, resolve);
+			const process = PM.acquire();
+			if (!process) throw new Error('Missing rawprocessmanager');
+			input.taskId = taskId;
+			process.stream.write(JSON.stringify(input));
+		});
 		if (result.error) {
 			throw new Chat.ErrorMessage(result.error);
 		}
@@ -232,131 +250,50 @@ export class FriendsDatabase {
 const statements: {[k: string]: Database.Statement} = {};
 const transactions: {[k: string]: Database.Transaction} = {};
 
-export class FriendsProcess implements ProcessManager.ProcessWrapper {
-	filename: string;
-	process: ProcessManager.ChildProcess;
-	requests: Map<number, (...args: any) => any>;
-	messageCallback?: (message: string) => any;
-	taskId = 0;
-	constructor(filename: string, opts: {messageCallback?: (message: string) => any} = {}) {
-		this.filename = filename;
-		this.messageCallback = opts.messageCallback;
-		this.process = child_process.fork(__filename, {env: {filename}});
-		this.requests = new Map();
-		this.listen();
+export class FriendsStream extends Streams.ObjectReadWriteStream<string> {
+	database?: Database.Database;
+	constructor() {
+		super();
+		this.database = FriendsDatabase.setupDatabase();
 	}
-	listen() {
-		if (!PM.isParentProcess) return;
-		this.process.on('message', (message: string) => {
-			if (message.startsWith('THROW\n')) {
-				const error = new Error();
-				error.stack = message.slice(6);
-				throw error;
+	_write(chunk: string) {
+		const query = JSON.parse(chunk);
+		const {type, statement, data, taskId} = query;
+		let result: any = {taskId};
+		const cached = statements[statement];
+		const start = Date.now();
+		try {
+			switch (type) {
+			case 'all':
+				result.result = cached.all(data);
+				break;
+			case 'get':
+				result.result = cached.get(data);
+				break;
+			case 'run':
+				result.result = cached.run(data);
+				break;
+			case 'transaction':
+				const transaction = transactions[statement];
+				result.result = transaction([data]);
+				break;
 			}
-			if (this.messageCallback && message.startsWith('CALLBACK\n')) {
-				return this.messageCallback(message.slice(9));
+		} catch (e) {
+			if (!e.name.endsWith('FailureMessage')) {
+				Monitor.crashlog(e, 'A friends database process', query);
+				result.error = `Sorry! The database crashed. We've been notified and will fix this.`;
+			} else {
+				result.error = e.message;
 			}
-			const [task, raw] = message.split('\n');
-			const result = JSON.parse(raw);
-			const taskId = parseInt(task);
-			const resolve = this.requests.get(taskId);
-			if (resolve) {
-				this.requests.delete(taskId);
-				return resolve(result);
-			} else if (taskId > this.taskId || isNaN(taskId)) {
-				// we explicitly do it this way bc some weird node bug ends up sending messages from the subprocesses twoce
-				// so we can't just throw if there's no resolve, since it may be a duped message.
-				throw new Error(`invalid taskId ${taskId} - missing result resolver`);
-			}
-		});
-	}
-	getLoad() {
-		return this.requests.size;
-	}
-	getProcess() {
-		return this.process;
-	}
-	release() {
-		for (const task of this.requests.values()) {
-			task({error: 'The database process was destroyed.'});
 		}
-		this.process.kill();
-		return Promise.resolve();
+		const delta = Date.now() - start;
+		if (delta > 3000) {
+			Monitor.slow(`[Slow friends list query] ${JSON.stringify(query)}`);
+		}
+		return this.finish(result);
 	}
-	query(input: DatabaseRequest) {
-		const task = this.taskId++;
-		return new Promise<DatabaseResult>(resolve => {
-			this.process.send(`${task}\n${JSON.stringify(input)}`);
-			this.requests.set(task, resolve);
-		});
-	}
-}
-
-export class FriendsProcessManager extends ProcessManager.ProcessManager {
-	processes: FriendsProcess[];
-	opts: {messageCallback?: (message: string) => any};
-	constructor(opts: {messageCallback?: (message: string) => any}) {
-		super(module);
-		this.processes = [];
-		this.opts = opts;
-
-		ProcessManager.processManagers.push(this);
-		this.listen();
-	}
-	createProcess(file: string = DEFAULT_FILE) {
-		const process = new FriendsProcess(file, this.opts);
-		this.processes.push(process);
-		return process;
-	}
-	listen() {
-		if (this.isParentProcess) return;
-		const send = (task: string, res: any) => process.send!(`${task}\n${JSON.stringify(res)}`);
-		process.on('message', (message: string) => {
-			const [task, raw] = message.split('\n');
-			if (!raw.startsWith('{')) return;
-			const query = JSON.parse(raw);
-			const {type, statement, data} = query;
-			let result: any = '';
-			const cached = statements[statement];
-			const start = Date.now();
-			try {
-				switch (type) {
-				case 'all':
-					result = cached.all(data);
-					break;
-				case 'get':
-					result = cached.get(data);
-					break;
-				case 'run':
-					result = cached.run(data);
-					break;
-				case 'transaction':
-					const transaction = transactions[statement];
-					result = transaction([data]);
-					break;
-				}
-			} catch (e) {
-				if (!e.name.endsWith('FailureMessage')) {
-					Monitor.crashlog(e, 'A friends database process', query);
-					return send(task, {error: `Sorry! The database crashed. We've been notified and will fix this.`});
-				}
-				return send(task, {error: e.message});
-			}
-			const delta = Date.now() - start;
-			if (delta > 3000) {
-				Monitor.slow(`[Slow friends list query] ${JSON.stringify(query)}`);
-			}
-			if (!result) result = {};
-			if (result.result) result = result.result;
-			return send(task, {result} || {error: 'Unknown error in database query.'});
-		});
-		// ignore the error here and let it be handled by Monitor
-		process.on('error', () => {
-			process.exit();
-		});
-		process.on('disconnect', () => {
-			process.exit();
-		});
+	finish(result: DatabaseResult) {
+		this.push(JSON.stringify(result));
 	}
 }
 
@@ -462,12 +399,10 @@ const TRANSACTIONS: {[k: string]: (input: any[]) => DatabaseResult} = {
 	},
 };
 
-export const PM = new FriendsProcessManager({
-	messageCallback(message) {
-		if (message.startsWith('SLOW\n')) {
-			return Monitor.slow(message.slice(5));
-		}
-	},
+export const PM = new ProcessManager.RawProcessManager({
+	setupChild: () => new FriendsStream(),
+	module,
+	isCluster: true,
 });
 
 // if friends.database exists, Config.usesqlite is on.
@@ -492,6 +427,4 @@ if (!PM.isParentProcess) {
 	});
 	// eslint-disable-next-line no-eval
 	Repl.start(`friends-${process.pid}`, cmd => eval(cmd));
-} else {
-	PM.spawn(Config.friendsprocesses || 1);
 }
