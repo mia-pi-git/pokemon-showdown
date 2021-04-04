@@ -45,7 +45,7 @@ const DEFAULT_TRAINER_SPRITES = [1, 2, 101, 102, 169, 170, 265, 266];
 
 import {FS, Utils, ProcessManager} from '../lib';
 import {Auth, GlobalAuth, PLAYER_SYMBOL, HOST_SYMBOL, RoomPermission, GlobalPermission} from './user-groups';
-import {BattleReady} from './ladders';
+import type {BattleReady} from './ladders';
 
 const MINUTES = 60 * 1000;
 const IDLE_TIMER = 60 * MINUTES;
