@@ -196,8 +196,8 @@ class Ladder extends LadderStore {
 			);
 			return null;
 		}
-
-		if (Dex.getFormat(this.formatid).gameType === 'multi' && !noPartner) {
+			
+		if (Dex.formats.get(this.formatid).gameType === 'multi' && !noPartner) {
 			if (!user.battleSettings.teammate) {
 				connection.popup(`You must have a teammate consent to play with you before playing this tier.`);
 				return null;
