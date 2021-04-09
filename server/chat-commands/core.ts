@@ -1536,7 +1536,7 @@ export const commands: ChatCommands = {
 		if (user.locked && !targetUser.locked) {
 			return this.errorReply(`You are locked and cannot invite others to battles.`);
 		}
-		const format = Dex.getFormat(target);
+		const format = Dex.formats.get(target);
 		if (!format.exists) return this.popupReply(`Invalid format: ${target}`);
 		if (format.gameType !== 'multi') {
 			return this.popupReply(`You cannot invite people to non-multibattle formats. Challenge them instead.`);
@@ -1562,7 +1562,7 @@ export const commands: ChatCommands = {
 		if (!reqs) return this.popupReply(`You have no battle requests pending.`);
 		const formatid = reqs.get(targetUser.id);
 		if (!formatid) return this.popupReply(`You have no request pending from that user.`);
-		const format = Dex.getFormat(formatid);
+		const format = Dex.formats.get(formatid);
 		const search = await Ladders(formatid).prepBattle(connection, 'rated', user.battleSettings.team, !!format.rated, true);
 		if (search === null) return null;
 		targetUser.battleSettings.teammate = search;
