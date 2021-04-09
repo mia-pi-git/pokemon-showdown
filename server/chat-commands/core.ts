@@ -1550,7 +1550,7 @@ export const commands: ChatCommands = {
 		requestMap.set(user.id, format.id);
 		targetUser.send(`|requestmulti|${user.name}|${format.id}`);
 		this.connection.send(
-			`|pm|${user.getIdentity()}|${targetUser.getIdentity()}|/text` +
+			`|pm|${user.getIdentity()}|${targetUser.getIdentity()}|/text ` +
 			`You invited ${targetUser.name} to join you in ${format.name}.`
 		);
 	},
