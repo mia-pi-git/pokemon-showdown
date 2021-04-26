@@ -22,34 +22,36 @@ interface TicketState {
 }
 type TicketResult = 'approved' | 'valid' | 'assisted' | 'denied' | 'invalid' | 'unassisted' | 'ticketban' | 'deleted';
 
-export const tickets: {[k: string]: TicketState} = {};
+export const tickets: {[k: string]: TicketState} = loadTickets();
 
-try {
-	const ticketData = JSON.parse(FS(TICKET_FILE).readSync());
-	for (const t in ticketData) {
-		const ticket = ticketData[t];
-		if (ticket.banned) {
-			if (ticket.expires && ticket.expires <= Date.now()) continue;
-			Punishments.roomPunish(`staff`, ticket.userid, ['TICKETBAN', ticket.userid, ticket.expires, ticket.reason]);
-			delete ticketData[t]; // delete the old format
-		} else {
-			if (ticket.created + TICKET_CACHE_TIME <= Date.now()) {
-				// Tickets that have been open for 24+ hours will be automatically closed.
-				const ticketRoom = Rooms.get(`help-${ticket.userid}`) as ChatRoom | null;
-				if (ticketRoom) {
-					const ticketGame = ticketRoom.game as HelpTicket;
-					ticketGame.writeStats(false);
-					ticketRoom.expire();
+export function loadTickets() {
+	try {
+		const ticketData = Chat.oldPlugins.helptickets?.tickets || JSON.parse(FS(TICKET_FILE).readSync());
+		for (const t in ticketData) {
+			const ticket = ticketData[t];
+			if (ticket.banned) {
+				if (ticket.expires && ticket.expires <= Date.now()) continue;
+				Punishments.roomPunish(`staff`, ticket.userid, ['TICKETBAN', ticket.userid, ticket.expires, ticket.reason]);
+				delete ticketData[t]; // delete the old format
+			} else {
+				if (ticket.created + TICKET_CACHE_TIME <= Date.now()) {
+					// Tickets that have been open for 24+ hours will be automatically closed.
+					const ticketRoom = Rooms.get(`help-${ticket.userid}`) as ChatRoom | null;
+					if (ticketRoom) {
+						const ticketGame = ticketRoom.game as HelpTicket;
+						ticketGame.writeStats(false);
+						ticketRoom.expire();
+					}
+					continue;
 				}
-				continue;
+				// Close open tickets after a restart
+				if (ticket.open && !Chat.oldPlugins.helptickets) ticket.open = false;
 			}
-			// Close open tickets after a restart
-			if (ticket.open && !Chat.oldPlugins.helptickets) ticket.open = false;
-			tickets[t] = ticket;
 		}
+		return ticketData;
+	} catch (e) {
+		if (e.code !== 'ENOENT') throw e;
 	}
-} catch (e) {
-	if (e.code !== 'ENOENT') throw e;
 }
 
 export function writeTickets() {
