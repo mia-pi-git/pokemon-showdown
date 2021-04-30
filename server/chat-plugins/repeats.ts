@@ -122,7 +122,7 @@ export function destroy() {
 	Repeats.destroy();
 }
 
-export const pages: PageTable = {
+export const pages: Chat.PageTable = {
 	repeats(args, user) {
 		const room = this.requireRoom();
 		this.title = `[Repeats]`;
@@ -150,7 +150,7 @@ export const pages: PageTable = {
 	},
 };
 
-export const commands: ChatCommands = {
+export const commands: Chat.ChatCommands = {
 	repeatbymessages: 'repeat',
 	repeathtmlbymessages: 'repeat',
 	repeathtml: 'repeat',
@@ -161,6 +161,8 @@ export const commands: ChatCommands = {
 		this.checkCan(isHTML ? 'addhtml' : 'mute', null, room);
 		const [intervalString, name, ...messageArray] = target.split(',');
 		const id = toID(name);
+		if (!id) throw new Chat.ErrorMessage(this.tr`Repeat names must include at least one alphanumeric character.`);
+
 		const phrase = messageArray.join(',').trim();
 		const interval = parseInt(intervalString);
 		if (isNaN(interval) || !/[0-9]{1,}/.test(intervalString) || interval < 1 || interval > 24 * 60) {

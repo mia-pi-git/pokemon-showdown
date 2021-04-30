@@ -280,7 +280,7 @@ export class Hangman extends Rooms.RoomGame {
 	}
 }
 
-export const commands: ChatCommands = {
+export const commands: Chat.ChatCommands = {
 	hangman: {
 		create: 'new',
 		new(target, room, user, connection) {
@@ -476,7 +476,6 @@ export const commands: ChatCommands = {
 				return this.parse(`/help hangman`);
 			}
 			let [term, ...tags] = target.split(',');
-			term = toID(term);
 			tags = tags.map(i => toID(i)).filter(Boolean);
 			if (!term || !tags) {
 				return this.parse('/help hangman');
@@ -533,7 +532,7 @@ export const commands: ChatCommands = {
 	],
 };
 
-export const pages: PageTable = {
+export const pages: Chat.PageTable = {
 	hangman(args, user) {
 		const room = this.requireRoom();
 		this.title = `[Hangman]`;
@@ -568,7 +567,7 @@ export const pages: PageTable = {
 	},
 };
 
-export const roomSettings: SettingsHandler = room => ({
+export const roomSettings: Chat.SettingsHandler = room => ({
 	label: "Hangman",
 	permission: 'editroom',
 	options: [

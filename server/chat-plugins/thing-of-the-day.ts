@@ -97,6 +97,13 @@ class OtdHandler {
 		const id = settings.id || toID(title).charAt(0) + 'ot' + timeLabel.charAt(0);
 		const handler = new OtdHandler(id, room, settings);
 		otds.set(id, handler);
+		if (handler.keys[0] === 'time') {
+			handler.keys.shift();
+			handler.keyLabels.shift();
+			handler.keys.push('time');
+			handler.keyLabels.push('Timestamp');
+			handler.save();
+		}
 		return handler;
 	}
 
@@ -419,7 +426,7 @@ class OtdHandler {
 		return output;
 	}
 
-	generateWinnerList(context: PageContext) {
+	generateWinnerList(context: Chat.PageContext) {
 		context.title = `${this.id.toUpperCase()} Winners`;
 		let buf = `<div class="pad ladder"><h2>${this.name} of the ${this.timeLabel} Winners</h2>`;
 
@@ -428,7 +435,7 @@ class OtdHandler {
 		const labels = [];
 
 		for (let i = 0; i < this.keys.length; i++) {
-			if (i === 0 || ['song', 'event', 'time', 'link', 'tagline', 'sport', 'country']
+			if (i === 0 || ['song', 'event', 'link', 'tagline', 'sport', 'country']
 				.includes(this.keys[i]) && !(this.keys[i] === 'link' && this.keys.includes('song'))
 			) {
 				columns.push(this.keys[i]);
@@ -483,7 +490,7 @@ function selectHandler(message: string) {
 	return handler;
 }
 
-export const otdCommands: ChatCommands = {
+export const otdCommands: Chat.ChatCommands = {
 	start(target, room, user, connection, cmd) {
 		this.checkChat();
 
@@ -774,8 +781,8 @@ export const otdCommands: ChatCommands = {
 	},
 };
 
-export const pages: PageTable = {};
-export const commands: ChatCommands = {
+export const pages: Chat.PageTable = {};
+export const commands: Chat.ChatCommands = {
 	otd: {
 		create(target, room, user) {
 			room = this.requireRoom();
