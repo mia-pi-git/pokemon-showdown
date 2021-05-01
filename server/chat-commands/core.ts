@@ -1646,17 +1646,15 @@ export const commands: Chat.ChatCommands = {
 	},
 
 	requestpartner(target, room, user) {
-		target = this.splitTarget(target);
-		const targetUser = this.targetUser;
-		if (!targetUser) return this.popupReply(`User not found.`);
+		const {targetUser, rest} = this.requireUser(target);
 		if (targetUser.locked && !user.locked) {
 			return this.popupReply(`That user is locked and cannot be invited to battles.`);
 		}
 		if (user.locked && !targetUser.locked) {
 			return this.errorReply(`You are locked and cannot invite others to battles.`);
 		}
-		const format = Dex.formats.get(target);
-		if (!format.exists) return this.popupReply(`Invalid format: ${target}`);
+		const format = Dex.formats.get(rest);
+		if (!format.exists) return this.popupReply(`Invalid format: ${rest}`);
 		if (format.gameType !== 'multi') {
 			return this.popupReply(`You cannot invite people to non-multibattle formats. Challenge them instead.`);
 		}
@@ -1674,9 +1672,7 @@ export const commands: Chat.ChatCommands = {
 		);
 	},
 	async acceptpartner(target, room, user, connection) {
-		target = this.splitTarget(target);
-		const targetUser = this.targetUser;
-		if (!targetUser) return this.popupReply(`User not found.`);
+		const {targetUser} = this.requireUser(target);
 		const reqs = Ladders.requests.get(user.id);
 		if (!reqs) return this.popupReply(`You have no battle requests pending.`);
 		const formatid = reqs.get(targetUser.id);
@@ -1689,9 +1685,7 @@ export const commands: Chat.ChatCommands = {
 		targetUser.popup(`Your teammate has accepted, and a battle search has been started.`);
 	},
 	denypartner(target, room, user) {
-		target = this.splitTarget(target);
-		const targetUser = this.targetUser;
-		if (!targetUser) return this.popupReply(`User not found.`);
+		const {targetUser} = this.requireUser(target);
 		const reqs = Ladders.requests.get(user.id);
 		if (!reqs) return this.popupReply(`You have no pending teammate requests.`);
 		if (!reqs.has(targetUser.id)) {
