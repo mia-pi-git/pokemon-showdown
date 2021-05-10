@@ -96,7 +96,7 @@ class Ladder extends LadderStore {
 		challengeType: ChallengeType,
 		team: string | null = null,
 		isRated = false,
-		noPartner = false
+		partner = false
 	) {
 		// all validation for a battle goes through here
 		const user = connection.user;
@@ -197,7 +197,7 @@ class Ladder extends LadderStore {
 			return null;
 		}
 
-		if (Dex.formats.get(this.formatid).gameType === 'multi' && !noPartner) {
+		if (Dex.formats.get(this.formatid).gameType === 'multi' && !partner) {
 			if (!user.battleSettings.teammate) {
 				connection.popup(`You must have a teammate consent to play with you before playing this tier.`);
 				return null;
