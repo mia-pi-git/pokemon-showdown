@@ -150,7 +150,7 @@ if (!PM.isParentProcess) {
 	const statements: Map<number, sqlite.Statement> = new Map();
 	const transactions: Map<number, sqlite.Transaction> = new Map();
 	const {file, extension} = process.env;
-	const database = Database ? new (Database as any as sqlite.Database)(file!) : null;
+	const database: sqlite.Database | null = Database ? new (Database as any)(file!) : null;
 	if (extension && database) {
 		// eslint-disable-next-line @typescript-eslint/no-var-requires
 		const {functions, storedTransactions} = require(`../${extension}`);
