@@ -1,4 +1,5 @@
 import {FS, Utils} from '../../lib';
+import preact from 'preact';
 
 export const ROOMFAQ_FILE = 'config/chat-plugins/faqs.json';
 const MAX_ROOMFAQ_LENGTH = 8192;
@@ -180,6 +181,16 @@ export const commands: Chat.ChatCommands = {
 	],
 };
 
+class RoomfaqWrapper extends preact.Component<{roomid: RoomID}> {
+	render() {
+		return <div class="pad">
+			<button style="float:right;" class="button" name="send" value={`/join view-roomfaqs-${this.props.roomid}`}>
+				<i class="fa fa-refresh"></i> Refresh
+			</button>
+		</div>
+	}
+}
+
 export const pages: Chat.PageTable = {
 	roomfaqs(args, user) {
 		const room = this.requireRoom();
@@ -188,34 +199,32 @@ export const pages: Chat.PageTable = {
 		if (!room.checkModjoin(user)) {
 			throw new Chat.ErrorMessage(`<h2>Access denied.</h2>`);
 		}
-		let buf = `<div class="pad"><button style="float:right;" class="button" name="send" value="/join view-roomfaqs-${room.roomid}"><i class="fa fa-refresh"></i> Refresh</button>`;
 		if (!roomFaqs[room.roomid]) {
-			return `${buf}<h2>This room has no FAQs.</h2></div>`;
+			return <RoomfaqWrapper roomid={room.roomid}><h2>This room has no FAQs.</h2></RoomfaqWrapper>;
 		}
-
-		buf += `<h2>FAQs for ${room.title}:</h2>`;
 		const keys = Object.keys(roomFaqs[room.roomid]);
 		const sortedKeys = Utils.sortBy(keys.filter(val => !getAlias(room.roomid, val)));
-		for (const key of sortedKeys) {
-			const topic = roomFaqs[room.roomid][key];
-			buf += `<div class="infobox">`;
-			buf += `<h3>${key}</h3>`;
-			buf += `<hr />`;
-			buf += visualizeFaq(topic);
-			const aliases = keys.filter(val => getAlias(room.roomid, val) === key);
-			if (aliases.length) {
-				buf += `<hr /><strong>Aliases:</strong> ${aliases.join(', ')}`;
-			}
-			if (user.can('ban', null, room, 'addfaq')) {
-				const src = Utils.escapeHTML(topic.source).replace(/\n/g, `<br />`);
-				buf += `<hr /><details><summary>Raw text</summary>`;
-				buf += `<code style="white-space: pre-wrap; display: table; tab-size: 3;">/addfaq ${key}, ${src}</code></details>`;
-				buf += `<hr /><button class="button" name="send" value="/msgroom ${room.roomid},/removefaq ${key}">Delete FAQ</button>`;
-			}
-			buf += `</div>`;
-		}
-		buf += `</div>`;
-		return buf;
+		return <RoomfaqWrapper roomid={room.roomid}>
+			<h2>FAQs for {room.title}:</h2>
+			{sortedKeys.map(key => {
+				const topic = roomFaqs[room.roomid][key];
+				const aliases = keys.filter(val => getAlias(room.roomid, val) === key);
+				const aliasList = aliases.length ? <span><hr /><strong>Aliases:</strong> {aliases.join(', ')}</span> : <span></span>;
+
+				const srcText = Utils.escapeHTML(topic.source).replace(/\n/g, `<br />`);
+				const src = <span><hr /><details><summary>Raw text</summary>
+						<code style="white-space: pre-wrap; display: table; tab-size: 3;">/addfaq {key}, {srcText}</code></details>
+						<hr /><button class="button" name="send" value="/msgroom ${room.roomid},/removefaq ${key}">Delete FAQ</button>
+					</span>;
+
+				return <div class="infobox">
+					<h3>{key}</h3><hr />
+					{visualizeFaq(topic)}<br />
+					{aliasList}<br />
+					{user.can('ban', null, room, 'addfaq') ? src : <span></span>}
+				</div>;
+			})}
+		</RoomfaqWrapper>
 	},
 };
 

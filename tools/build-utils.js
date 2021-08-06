@@ -115,7 +115,7 @@ function sucrase(src, out, opts, excludeDirs = []) {
 		}
 	} catch (e) {}
 	const sucraseOptions = {
-		transforms: ["typescript", "imports"],
+		transforms: ["typescript", "imports", "jsx"],
 		enableLegacyTypeScriptModuleInterop: true,
 
 		...opts,

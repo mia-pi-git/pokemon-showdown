@@ -36,7 +36,14 @@ function installDependencies() {
 }
 
 function registerTSNode() {
-	require('ts-node').register({project: './tsconfig.json', files: true, transpileOnly: true, transpiler: 'ts-node/transpilers/swc-experimental'});
+	require('ts-node').register({
+		project: './tsconfig.json',
+		files: true,
+		transpileOnly: true,
+		transpiler: 'ts-node/transpilers/swc-experimental',
+		preferTsExts: true,
+		extensions: ['ts', 'tsx', 'js'],
+	});
 }
 
 // enable require()ing TypeScript files

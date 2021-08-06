@@ -7,6 +7,7 @@
  */
 
 import {Utils, FS, Net} from '../../lib';
+import preact from 'preact';
 
 const ROOT = 'https://www.googleapis.com/youtube/v3/';
 const STORAGE_PATH = 'config/chat-plugins/youtube.json';
@@ -120,23 +121,26 @@ export class YoutubeInterface {
 		const id = this.getId(link);
 		const {name, description, icon, videos, subs, views, username} = await this.get(id);
 		// credits bumbadadabum for most of the html
-		let buf = `<div class="infobox"><table style="margin:0px;"><tr>`;
-		buf += `<td style="margin:5px;padding:5px;min-width:175px;max-width:160px;text-align:center;border-bottom:0px;">`;
-		buf += `<div style="padding:5px;background:white;border:1px solid black;margin:auto;max-width:100px;max-height:100px;">`;
-		buf += `<a href="${ROOT}channel/${id}"><img src="${icon}" width=100px height=100px/></a>`;
-		buf += `</div><p style="margin:5px 0px 4px 0px;word-wrap:break-word;">`;
-		buf += `<a style="font-weight:bold;color:#c70000;font-size:12pt;" href="https://www.youtube.com/channel/${id}">${name}</a>`;
-		buf += `</p></td><td style="padding: 0px 25px;font-size:10pt;background:rgb(220,20,60);width:100%;border-bottom:0px;vertical-align:top;">`;
-		buf += `<p style="padding: 5px;border-radius:8px;color:white;font-weight:bold;text-align:center;">`;
-		buf += `${videos} videos | ${subs} subscribers | ${views} video views</p>`;
-		buf += `<p style="margin-left: 5px; font-size:9pt;color:white;">`;
-		buf += `${description.slice(0, 400).replace(/\n/g, ' ')}${description.length > 400 ? '(...)' : ''}</p>`;
-		if (username) {
-			buf += `<p style="text-align:left;font-style:italic;color:white;">PS username: ${username}</p></td></tr></table></div>`;
-		} else {
-			buf += '</td></tr></table></div>';
-		}
-		return buf;
+		const usernameHTML = username ? <p style="text-align:left;font-style:italic;color:white;">PS username: {username}</p> : <span></span>;
+		return <div class="infobox">
+			<table style="margin:0px;"><tr>
+				<td style="margin:5px;padding:5px;min-width:175px;max-width:160px;text-align:center;border-bottom:0px;">
+					<div style="padding:5px;background:white;border:1px solid black;margin:auto;max-width:100px;max-height:100px;">
+					<a href="${ROOT}channel/${id}"><img src="${icon}" width="100px" height="100px" /></a>
+					</div>
+					<p style="margin:5px 0px 4px 0px;word-wrap:break-word;">
+					<a style="font-weight:bold;color:#c70000;font-size:12pt;" href="https://www.youtube.com/channel/${id}">{name}</a>
+					</p>
+				</td>
+				<td style="padding: 0px 25px;font-size:10pt;background:rgb(220,20,60);width:100%;border-bottom:0px;vertical-align:top;">
+					<p style="padding: 5px;border-radius:8px;color:white;font-weight:bold;text-align:center;">
+						{videos} videos | {subs} subscribers | {views} video views</p>
+					<p style="margin-left: 5px; font-size:9pt;color:white;">
+						{description.slice(0, 400).replace(/\\n/g, ' ')}{description.length > 400 ? '(...)' : ''}
+					</p>{usernameHTML}
+				</td>
+			</tr></table>
+		</div>
 	}
 	randChannel(cat?: string) {
 		let channels = Object.keys(this.data.channels);
@@ -344,21 +348,20 @@ export const Twitch = new class {
 		return data?.channels?.[0] as TwitchChannel | undefined;
 	}
 	visualizeChannel(info: TwitchChannel) {
-		let buf = `<div class="infobox"><table style="margin:0px;"><tr>`;
-		buf += `<td style="margin:5px;padding:5px;min-width:175px;max-width:160px;text-align:center;border-bottom:0px;">`;
-		buf += `<div style="padding:5px;background:white;border:1px solid black;margin:auto;max-width:100px;max-height:100px;">`;
-		buf += `<a href="${info.url}"><img src="${info.logo}" width=100px height=100px/></a>`;
-		buf += `</div><p style="margin:5px 0px 4px 0px;word-wrap:break-word;">`;
-		buf += `<a style="font-weight:bold;color:#6441a5;font-size:12pt;" href="${info.logo}">${info.display_name}</a>`;
-		buf += `</p></td><td style="padding: 0px 25px;font-size:10pt;background:rgb(100, 65, 164);width:100%;border-bottom:0px;vertical-align:top;">`;
-		buf += `<p style="padding: 5px;border-radius:8px;color:white;font-size:15px;font-weight:bold;text-align:center;">`;
 		const created = new Date(info.created_at);
-		buf += `${info.followers} subscribers | ${info.views} stream views | created ${Chat.toTimestamp(created).split(' ')[0]}</p>`;
-		buf += `<p style="color:white;font-size:10px">Last seen playing ${info.game} (Status: ${info.status})</p>`;
-		buf += `<hr /><p style="margin-left: 5px; font-size:9pt;color:white;">`;
-		buf += `${info.description.slice(0, 400).replace(/\n/g, ' ')}${info.description.length > 400 ? '...' : ''}</p>`;
-		buf += '</td></tr></table></div>';
-		return buf;
+		return <div class="infobox">
+			<table style="margin:0px;"><tr>
+			<td style="margin:5px;padding:5px;min-width:175px;max-width:160px;text-align:center;border-bottom:0px;">
+			<div style="padding:5px;background:white;border:1px solid black;margin:auto;max-width:100px;max-height:100px;">
+			<a href={info.url}><img src={info.logo} width="100px" height="100px" />{info.display_name}</a>
+			<td style="padding: 0px 25px;font-size:10pt;background:rgb(100, 65, 164);width:100%;border-bottom:0px;vertical-align:top;">
+			<p style="padding: 5px;border-radius:8px;color:white;font-size:15px;font-weight:bold;text-align:center;">
+			{info.followers} subscribers | {info.views} stream views | created {Chat.toTimestamp(created).split(' ')[0]}</p>
+			<p style="color:white;font-size:10px">Last seen playing {info.game} (Status: {info.status})</p>
+			<hr /><p style="margin-left: 5px; font-size:9pt;color:white;">
+			{info.description.slice(0, 400).replace(/\n/g, ' ')}{info.description.length > 400 ? '...' : ''}</p>
+			</td></div></td></tr></table><div>
+		</div></div>
 	}
 };
 

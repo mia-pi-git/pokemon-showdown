@@ -1,6 +1,9 @@
 {
     "compilerOptions": {
         "lib": ["es2020"],
+        "jsx": "react",
+        "jsxFactory": "preact.h",
+        "jsxFragmentFactory": "preact.Fragment",
         "noEmit": true,
         "target": "es2020",
         "module": "CommonJS",
@@ -24,14 +27,16 @@
         "./dev-tools/*.ts",
         "./lib/*.ts",
         "./server/**/*.ts",
+        "./server/**/*.tsx",
         "./sim/**/*",
         "./tools/set-import/*.ts",
         "./tools/modlog/*.ts",
-        "./translations/**/*.ts",
+        "./translations/**/*.ts", "server/chat-plugins/thecafe.tsx",
     ],
     "ts-node": {
         "files": true,
         "transpileOnly": true,
+        "extensions": [".ts", ".tsx", ".js", ".jsx"],
         "transpiler": "ts-node/transpilers/swc-experimental",
     }
 }

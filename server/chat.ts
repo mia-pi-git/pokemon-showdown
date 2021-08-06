@@ -27,9 +27,11 @@ import type {RoomPermission, GlobalPermission} from './user-groups';
 import {FriendsDatabase, PM} from './friends';
 import type {Punishment} from './punishments';
 import type {PartialModlogEntry} from './modlog';
+import render from 'preact-render-to-string';
+import type * as preact from 'preact';
 
 export type PageHandler = (this: PageContext, query: string[], user: User, connection: Connection)
-=> Promise<string | null | void> | string | null | void;
+=> Promise<string | null | void | preact.VNode> | string | null | void | preact.VNode;
 export interface PageTable {
 	[k: string]: PageHandler | PageTable;
 }
@@ -467,6 +469,9 @@ export class PageContext extends MessageContext {
 		if (typeof res === 'string') {
 			this.setHTML(res);
 			res = undefined;
+		} else if (res && typeof res === 'object') {
+			this.setHTML(Chat.renderNode(res));
+			res = undefined;
 		}
 		return res;
 	}
@@ -800,7 +805,8 @@ export class CommandContext extends MessageContext {
 	addBox(htmlContent: string) {
 		this.add(`|html|<div class="infobox">${htmlContent}</div>`);
 	}
-	sendReplyBox(htmlContent: string) {
+	sendReplyBox(htmlContent: string | preact.VNode) {
+		if (typeof htmlContent === 'object') htmlContent = Chat.renderNode(htmlContent);
 		this.sendReply(`|c|${this.room && this.broadcasting ? this.user.getIdentity() : '~'}|/raw <div class="infobox">${htmlContent}</div>`);
 	}
 	popupReply(message: string) {
@@ -2437,6 +2443,9 @@ export const Chat = new class {
 
 	resolvePage(pageid: string, user: User, connection: Connection) {
 		return (new PageContext({pageid, user, connection, language: user.language!})).resolve();
+	}
+	renderNode(node: preact.VNode) {
+		return render(node);
 	}
 };
 
