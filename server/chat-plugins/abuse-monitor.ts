@@ -15,7 +15,7 @@ import {toID} from '../../sim/dex-data';
 const WHITELIST = ["mia"];
 // 20m. this is mostly here so we can use Monitor.slow()
 const PM_TIMEOUT = 20 * 60 * 1000;
-const ATTRIBUTES = {
+const ATTRIBUTES: Record<string, {}> = {
 	"SEVERE_TOXICITY": {},
 	"TOXICITY": {},
 	"IDENTITY_ATTACK": {},
@@ -620,7 +620,7 @@ export const pages: Chat.PageTable = {
 			buf += `</table></div>`;
 			return buf;
 		},
-		view(query, user) {
+		async view(query, user) {
 			this.checkCan('lock');
 			const roomid = query.join('-');
 			let buf = `<div class="pad">`;
@@ -656,7 +656,7 @@ export const pages: Chat.PageTable = {
 			// we parse users specifically from the log so we can see it after they leave the room
 			const users = new Utils.Multiset<string>();
 			// assume logs exist - why else would the filter activate?
-			for (const line of room.log.log) {
+			for (const line of await room.log.get()) {
 				const data = room.log.parseChatLine(line);
 				if (!data) continue; // not chat
 				const id = toID(data.user);

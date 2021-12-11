@@ -7,7 +7,9 @@
  * @license MIT
  */
 
-import {FS, Utils} from '../lib';
+import {FS, Utils, PGTable} from '../lib';
+import {SQL} from 'sql-template-strings';
+import common from './common';
 import type {PartialModlogEntry} from './modlog';
 
 interface RoomlogOptions {
@@ -16,111 +18,30 @@ interface RoomlogOptions {
 	noLogTimes?: boolean;
 }
 
-export interface Scrollback {
+export class Scrollback {
 	room: BasicRoom;
-	get(): Promise<string[]>;
-	add(entry: string): Promise<void>;
-	truncate(): Promise<number> | number;
-	destroy(): Promise<void>;
-	clear(): Promise<void>;
-	/** return false to delete the entry, string to change it, or undefined to keep it unchanged*/
-	modify(
-		cb: (log: string, index: number) => boolean | string | void | undefined,
-		desc?: boolean
-	): Promise<number[]>;
-}
-
-export class MemoryScrollback implements Scrollback {
-	room: BasicRoom;
-	private log: string[] = [];
-	constructor(room: BasicRoom) {
-		this.room = room;
-	}
-	get() {
-		return Promise.resolve(this.log);
-	}
-	add(message: string) {
-		this.log.push(message);
-		return Promise.resolve();
-	}
-	truncate() {
-		if (this.room.log.noAutoTruncate) return 0;
-		if (this.log.length > 100) {
-			const truncationLength = this.log.length - 100;
-			this.log.splice(0, truncationLength);
-			return truncationLength;
-		}
-		return 0;
-	}
-	destroy() {
-		return this.clear();
-	}
-	clear() {
-		this.log = [];
-		return Promise.resolve();
-	}
-	modify(
-		cb: (log: string, index: number) => boolean | string | void | undefined,
-		desc = false
-	) {
-		const modified = [];
-		if (desc) {
-			this.log.reverse();
-		}
-		for (let i = 0; i < this.log.length; i++) {
-			// wants us to return cb(log[i], i) but. no.
-			// eslint-disable-next-line callback-return
-			const result = cb(this.log[i], i);
-			if (result === false) {
-				this.log.splice(i, 1);
-				modified.push(i);
-				i--;
-			} else if (typeof result === 'string') {
-				this.log[i] = result;
-				modified.push(i);
-			}
-		}
-		// undo the reverse, since this is in place
-		if (desc) {
-			this.log.reverse();
-		}
-		return Promise.resolve(modified);
-	}
-}
-
-// @ts-ignore in case not installed
-type RedisDriver = import('ioredis').Redis;
-
-export class RedisScrollback implements Scrollback {
-	room: BasicRoom;
-	static driver = RedisScrollback.getDriver()!;
 	gettingLog: Promise<string[]> | null = null;
 	logsWhileGetting: string[] | null = null;
 	constructor(room: BasicRoom) {
 		this.room = room;
 	}
-	static getDriver() {
-		const config = Config.redis || Config.redislogs;
-		if (!config) return;
-		return require('ioredis').createClient(config) as RedisDriver;
-	}
 	async add(message: string) {
-		await RedisScrollback.driver.lpush(`scrollback:${this.room.roomid}`, message);
+		await common.redis.lpush(`scrollback:${this.room.roomid}`, message);
 	}
 	private getLength() {
-		return RedisScrollback.driver.llen(`scrollback:${this.room.roomid}`);
+		return common.redis.llen(`scrollback:${this.room.roomid}`);
 	}
 	async truncate() {
 		const start = await this.getLength();
 		if (start < 100) return 0;
-		await RedisScrollback.driver.ltrim(`scrollback:${this.room.roomid}`, 0, 99);
+		await common.redis.ltrim(`scrollback:${this.room.roomid}`, 0, 99);
 		return start - await this.getLength();
 	}
 	async get() {
 		if (this.gettingLog) return this.gettingLog;
 		this.logsWhileGetting = [];
 		this.gettingLog = (async () => {
-			const fetched = await RedisScrollback.driver.lrange(`scrollback:${this.room.roomid}`, 0, 99);
+			const fetched = await common.redis.lrange(`scrollback:${this.room.roomid}`, 0, 99);
 			const logs = fetched.reverse().concat(this.logsWhileGetting || []);
 			this.gettingLog = this.logsWhileGetting = null;
 			return logs;
@@ -131,7 +52,7 @@ export class RedisScrollback implements Scrollback {
 		await this.clear();
 	}
 	async clear() {
-		await RedisScrollback.driver.del(`scrollback:${this.room.roomid}`);
+		await common.redis.del(`scrollback:${this.room.roomid}`);
 	}
 	async modify(
 		cb: (log: string, index: number) => boolean | string | void | undefined,
@@ -146,17 +67,24 @@ export class RedisScrollback implements Scrollback {
 			// eslint-disable-next-line callback-return
 			const result = cb(log, i);
 			if (result === false) {
-				await RedisScrollback.driver.lrem(`scrollback:${this.room.roomid}`, 1, log);
+				await common.redis.lrem(`scrollback:${this.room.roomid}`, 1, log);
 				modified.push(i);
 			} else if (typeof result === 'string') {
 				logs[i] = result;
-				await RedisScrollback.driver.lset(`scrollback:${this.room.roomid}`, redisIdx, result);
+				await common.redis.lset(`scrollback:${this.room.roomid}`, redisIdx, result);
 				modified.push(i);
 			}
 		}
 		return modified;
 	}
 }
+export const logs = new PGTable<{
+	id: number,
+	roomid: RoomID,
+	message: string,
+	date: Date,
+}>('logs', 'id', common.pool);
+
 /**
  * Most rooms have three logs:
  * - scrollback
@@ -200,12 +128,6 @@ export class Roomlog {
 	logLength = 0;
 	visibleMessageCount = 0;
 	broadcastBuffer: string[];
-	/**
-	 * undefined = uninitialized,
-	 * null = disabled
-	 */
-	roomlogStream?: Streams.WriteStream | null;
-	roomlogFilename: string;
 
 	numTruncatedLines: number;
 	constructor(room: BasicRoom, options: RoomlogOptions = {}) {
@@ -216,14 +138,9 @@ export class Roomlog {
 		this.noLogTimes = !!options.noLogTimes;
 
 		this.broadcastBuffer = [];
-
-		this.roomlogStream = undefined;
-		this.roomlogFilename = '';
-
 		this.numTruncatedLines = 0;
-		this.scrollback = Config.redis || Config.redislogs ? new RedisScrollback(room) : new MemoryScrollback(room);
+		this.scrollback = new Scrollback(room);
 
-		void this.setupRoomlogStream(true);
 	}
 	/**
 	 * Returns full, unsanitized, untransformed scrollback.
@@ -253,43 +170,17 @@ export class Roomlog {
 		}
 		return sanitized.join('\n') + '\n';
 	}
-	async setupRoomlogStream(sync = false) {
-		if (this.roomlogStream === null) return;
-		if (!Config.logchat) {
-			this.roomlogStream = null;
+	private setup = false;
+	async setupDB() {
+		if (!Config.logchat || this.setup) {
 			return;
 		}
-		if (this.roomid.startsWith('battle-')) {
-			this.roomlogStream = null;
-			return;
-		}
-		const date = new Date();
-		const dateString = Chat.toTimestamp(date).split(' ')[0];
-		const monthString = dateString.split('-', 2).join('-');
-		const basepath = `logs/chat/${this.roomid}/`;
-		const relpath = `${monthString}/${dateString}.txt`;
-
-		if (relpath === this.roomlogFilename) return;
-
-		if (sync) {
-			FS(basepath + monthString).mkdirpSync();
-		} else {
-			await FS(basepath + monthString).mkdirp();
-			if (this.roomlogStream === null) return;
-		}
-		this.roomlogFilename = relpath;
-		if (this.roomlogStream) void this.roomlogStream.writeEnd();
-		this.roomlogStream = FS(basepath + relpath).createAppendStream();
-		// Create a symlink to today's lobby log.
-		// These operations need to be synchronous, but it's okay
-		// because this code is only executed once every 24 hours.
-		const link0 = basepath + 'today.txt.0';
-		FS(link0).unlinkIfExistsSync();
 		try {
-			FS(link0).symlinkToSync(relpath); // intentionally a relative link
-			FS(link0).renameSync(basepath + 'today.txt');
-		} catch {} // OS might not support symlinks or atomic rename
-		if (!Roomlogs.rollLogTimer) void Roomlogs.rollLogs();
+			await logs.selectOne('*');
+		} catch {
+			await logs.query(SQL(FS(`databases/schemas/logs.sql`).readSync()));
+		}
+		this.setup = true;
 	}
 	add(message: string) {
 		this.roomlog(message);
@@ -379,48 +270,23 @@ export class Roomlog {
 		}
 	}
 	roomlog(message: string, date = new Date()) {
-		if (!this.roomlogStream) return;
-		const timestamp = Chat.toTimestamp(date).split(' ')[1] + ' ';
+		if (!Config.logchat) return;
 		message = message.replace(/<img[^>]* src="data:image\/png;base64,[^">]+"[^>]*>/g, '');
-		void this.roomlogStream.write(timestamp + message + '\n');
+		const log = {
+			roomid: this.roomid,
+			message,
+			date: date || new Date(),
+		};
+		void this.setupDB().then(() => void logs.insert(log));
 	}
 	modlog(entry: PartialModlogEntry, overrideID?: string) {
 		void Rooms.Modlog.write(this.roomid, entry, overrideID);
 	}
 	async rename(newID: RoomID): Promise<true> {
-		const roomlogPath = `logs/chat`;
-		const roomlogStreamExisted = this.roomlogStream !== null;
-		await this.destroy();
-		const [roomlogExists, newRoomlogExists] = await Promise.all([
-			FS(roomlogPath + `/${this.roomid}`).exists(),
-			FS(roomlogPath + `/${newID}`).exists(),
-		]);
-		if (roomlogExists && !newRoomlogExists) {
-			await FS(roomlogPath + `/${this.roomid}`).rename(roomlogPath + `/${newID}`);
-		}
 		await Rooms.Modlog.rename(this.roomid, newID);
 		this.roomid = newID;
-		Roomlogs.roomlogs.set(newID, this);
-		if (roomlogStreamExisted) {
-			this.roomlogStream = undefined;
-			this.roomlogFilename = "";
-			await this.setupRoomlogStream(true);
-		}
+		await logs.updateAll({roomid: newID}, SQL`roomid = ${newID}`);
 		return true;
-	}
-	static async rollLogs() {
-		if (Roomlogs.rollLogTimer === true) return;
-		if (Roomlogs.rollLogTimer) {
-			clearTimeout(Roomlogs.rollLogTimer);
-		}
-		Roomlogs.rollLogTimer = true;
-		for (const log of Roomlogs.roomlogs.values()) {
-			await log.setupRoomlogStream();
-		}
-		const time = Date.now();
-		const nextMidnight = new Date(time + 24 * 60 * 60 * 1000);
-		nextMidnight.setHours(0, 0, 1);
-		Roomlogs.rollLogTimer = setTimeout(() => void Roomlog.rollLogs(), nextMidnight.getTime() - time);
 	}
 	/**
 	 * Returns the total number of lines in the roomlog, including truncated lines.
@@ -430,14 +296,8 @@ export class Roomlog {
 	}
 
 	destroy() {
-		const promises = [];
-		if (this.roomlogStream) {
-			promises.push(this.roomlogStream.writeEnd());
-			this.roomlogStream = null;
-		}
-		promises.push(this.scrollback.destroy());
 		Roomlogs.roomlogs.delete(this.roomid);
-		return Promise.all(promises);
+		return this.scrollback.destroy();
 	}
 }
 
@@ -456,8 +316,4 @@ export const Roomlogs = {
 	create: createRoomlog,
 	Roomlog,
 	roomlogs,
-
-	rollLogs: Roomlog.rollLogs,
-
-	rollLogTimer: null as NodeJS.Timeout | true | null,
 };
