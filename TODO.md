@@ -14,3 +14,7 @@
 
 - Misc
     - Redis pubsub for process managers? probably not necessary, but worth a look.
+
+
+# DONE
+- Roomlogs moved to Postgres, scrollback moved to Redis
