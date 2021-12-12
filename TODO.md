@@ -1,10 +1,6 @@
 # TODO
 - Integrate with loginserver
-    - Move loginserver to PostgreSQL.
     - move usergroups from CSV to loginserver group column.
-    - Use redis to hold assertions
-        - give user a token, store it in redis, have server read from redis.
-        - once used, delete from redis.
 
 - Databases
     - Move all server SQLite -> PostgreSQL
@@ -18,3 +14,6 @@
 
 # DONE
 - Roomlogs moved to Postgres, scrollback moved to Redis
+- Loginserver
+    - Use redis to hold assertions
+    - Move to PostgreSQL.
