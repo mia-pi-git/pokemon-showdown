@@ -3,7 +3,6 @@ import * as RoomsType from './rooms';
 import * as SocketsType from './sockets';
 import * as TeamValidatorAsyncType from './team-validator-async';
 import * as UsersType from './users';
-import * as VerifierType from './verifier';
 
 import {ConfigType} from "../server/config-loader";
 
@@ -35,7 +34,6 @@ declare global {
 			TeamValidatorAsync: any;
 			Tournaments: any;
 			Users: any;
-			Verifier: any;
 			toID: (item: any) => ID;
 			__version: {head: string, origin?: string, tree?: string};
 		}
@@ -54,6 +52,5 @@ declare global {
 	const TeamValidatorAsync: typeof TeamValidatorAsyncType;
 	const Tournaments: typeof TournamentsType;
 	const Users: typeof UsersType.Users;
-	const Verifier: typeof VerifierType;
 	const toID: typeof DexType.toID;
 }

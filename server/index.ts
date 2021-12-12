@@ -113,10 +113,6 @@ function setupGlobals() {
 	// We initialize the global room here because roomlogs.ts needs the Rooms global
 	Rooms.global = new Rooms.GlobalRoomState();
 
-	const Verifier = require('./verifier');
-	global.Verifier = Verifier;
-	Verifier.PM.spawn();
-
 	const {Tournaments} = require('./tournaments');
 	global.Tournaments = Tournaments;
 
