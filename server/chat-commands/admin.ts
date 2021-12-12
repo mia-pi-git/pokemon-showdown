@@ -12,7 +12,7 @@
 
 import * as path from 'path';
 import * as child_process from 'child_process';
-import {FS, Utils, ProcessManager, SQL} from '../../lib';
+import {FS, Utils, ProcessManager} from '../../lib';
 
 interface ProcessData {
 	cmd: string;
@@ -1160,21 +1160,7 @@ export const commands: Chat.ChatCommands = {
 		if (Monitor.updateServerLock) {
 			return this.errorReply("Wait for /updateserver to finish before using /kill.");
 		}
-
-		const logRoom = Rooms.get('staff') || Rooms.lobby || room;
-
-		if (!logRoom?.log.roomlogStream) return process.exit();
-
-		logRoom.roomlog(`${user.name} used /kill`);
-
-		void logRoom.log.roomlogStream.writeEnd().then(() => {
-			process.exit();
-		});
-
-		// In the case the above never terminates
-		setTimeout(() => {
-			process.exit();
-		}, 10000);
+		process.exit();
 	},
 	killhelp: [`/kill - kills the server. Can't be done unless the server is in lockdown state. Requires: &`],
 
@@ -1307,25 +1293,15 @@ export const commands: Chat.ChatCommands = {
 		if (!Config.usesqlite) return this.errorReply(`SQLite is disabled.`);
 		const logRoom = Rooms.get('upperstaff') || Rooms.get('staff');
 		if (!target) return this.errorReply(`Specify a database to access and a query.`);
-		const [db, query] = Utils.splitFirst(target, ',').map(item => item.trim());
-		if (!FS('./databases').readdirSync().includes(`${db}.db`)) {
-			return this.errorReply(`The database file ${db}.db was not found.`);
-		}
 		if (room && this.message.startsWith('>>sql')) {
 			this.broadcasting = true;
 			this.broadcastToRoom = true;
 		}
 		this.sendReply(
-			`|html|<table border="0" cellspacing="0" cellpadding="0"><tr><td valign="top">SQLite&gt; [${db}.db] &nbsp;</td>` +
-			`<td>${Chat.getReadmoreCodeBlock(query)}</td></tr><table>`
+			`|html|<table border="0" cellspacing="0" cellpadding="0"><tr><td valign="top">SQLite&gt;&nbsp;</td>` +
+			`<td>${Chat.getReadmoreCodeBlock(target)}</td></tr><table>`
 		);
 		logRoom?.roomlog(`SQLite> ${target}`);
-		const database = SQL(module, {
-			file: `./databases/${db}.db`,
-			onError(err) {
-				return {err: err.message, stack: err.stack};
-			},
-		});
 		function formatResult(result: any[] | string) {
 			if (!Array.isArray(result)) {
 				return (
@@ -1355,25 +1331,15 @@ export const commands: Chat.ChatCommands = {
 		}
 
 		let result;
+		const db = (require('pg').Pool)(Config.postgres);
 		try {
 			// presume it's attempting to get data first
-			result = await database.all(query, []);
-			if ((result as any).err) parseError(result as any);
+			result = db.query(target).catch((err: Error) => {err});
+			if (result.err) parseError(result as any);
 		} catch (err: any) {
-			// it's not getting data, but it might still be a valid statement - try to run instead
-			if (err.stack?.includes(`Use run() instead`)) {
-				try {
-					result = await database.run(query, []);
-					if ((result as any).err) parseError(result as any);
-					result = Utils.visualize(result);
-				} catch (e: any) {
-					result = ('' + e.stack).replace(/\n *at CommandContext\.evalsql [\s\S]*/m, '');
-				}
-			} else {
-				result = ('' + err.stack).replace(/\n *at CommandContext\.evalsql [\s\S]*/m, '');
-			}
+			result = ('' + err.stack).replace(/\n *at CommandContext\.evalsql [\s\S]*/m, '');
 		}
-		await database.destroy();
+		await db.end();
 		logRoom?.roomlog(`SQLite< ${result}`);
 		this.sendReply(`|html|${formatResult(result)}`);
 	},

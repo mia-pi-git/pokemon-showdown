@@ -8,7 +8,8 @@
  * @license MIT
  */
 
-import {FS, SQL, Utils} from '../../lib';
+import {FS, Utils, PGPool} from '../../lib';
+import {SQL} from 'sql-template-strings';
 import {Config} from '../config-loader';
 
 // If a modlog query takes longer than this, it will be logged.
@@ -83,45 +84,18 @@ export interface TransactionArguments extends Record<string, unknown> {
 export type PartialModlogEntry = Partial<ModlogEntry> & {action: string};
 
 export class Modlog {
-	readonly database: SQL.DatabaseManager;
+	readonly database: PGPool;
 	readyPromise: Promise<void> | null;
 	private databaseReady: boolean;
 	/** entries to be written once the DB is ready */
 	queuedEntries: ModlogEntry[];
+	queries: {[k: string]: string} = {};
 
-	modlogInsertionQuery: SQL.Statement | null = null;
-	altsInsertionQuery: SQL.Statement | null = null;
-	renameQuery: SQL.Statement | null = null;
-	globalPunishmentsSearchQuery: SQL.Statement | null = null;
-
-	constructor(databasePath: string, options: Partial<SQL.Options>) {
+	constructor(databasePath: string) {
 		this.queuedEntries = [];
 		this.databaseReady = false;
 		const dbExists = FS(databasePath).existsSync();
-		this.database = SQL(module, {
-			file: MODLOG_DB_PATH,
-			extension: 'server/modlog/transactions.ts',
-			...options,
-		});
-
-		if (Config.usesqlite) {
-			if (this.database.isParentProcess) {
-				this.database.spawn(Config.modlogprocesses || 1);
-			} else {
-				global.Monitor = {
-					crashlog(error: Error, source = 'A modlog child process', details: AnyObject | null = null) {
-						const repr = JSON.stringify([error.name, error.message, source, details]);
-						process.send!(`THROW\n@!!@${repr}\n${error.stack}`);
-					},
-				};
-				process.on('uncaughtException', err => {
-					Monitor.crashlog(err, 'A modlog database process');
-				});
-				process.on('unhandledRejection', err => {
-					Monitor.crashlog(err as Error, 'A modlog database process');
-				});
-			}
-		}
+		this.database = new PGPool(Config.postgresmodlog || Config.postgres);
 
 		this.readyPromise = this.setupDatabase(dbExists).then(result => {
 			this.databaseReady = result;
@@ -131,39 +105,41 @@ export class Modlog {
 
 	async setupDatabase(dbExists: boolean) {
 		if (!Config.usesqlite) return false;
-		await this.database.exec("PRAGMA foreign_keys = ON;");
-		await this.database.exec(`PRAGMA case_sensitive_like = true;`);
+		await this.database.query("PRAGMA foreign_keys = ON;");
+		await this.database.query(`PRAGMA case_sensitive_like = true;`);
 
 		// Set up tables, etc
 		if (!dbExists) {
-			await this.database.runFile(MODLOG_SCHEMA_PATH);
+			await this.database.query(FS(MODLOG_SCHEMA_PATH).readSync());
 		}
 
-		const {hasDBInfo} = await this.database.get(
+		const {hasDBInfo} = await this.database.query(
 			`SELECT count(*) AS hasDBInfo FROM sqlite_master WHERE type = 'table' AND name = 'db_info'`
-		);
+		).then(res => res.rows[0]).catch(() => {hasDBInfo: null});
 
 		if (hasDBInfo === 0) {
 			// needs v2 migration
 			const warnFunction = ('Monitor' in global && Monitor.warn) ? Monitor.warn : console.log;
 			warnFunction(`The modlog database is being migrated to version 2; this may take a while.`);
-			await this.database.runFile(MODLOG_V2_MIGRATION_PATH);
+			await this.database.query(FS(MODLOG_V2_MIGRATION_PATH).readSync());
 			warnFunction(`Modlog database migration complete.`);
 		}
 
-		this.modlogInsertionQuery = await this.database.prepare(
-			`INSERT INTO modlog (timestamp, roomid, visual_roomid, action, userid, autoconfirmed_userid, ip, action_taker_userid, is_global, note)` +
-			` VALUES ($time, $roomID, $visualRoomID, $action, $userid, $autoconfirmedID, $ip, $loggedBy, $isGlobal, $note)`
-		);
-		this.altsInsertionQuery = await this.database.prepare(`INSERT INTO alts (modlog_id, userid) VALUES (?, ?)`);
-		this.renameQuery = await this.database.prepare(`UPDATE modlog SET roomid = ? WHERE roomid = ?`);
-		this.globalPunishmentsSearchQuery = await this.database.prepare(
-			`SELECT * FROM modlog WHERE is_global = 1 ` +
-			`AND (userid = ? OR autoconfirmed_userid = ? OR EXISTS(SELECT * FROM alts WHERE alts.modlog_id = modlog.modlog_id AND userid = ?)) ` +
-			`AND timestamp > ? ` +
-			`AND action IN (${Utils.formatSQLArray(GLOBAL_PUNISHMENTS, [])})`
-		);
-		await this.writeSQL(this.queuedEntries);
+		this.queries = {
+			insert: (
+				`INSERT INTO modlog (timestamp, roomid, visual_roomid, action, userid, autoconfirmed_userid, ip, action_taker_userid, is_global, note)` +
+				` VALUES ($1, $2, $3, $4, $5, $5, $6, $7, $8, $9) RETURNING *`
+			),
+			altsInsert: `INSERT INTO alts (modlog_id, userid) VALUES ($1, $2)`,
+			rename: `UPDATE modlog SET roomid = $1 WHERE roomid = $2`,
+			globalSearch: (
+				`SELECT * FROM modlog WHERE is_global = 1 ` +
+				`AND (userid = ? OR autoconfirmed_userid = ? OR EXISTS(SELECT * FROM alts WHERE alts.modlog_id = modlog.modlog_id AND userid = ?)) ` +
+				`AND timestamp > ? ` +
+				`AND action IN (${Utils.formatSQLArray(GLOBAL_PUNISHMENTS, [])})`
+			),
+		}
+		await this.batchWrite(this.queuedEntries);
 		return true;
 	}
 
@@ -190,7 +166,6 @@ export class Modlog {
 	 * Writes to the modlog
 	 */
 	async write(roomid: string, entry: PartialModlogEntry, overrideID?: string) {
-		if (!Config.usesqlite || !Config.usesqlitemodlog) return;
 		const roomID = entry.roomID || roomid;
 		const insertableEntry: ModlogEntry = {
 			action: entry.action,
@@ -205,24 +180,28 @@ export class Modlog {
 			note: entry.note || '',
 			time: entry.time || Date.now(),
 		};
-
-		await this.writeSQL([insertableEntry]);
-	}
-
-	async writeSQL(entries: Iterable<ModlogEntry>) {
-		if (!Config.usesqlite) return;
 		if (!this.databaseReady) {
-			this.queuedEntries.push(...entries);
-			return;
+			this.queuedEntries.push(insertableEntry);
 		}
-		const toInsert: TransactionArguments = {
-			entries,
-			modlogInsertionStatement: this.modlogInsertionQuery!.toString(),
-			altsInsertionStatement: this.altsInsertionQuery!.toString(),
-		};
-		await this.database.transaction('insertion', toInsert);
+		return this.batchWrite([insertableEntry]);
 	}
+	batchWrite(entries: ModlogEntry[]) {
+		return this.database.transaction(async conn => {
+			for (const entry of entries) {
+				// SQLite doesn't have a boolean type, so this is a workaround.
+				entry.isGlobal = Number(entry.isGlobal) as any;
+				const result = await conn.query(
+					this.queries.insert,
+					[entry.time, entry.roomID, entry.visualRoomID, entry.action, entry.autoconfirmedID, entry.ip, entry.loggedBy, entry.isGlobal, entry.note]
+				);
+				const rowid = result.rows[0].modlog_id as number;
 
+				for (const alt of entry.alts || []) {
+					await conn.query(this.queries.altsInsert, [rowid, alt]);
+				}
+			}
+		});
+	}
 	/**
 	 * @deprecated Modlogs use SQLite and no longer need to be destroyed
 	 */
@@ -247,7 +226,7 @@ export class Modlog {
 		// rename SQL modlogs
 		if (this.readyPromise) await this.readyPromise;
 		if (this.databaseReady) {
-			await this.database.run(this.renameQuery!, [newID, oldID]);
+			await this.database.query(this.queries.rename, [newID, oldID]);
 		} else {
 			// shouldn't happen since we await the ready promise and check that useslite is on
 			// but will still happen if usesqlite is enabled without a subsequent hotpatch
@@ -258,22 +237,15 @@ export class Modlog {
 	/******************************************
 	 * Methods for reading (searching) modlog *
 	 ******************************************/
-	async getGlobalPunishments(user: User | string, days = 30) {
-		if (!Config.usesqlite || !Config.usesqlitemodlog) return null;
-		return this.getGlobalPunishmentsSQL(toID(user), days);
-	}
-
-	async getGlobalPunishmentsSQL(userid: ID, days: number) {
+	async getGlobalPunishments(user: ID | User, days: number) {
+		const userid = toID(user);
 		if (this.readyPromise) await this.readyPromise;
 
-		if (!this.globalPunishmentsSearchQuery) {
-			throw new Error(`Modlog#globalPunishmentsSearchQuery is falsy but an SQL search function was called.`);
-		}
 		const args: (string | number)[] = [
 			userid, userid, userid, Date.now() - (days * 24 * 60 * 60 * 1000), ...GLOBAL_PUNISHMENTS,
 		];
-		const results = await this.database.all(this.globalPunishmentsSearchQuery, args);
-		return results.length;
+		const results = await this.database.query(this.queries.globalSearch, args);
+		return results.rows.length;
 	}
 
 	/**
@@ -304,8 +276,8 @@ export class Modlog {
 		if (this.readyPromise) await this.readyPromise;
 		if (!this.databaseReady) return null;
 		const query = this.prepareSQLSearch(rooms, maxLines, onlyPunishments, search);
-		const results = (await this.database.all(query.queryText, query.args))
-			.map((row: any) => this.dbRowToModlogEntry(row));
+		const results = (await this.database.query(query.queryText, query.args))
+			.rows.map((row: any) => this.dbRowToModlogEntry(row));
 
 		const duration = Date.now() - startTime;
 		if (duration > LONG_QUERY_DURATION) {
@@ -467,8 +439,17 @@ export class Modlog {
 				args: [param],
 			});
 		}
+		let i = 0;
+		// THIS IS A HACK, I AM JUST LAZY
+		// also kinda the best way to do it with how modlog searching is written rn. unless i tear it all out.
+		// otherwise i'd have to keep track of the indices
+		for (const arg of [ors, ands]) {
+			for (const part of arg) {
+				part.query = part.query.replace(/\?/g, () => `$${++i}`);
+			}
+		}
 		return this.buildParallelIndexScanQuery(select, ors, ands, sortAndLimit);
 	}
 }
 
-export const mainModlog = new Modlog(MODLOG_DB_PATH, {sqliteOptions: Config.modlogsqliteoptions});
+export const mainModlog = new Modlog(MODLOG_DB_PATH);

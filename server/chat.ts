@@ -27,7 +27,8 @@ import type {RoomPermission, GlobalPermission} from './user-groups';
 import type {Punishment} from './punishments';
 import type {PartialModlogEntry} from './modlog';
 import {FriendsDatabase, PM} from './friends';
-import {SQL, Repl, FS, Utils} from '../lib';
+import {Repl, FS, Utils} from '../lib';
+import * as pg from 'pg';
 import {Dex} from '../sim';
 import {resolve} from 'path';
 import * as JSX from './chat-jsx';
@@ -1749,25 +1750,21 @@ export const Chat = new class {
 	 * All chat plugins share one database.
 	 * Chat.databaseReadyPromise will be truthy if the database is not yet ready.
 	 */
-	database = SQL(module, {
-		file: ('Config' in global && Config.nofswriting) ? ':memory:' : PLUGIN_DATABASE_PATH,
-		processes: global.Config?.chatdbprocesses || 1,
-	});
+	database = new pg.Pool();
 	databaseReadyPromise: Promise<void> | null = null;
 
 	async prepareDatabase() {
 		if (!PM.isParentProcess) return; // We don't need a database in a subprocess that requires Chat.
-		if (!Config.usesqlite) return;
 		// check if we have the db_info table, which will always be present unless the schema needs to be initialized
-		const {hasDBInfo} = await this.database.get(
-			`SELECT count(*) AS hasDBInfo FROM sqlite_master WHERE type = 'table' AND name = 'db_info'`
-		);
-		if (!hasDBInfo) await this.database.runFile('./databases/schemas/chat-plugins.sql');
+		const hasDBInfo = await this.database.query(`SELECT * FROM db_info`)
+			.catch(() => false)
+			.then(res => typeof res !== 'boolean' && res.rows.length);
+		if (!hasDBInfo) await this.database.query(FS('./databases/schemas/chat-plugins.sql').readSync());
 
-		const result = await this.database.get(
+		const result = await this.database.query(
 			`SELECT value as curVersion FROM db_info WHERE key = 'version'`
-		);
-		const curVersion = parseInt(result.curVersion);
+		).then(res => res.rows[0]);
+		const curVersion = parseInt(result?.curVersion);
 		if (!curVersion) throw new Error(`db_info table is present, but schema version could not be parsed`);
 
 		// automatically run migrations of the form "v{number}.sql" in the migrations/chat-plugins folder
@@ -1780,10 +1777,10 @@ export const Chat = new class {
 		}
 		Utils.sortBy(migrationsToRun, ({version}) => version);
 		for (const {file} of migrationsToRun) {
-			await this.database.runFile(resolve(migrationsFolder, file));
+			await this.database.query(FS(`${migrationsFolder}/${file}`).readSync());
 		}
 
-		Chat.destroyHandlers.push(() => Chat.database?.destroy());
+		Chat.destroyHandlers.push(() => Chat.database?.end());
 	}
 
 	readonly MessageContext = MessageContext;
@@ -2591,7 +2588,6 @@ export interface Monitor {
 
 // explicitly check this so it doesn't happen in other child processes
 if (!process.send) {
-	Chat.database.spawn(Config.chatdbprocesses || 1);
 	Chat.databaseReadyPromise = Chat.prepareDatabase();
 	// we need to make sure it is explicitly JUST the child of the original parent db process
 	// no other child processes

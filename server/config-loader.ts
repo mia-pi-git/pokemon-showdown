@@ -28,14 +28,6 @@ export function load(invalidate = false) {
 	// config.routes is nested - we need to ensure values are set for its keys as well.
 	config.routes = {...defaults.routes, ...config.routes};
 
-	// Automatically stop startup if better-sqlite3 isn't installed and SQLite is enabled
-	if (config.usesqlite) {
-		try {
-			require('better-sqlite3');
-		} catch {
-			throw new Error(`better-sqlite3 is not installed or could not be loaded, but Config.usesqlite is enabled.`);
-		}
-	}
 
 	for (const [preset, values] of FLAG_PRESETS) {
 		if (process.argv.includes(preset)) {

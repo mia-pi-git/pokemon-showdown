@@ -1,5 +1,5 @@
 CREATE TABLE modlog (
-    modlog_id INTEGER NOT NULL PRIMARY KEY,
+    modlog_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     -- UNIX timestamp
     timestamp INTEGER NOT NULL,
     roomid TEXT NOT NULL,

@@ -2,9 +2,9 @@
  * Friends chat-plugin database handler.
  * @author mia-pi-git
  */
-// @ts-ignore in case it isn't installed
+// TODO CONVERT TO PG
 import type * as Database from 'better-sqlite3';
-import {Utils, FS, ProcessManager, Repl} from '../lib';
+import {Utils, FS, ProcessManager, Repl, PGPool} from '../lib';
 import {Config} from './config-loader';
 import * as path from 'path';
 

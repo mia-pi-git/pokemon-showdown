@@ -6,7 +6,6 @@
     "moduleResolution": "node",
     "strict": true,
     "checkJs": true,
-    "outDir": "./.loginserver-dist",
     "incremental": true,
     "allowUnreachableCode": false,
     "esModuleInterop": true,

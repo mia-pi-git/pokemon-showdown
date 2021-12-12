@@ -3,6 +3,43 @@ import {SQLStatement, SQL} from 'sql-template-strings';
 
 type SQLInput = string | number;
 
+export class PGPool {
+	pool: pg.Pool;
+	query: pg.Pool['query'];
+	constructor(config: any) {
+		this.pool = new pg.Pool(config);
+		this.query = this.pool.query.bind(this.pool);
+	}
+	async transaction(callback: (conn: pg.PoolClient) => any, depth = 0): Promise<any> {
+		const conn = await this.pool.connect();
+		await conn.query(`BEGIN`);
+		let result;
+		try {
+			// eslint-disable-next-line callback-return
+			result = await callback(conn);
+		} catch (e: any) {
+			await conn.query(`ROLLBACK`);
+			// two concurrent transactions conflicted, try again
+			if (e.code === '40001' && depth <= 10) {
+				return this.transaction(callback, depth + 1);
+				// There is a bug in Postgres that causes some
+				// serialization failures to be reported as failed
+				// unique constraint checks. Only retrying once since
+				// it could be our fault (thanks chaos for this info / the first half of this comment)
+			} else if (e.code === '23505' && !depth) {
+				return this.transaction(callback, depth + 1);
+			} else {
+				throw e;
+			}
+		}
+		await conn.query(`COMMIT`);
+		return result;
+	}
+	destroy() {
+		return this.pool.end();
+	}
+}
+
 export class PGTable<T> {
 	database: pg.Pool;
 	name: string;
