@@ -11,8 +11,10 @@
  * @license MIT license
  */
 
-import {FS, Utils} from '../lib';
+import {FS, Utils, PGTable} from '../lib';
+import {SQL} from 'sql-template-strings';
 import type {AddressRange} from './ip-tools';
+import common from './common';
 
 const PUNISHMENT_FILE = 'config/punishments.tsv';
 const ROOM_PUNISHMENT_FILE = 'config/room-punishments.tsv';
@@ -58,6 +60,18 @@ export interface Punishment {
 	expireTime: number;
 	reason: string;
 	rest?: any[];
+	punishmentId: number;
+}
+
+export interface StoredPunishment {
+	punishment_id: number;
+	type: string;
+	id: ID | PunishType;
+	expireTime: number;
+	reason: string;
+	ips: string[];
+	ids: string[];
+	roomid?: RoomID;
 }
 
 /**
@@ -130,6 +144,7 @@ class PunishmentMap extends Map<string, Punishment[]> {
 		for (const [i, cur] of list.entries()) {
 			if (punishment.type === cur.type && cur.id === punishment.id) {
 				list.splice(i, 1);
+				void Punishments.delete(punishment.punishmentId);
 				break; // we don't need to run the rest of the list here
 				// given we will only ever have one punishment of one type
 			}
@@ -211,6 +226,9 @@ class NestedPunishmentMap extends Map<RoomID, PunishmentMap> {
  *********************************************************/
 
 export const Punishments = new class {
+	readonly punishments = new PGTable<StoredPunishment>(
+		'punishments', 'punishment_id', common.pool
+	);
 	/**
 	 * ips is an ip:punishment Map
 	 */
@@ -298,7 +316,6 @@ export const Punishments = new class {
 	constructor() {
 		setImmediate(() => {
 			void Punishments.loadPunishments();
-			void Punishments.loadRoomPunishments();
 			void Punishments.loadBanlist();
 			void Punishments.loadSharedIps();
 			void Punishments.loadSharedIpBlacklist();
@@ -311,83 +328,37 @@ export const Punishments = new class {
 	// room-punishments.tsv is in the format:
 	// punishType, roomid:userid, ips/usernames, expiration time, reason
 	async loadPunishments() {
-		const data = await FS(PUNISHMENT_FILE).readIfExists();
+		const data = await this.punishments.selectAll('*');
 		if (!data) return;
-		for (const row of data.split("\n")) {
-			if (!row || row === '\r') continue;
-			const [type, id, altKeys, expireTimeStr, ...reason] = row.trim().split("\t");
-			const expireTime = Number(expireTimeStr);
-			if (type === "Punishment") continue;
-			const keys = altKeys.split(',').concat(id);
-
-			const punishment = {type, id, expireTime, reason: reason.join('\t')} as Punishment;
-			if (Date.now() >= expireTime) {
+		for (const row of data) {
+			if (!row) continue;
+			if (Date.now() >= row.expireTime) {
+				void this.punishments.delete(row.punishment_id);
 				continue;
 			}
-			for (const key of keys) {
-				if (!key.trim()) continue; // ignore empty ips / userids
-				if (!USERID_REGEX.test(key)) {
-					Punishments.ips.add(key, punishment);
+			const punishment: Punishment = {
+				type: row.type,
+				expireTime: row.expireTime,
+				reason: row.reason,
+				id: row.id,
+				punishmentId: row.punishment_id,
+			}
+			for (const id of row.ids) {
+				if (row.roomid) {
+					Punishments.roomUserids.nestedSet(row.roomid, id, punishment);
 				} else {
-					Punishments.userids.add(key, punishment);
+					Punishments.userids.add(id, punishment);
+				}
+			}
+			for (const ip of row.ips) {
+				if (row.roomid) {
+					Punishments.roomIps.nestedSet(row.roomid, ip, punishment);
+				} else {
+					Punishments.ips.add(ip, punishment);
 				}
 			}
 		}
 	}
-
-	async loadRoomPunishments() {
-		const data = await FS(ROOM_PUNISHMENT_FILE).readIfExists();
-		if (!data) return;
-		for (const row of data.split("\n")) {
-			if (!row || row === '\r') continue;
-			const [type, id, altKeys, expireTimeStr, ...reason] = row.trim().split("\t");
-			const expireTime = Number(expireTimeStr);
-			if (type === "Punishment") continue;
-			const [roomid, userid] = id.split(':');
-			if (!userid) continue; // invalid format
-			const keys = altKeys.split(',').concat(userid);
-
-			const punishment = {type, id: userid, expireTime, reason: reason.join('\t')} as Punishment;
-			if (Date.now() >= expireTime) {
-				continue;
-			}
-			for (const key of keys) {
-				if (!USERID_REGEX.test(key)) {
-					Punishments.roomIps.nestedSet(roomid as RoomID, key, punishment);
-				} else {
-					Punishments.roomUserids.nestedSet(roomid as RoomID, key, punishment);
-				}
-			}
-		}
-	}
-
-	savePunishments() {
-		FS(PUNISHMENT_FILE).writeUpdate(() => {
-			const saveTable = Punishments.getPunishments();
-			let buf = 'Punishment\tUser ID\tIPs and alts\tExpires\tReason\r\n';
-			for (const [id, entry] of saveTable) {
-				buf += Punishments.renderEntry(entry, id);
-			}
-			return buf;
-		}, {throttle: 5000});
-	}
-
-	saveRoomPunishments() {
-		FS(ROOM_PUNISHMENT_FILE).writeUpdate(() => {
-			const saveTable: [string, PunishmentEntry][] = [];
-			for (const roomid of Punishments.roomIps.keys()) {
-				for (const [userid, punishment] of Punishments.getPunishments(roomid, true)) {
-					saveTable.push([`${roomid}:${userid}`, punishment]);
-				}
-			}
-			let buf = 'Punishment\tRoom ID:User ID\tIPs and alts\tExpires\tReason\r\n';
-			for (const [id, entry] of saveTable) {
-				buf += Punishments.renderEntry(entry, id);
-			}
-			return buf;
-		}, {throttle: 5000});
-	}
-
 	getEntry(entryId: string) {
 		let entry: PunishmentEntry | null = null;
 		Punishments.ips.each((punishment, ip) => {
@@ -428,16 +399,44 @@ export const Punishments = new class {
 		return entry;
 	}
 
-	appendPunishment(entry: PunishmentEntry, id: string, filename: string, allowNonUserIDs?: boolean) {
-		if (!allowNonUserIDs && id.startsWith('#')) return;
-		const buf = Punishments.renderEntry(entry, id);
-		return FS(filename).append(buf);
+	async delete(id: number) {
+		await this.punishments.delete(id);
+		for (const table of [Punishments.ips, Punishments.userids]) {
+			this.deleteFromTable(id, table);
+		}
+		for (const table of [Punishments.roomIps, Punishments.roomUserids]) {
+			for (const [roomid, subTable] of table) {
+				this.deleteFromTable(id, subTable);
+				if (!subTable.size) {
+					table.delete(roomid);
+				}
+			}
+		}
+	}
+	private deleteFromTable(id: number, table: PunishmentMap) {
+		for (const [k, entry] of table) {
+			for (const [i, punishment] of entry.entries()) {
+				if (punishment.punishmentId === id) {
+					entry.splice(i, 1);
+					if (!entry.length) {
+						table.delete(k);
+					}
+				}
+			}
+		}
 	}
 
-	renderEntry(entry: PunishmentEntry, id: string) {
-		const keys = entry.ips.concat(entry.userids).join(',');
-		const row = [entry.punishType, id, keys, entry.expireTime, entry.reason, ...entry.rest];
-		return row.join('\t') + '\r\n';
+	appendPunishment(entry: PunishmentEntry & {roomid?: RoomID}, id: string, allowNonUserIDs?: boolean) {
+		if (!allowNonUserIDs && id.startsWith('#')) return;
+		return this.punishments.insert({
+			ids: entry.userids,
+			ips: entry.ips,
+			id: id as StoredPunishment['id'],
+			roomid: entry.roomid,
+			reason: entry.reason,
+			type: entry.punishType,
+			expireTime: entry.expireTime,
+		});
 	}
 
 	async loadBanlist() {
@@ -450,7 +449,13 @@ export const Punishments = new class {
 			if (ip.includes('/')) {
 				rangebans.push(ip);
 			} else if (!Punishments.ips.has(ip)) {
-				Punishments.ips.add(ip, {type: 'LOCK', id: '#ipban', expireTime: Infinity, reason: ''});
+				Punishments.ips.add(ip, {
+					type: 'LOCK',
+					id: '#ipban',
+					expireTime: Infinity,
+					reason: '',
+					punishmentId: 0,
+				});
 			}
 		}
 		Punishments.checkRangeBanned = IPTools.checker(rangebans);
@@ -599,7 +604,7 @@ export const Punishments = new class {
 			expireTime,
 			reason,
 			rest: rest || [],
-		}, id, PUNISHMENT_FILE);
+		}, id);
 
 		if (mobileIps.size) {
 			const mobileExpireTime = Date.now() + MOBILE_PUNISHMENT_DURATIION;
@@ -687,7 +692,7 @@ export const Punishments = new class {
 			expireTime,
 			reason,
 			rest: rest || [],
-		}, id, PUNISHMENT_FILE);
+		}, id);
 
 		Chat.punishmentfilter(userid, punishment);
 		return affected;
@@ -717,9 +722,6 @@ export const Punishments = new class {
 				success = id;
 			}
 		});
-		if (success) {
-			Punishments.savePunishments();
-		}
 		return success;
 	}
 
@@ -749,7 +751,7 @@ export const Punishments = new class {
 			expireTime,
 			reason,
 			rest: rest || [],
-		}, roomid + ':' + id, ROOM_PUNISHMENT_FILE);
+		}, roomid + ':' + id);
 
 		if (typeof room !== 'string') {
 			room = room as Room;
@@ -829,7 +831,8 @@ export const Punishments = new class {
 			expireTime,
 			reason,
 			rest: rest || [],
-		}, roomid + ':' + id, ROOM_PUNISHMENT_FILE);
+			roomid,
+		}, id);
 
 		if (typeof room !== 'string') {
 			room = room as Room;
@@ -881,9 +884,6 @@ export const Punishments = new class {
 					}
 				}
 			}
-		}
-		if (success && !ignoreWrite) {
-			Punishments.saveRoomPunishments();
 		}
 		return success;
 	}
@@ -1314,7 +1314,7 @@ export const Punishments = new class {
 			expireTime,
 			reason,
 			rest: [],
-		}, '#rangelock', PUNISHMENT_FILE, true);
+		}, '#rangelock', true);
 	}
 	banRange(range: string, reason: string, expireTime?: number | null) {
 		if (!expireTime) expireTime = Date.now() + RANGELOCK_DURATION;
@@ -1407,7 +1407,6 @@ export const Punishments = new class {
 			}
 		});
 		if (unblacklisted.length === 0) return false;
-		Punishments.saveRoomPunishments();
 		return unblacklisted;
 	}
 
@@ -1626,12 +1625,16 @@ export const Punishments = new class {
 		if (battleban) punishments.push(battleban);
 		if (user.namelocked) {
 			let punishment = Punishments.userids.get(user.namelocked)?.[0];
-			if (!punishment) punishment = {type: 'NAMELOCK', id: user.namelocked, expireTime: 0, reason: ''};
+			if (!punishment) {
+				punishment = {type: 'NAMELOCK', id: user.namelocked, expireTime: 0, reason: '', punishmentId: 0};
+			}
 			punishments.push(punishment);
 		}
 		if (user.locked) {
 			let punishment = Punishments.userids.get(user.locked)?.[0];
-			if (!punishment) punishment = {type: 'LOCK', id: user.locked, expireTime: 0, reason: ''};
+			if (!punishment) {
+				punishment = {type: 'LOCK', id: user.locked, expireTime: 0, reason: '', punishmentId: 0};
+			}
 			punishments.push(punishment);
 		}
 
@@ -1727,7 +1730,7 @@ export const Punishments = new class {
 		let punishments = Punishments.ipSearch(ip);
 
 		if (!punishments && Punishments.checkRangeBanned(ip)) {
-			punishments = [{type: 'LOCK', id: '#ipban', expireTime: Infinity, reason: ''}];
+			punishments = [{type: 'LOCK', id: '#ipban', expireTime: Infinity, reason: '', punishmentId: 0}];
 		}
 
 		if (punishments) {
@@ -2124,7 +2127,7 @@ export const Punishments = new class {
 				table.delete(oldID);
 			}
 		}
-		Punishments.saveRoomPunishments();
+		return this.punishments.updateAll({roomid: newID}, SQL`roomid = ${oldID}`);
 	}
 	PunishmentMap = PunishmentMap;
 	NestedPunishmentMap = NestedPunishmentMap;
