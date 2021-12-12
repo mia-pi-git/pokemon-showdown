@@ -5,7 +5,24 @@
   "main": ".sim-dist/index.js",
   "dependencies": {
     "@swc/core": "^1.2.61",
+    "@types/bcrypt": "^5.0.0",
+    "@types/ioredis": "^4.28.1",
+    "bcrypt": "^5.0.1",
     "better-sqlite3": "^7.1.0",
+    "google-auth-library": "^3.1.2",
+    "ioredis": "^4.28.1",
+    "pg": "^8.7.1",
+    "pm2": "^5.1.2",
+    "preact": "^10.5.15",
+    "preact-render-to-string": "^5.1.19",
+    "probe-image-size": "^5.0.0",
+    "sockjs": "^0.3.21",
+    "sql-template-strings": "^2.2.2",
+    "sucrase": "^3.15.0",
+    "ts-node": "^10.0.0"
+  },
+  "optionalDependencies": {
+    "@types/ioredis": "^4.28.1",
     "cloud-env": "^0.2.3",
     "githubhook": "^1.9.3",
     "ioredis": "^4.28.1",
@@ -13,27 +30,9 @@
     "nodemailer": "^6.4.6",
     "permessage-deflate": "^0.1.7",
     "pg": "^8.7.1",
-    "preact": "^10.5.15",
-    "preact-render-to-string": "^5.1.19",
-    "probe-image-size": "^5.0.0",
-    "sockjs": "^0.3.21",
-    "sqlite": "^3.0.6",
-    "sucrase": "^3.15.0",
-    "ts-node": "^10.0.0"
-  },
-  "optionalDependencies": {
-    "better-sqlite3": "^7.1.0",
-    "cloud-env": "^0.2.3",
-    "githubhook": "^1.9.3",
-    "node-static": "^0.7.11",
-    "nodemailer": "^6.4.6",
-    "permessage-deflate": "^0.1.7",
-    "pg": "^8.7.1",
     "sql-template-strings": "^2.2.2",
     "sqlite": "^3.0.6",
-    "sucrase": "^3.15.0",
-    "@types/ioredis": "^4.28.1",
-    "ioredis": "^4.28.1"
+    "sucrase": "^3.15.0"
   },
   "secretDependencies": {
     "node-oom-heapdump": "^1.2.0"
@@ -86,7 +85,6 @@
   ],
   "license": "MIT",
   "devDependencies": {
-    "@types/better-sqlite3": "^7.4.0",
     "@types/cloud-env": "^0.2.2",
     "@types/node": "^14.17.12",
     "@types/node-static": "^0.7.7",
@@ -99,6 +97,11 @@
     "husky": "^4.3.0",
     "mocha": "^8.2.0",
     "smogon": "^1.4.5",
-    "typescript": "^4.5.2"
+    "typescript": "^4.5.2",
+    "eslint-plugin-import": "^2.24.2",
+    "githubhook": "^1.9.3",
+    "node-static": "^0.7.11",
+    "nodemailer": "^6.4.6",
+    "permessage-deflate": "^0.1.7"
   }
 }

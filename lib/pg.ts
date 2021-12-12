@@ -10,7 +10,7 @@ export class PGTable<T> {
 	constructor(
 		name: string,
 		primaryKeyName: string,
-		database: pg.Pool,
+		database: pg.Pool
 	) {
 		this.name = name;
 		this.database = database;
@@ -45,7 +45,7 @@ export class PGTable<T> {
 			query.append(' WHERE ');
 			query.append(where);
 		}
-		return this.query(query) as any as Promise<T[]>;
+		return this.query(query).then(res => res.rows as T[]);
 	}
 	get(entries: string | string[], keyId: SQLInput) {
 		const query = SQL``;
@@ -134,7 +134,7 @@ export class PGTable<T> {
 	}
 
 	// catch-alls for "we can't fit this query into any of the wrapper functions"
-	query(sql: SQLStatement) {
-		return this.database.query<T>(sql) as any as Promise<Partial<T>[]>;
+	query<R = T>(sql: SQLStatement) {
+		return this.database.query<R>(sql);
 	}
 }
