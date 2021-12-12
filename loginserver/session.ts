@@ -14,7 +14,6 @@ import SQL from 'sql-template-strings';
 import {toID} from './server';
 import {ladder, loginthrottle, sessions, users, usermodlog} from './tables';
 import type {User} from './user';
-import {md5} from './replays';
 import * as common from './common';
 
 const SID_DURATION = 2 * 7 * 24 * 60 * 60;

@@ -619,22 +619,26 @@ export class User extends Chat.MessageContext {
 		const [tokenData, tokenSig] = Utils.splitFirst(token, ';');
 		const tokenDataSplit = tokenData.split(',');
 		const [signedChallenge, signedUserid, userType, signedDate, signedHostname] = tokenDataSplit;
+		const deleteToken = () => common.redis.del(`token:${tokenSig}`);
 
 		if (signedHostname && Config.legalhosts && !Config.legalhosts.includes(signedHostname)) {
 			Monitor.warn(`forged assertion: ${tokenData}`);
 			this.send(`|nametaken|${name}|Your assertion is for the wrong server. This server is ${Config.legalhosts[0]}.`);
+			await deleteToken();
 			return null;
 		}
 
 		if (tokenDataSplit.length < 5) {
 			Monitor.warn(`outdated assertion format: ${tokenData}`);
 			this.send(`|nametaken|${name}|The assertion you sent us is corrupt or incorrect. Please send the exact assertion given by the login server's JSON response.`);
+			await deleteToken();
 			return null;
 		}
 
 		if (signedUserid !== userid) {
 			// userid mismatch
 			this.send(`|nametaken|${name}|Your verification signature doesn't match your new username.`);
+			await deleteToken();
 			return null;
 		}
 
@@ -642,6 +646,7 @@ export class User extends Chat.MessageContext {
 			// a user sent an invalid token
 			Monitor.debug(`verify token challenge mismatch: ${signedChallenge} <=> ${challenge}`);
 			this.send(`|nametaken|${name}|Your verification signature doesn't match your authentication token.`);
+			await deleteToken();
 			return null;
 		}
 
@@ -649,6 +654,7 @@ export class User extends Chat.MessageContext {
 		if (Math.abs(parseInt(signedDate) - Date.now() / 1000) > expiry) {
 			Monitor.warn(`stale assertion: ${tokenData}`);
 			this.send(`|nametaken|${name}|Your assertion is stale. This usually means that the clock on the server computer is incorrect. If this is your server, please set the clock to the correct time.`);
+			await deleteToken();
 			return null;
 		}
 
@@ -657,9 +663,10 @@ export class User extends Chat.MessageContext {
 			Monitor.warn(`verify failed: ${token}`);
 			Monitor.warn(`challenge was: ${challenge}`);
 			this.send(`|nametaken|${name}|Your verification signature was invalid.`);
+			await deleteToken();
 			return null;
 		}
-		await common.redis.del(`token:${tokenSig}`);
+		await deleteToken();
 
 		// future-proofing
 		this.s1 = tokenDataSplit[5];
