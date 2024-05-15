@@ -314,7 +314,7 @@ export const Punishments = new class {
 		const data = await FS(PUNISHMENT_FILE).readIfExists();
 		if (!data) return;
 		for (const row of data.split("\n")) {
-			if (!row || row === '\r') continue;
+			if (!row || !row.trim() || row === '\r') continue;
 			const [type, id, altKeys, expireTimeStr, ...reason] = row.trim().split("\t");
 			const expireTime = Number(expireTimeStr);
 			if (type === "Punishment") continue;
